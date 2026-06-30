@@ -1,0 +1,1182 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *::-webkit-scrollbar { width: 0; height: 0; }
+  [data-ph]:empty:before { content: attr(data-ph); color: rgba(244,244,251,0.3); font-weight: 600; }
+  select.daily-pick { -webkit-appearance: none; appearance: none; }
+  select.daily-pick option { background: #21234A; color: #F4F4FB; }
+</style>
+</helmet>
+
+<!-- ============ HOY ============ -->
+<div style="position:absolute;left:40px;top:104px;width:402px">
+  <div data-drags-parent="1" style="font-family:'Fredoka',sans-serif;font-size:15px;font-weight:600;color:#41414f;margin-bottom:14px;display:flex;align-items:center;gap:9px"><span style="width:11px;height:11px;border-radius:50%;background:#FF6B6B"></span>Hoy &middot; pantalla principal</div>
+  <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402px,874px">
+    <div style="height:100%;display:flex;flex-direction:column;background:#15162B;position:relative;font-family:'Nunito',system-ui,sans-serif;color:#F4F4FB">
+      <div style="padding:62px 22px 4px;flex-shrink:0">
+        <div style="font-family:'Fredoka',sans-serif;font-size:12px;font-weight:600;letter-spacing:1.6px;color:#FF6B6B">LUNES 29 DE JUNIO</div>
+        <div style="font-family:'Fredoka',sans-serif;font-size:31px;font-weight:600;margin-top:5px;line-height:1.05">Buenos días</div>
+        <div style="font-size:14.5px;color:rgba(244,244,251,0.55);margin-top:7px">Tenés {{ pendingTasks }} tareas y {{ pendingHabits }} hábitos para hoy.</div>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:16px 20px 18px;display:flex;flex-direction:column;gap:22px">
+
+        <div style="background:#FF6B6B;border-radius:24px;padding:18px 18px 19px;box-shadow:0 16px 32px rgba(255,107,107,0.26)">
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <span style="font-family:'Fredoka',sans-serif;font-weight:600;font-size:15.5px;color:#fff">Progreso de hoy</span>
+            <span style="font-family:'Fredoka',sans-serif;font-weight:600;font-size:14px;color:rgba(255,255,255,0.92)">{{ doneToday }} de {{ totalToday }}</span>
+          </div>
+          <div style="height:10px;border-radius:99px;background:rgba(255,255,255,0.28);margin-top:14px;overflow:hidden">
+            <div style="height:100%;border-radius:99px;background:#fff;transition:width .3s ease;width:{{ progressPct }}"></div>
+          </div>
+          <div style="font-size:12.5px;color:rgba(255,255,255,0.92);margin-top:11px">{{ progressMsg }}</div>
+        </div>
+
+        <div>
+          <div style="font-family:'Fredoka',sans-serif;font-size:13.5px;font-weight:600;color:rgba(244,244,251,0.5);margin:0 2px 10px;letter-spacing:0.3px">TAREAS DE HOY</div>
+          <div style="background:#21234A;border-radius:22px;padding:4px 16px;box-shadow:0 12px 28px rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.05)">
+            <sc-for list="{{ todayTasks }}" as="t" hint-placeholder-count="4">
+              <div style="{{ t.rowStyle }}">
+                <div onClick="{{ t.toggle }}" style="{{ t.checkStyle }}">
+                  <svg style="{{ t.iconStyle }}" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4 10-12"></path></svg>
+                </div>
+                <span style="{{ t.textStyle }}">{{ t.text }}</span>
+                <sc-if value="{{ t.time }}" hint-placeholder-val="{{ true }}">
+                  <span style="margin-left:auto;font-size:12px;font-weight:800;color:#FF6B6B;background:rgba(255,107,107,0.15);padding:4px 10px;border-radius:99px;white-space:nowrap">{{ t.time }}</span>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div>
+          <div style="font-family:'Fredoka',sans-serif;font-size:13.5px;font-weight:600;color:rgba(244,244,251,0.5);margin:0 2px 10px;letter-spacing:0.3px">RECORDATORIOS</div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <sc-for list="{{ reminders }}" as="r" hint-placeholder-count="2">
+              <div style="display:flex;align-items:center;gap:14px;background:#21234A;border-radius:18px;padding:13px 16px;box-shadow:0 10px 24px rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.05)">
+                <span style="font-family:'Fredoka',sans-serif;font-weight:600;font-size:16px;color:#FF6B6B;min-width:50px">{{ r.time }}</span>
+                <span style="flex:1;font-size:14.5px;font-weight:700">{{ r.text }}</span>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="rgba(244,244,251,0.38)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7.5v5l3 2"></path></svg>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div>
+          <div style="font-family:'Fredoka',sans-serif;font-size:13.5px;font-weight:600;color:rgba(244,244,251,0.5);margin:0 2px 10px;letter-spacing:0.3px">HÁBITOS POR MARCAR</div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <sc-for list="{{ habits }}" as="h" hint-placeholder-count="4">
+              <div style="display:flex;align-items:center;gap:13px;background:#21234A;border-radius:18px;padding:12px 15px;box-shadow:0 10px 24px rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.05)">
+                <div style="{{ h.iconWrap }}">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="{{ h.color }}"><path d="{{ h.path }}"></path></svg>
+                </div>
+                <div style="flex:1;min-width:0">
+                  <div style="font-family:'Fredoka',sans-serif;font-weight:600;font-size:15px">{{ h.name }}</div>
+                  <div style="font-size:12px;color:rgba(244,244,251,0.5);margin-top:1px">{{ h.detail }}</div>
+                </div>
+                <sc-if value="{{ showStreak }}" hint-placeholder-val="{{ true }}">
+                  <div style="display:flex;align-items:center;gap:3px;margin-right:2px">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="{{ h.color }}"><path d="M12 3c.6 3.2 3 4.4 3 7.6a3 3 0 0 1-6 0c0-1 .4-1.9 1-2.6-1.3.4-3.2 1.7-3.2 4.7a5.2 5.2 0 0 0 10.4 0C17.2 8.2 14.2 5.6 12 3z"></path></svg>
+                    <span style="{{ h.streakStyle }}">{{ h.streak }}</span>
+                  </div>
+                </sc-if>
+                <div onClick="{{ h.toggle }}" style="{{ h.checkStyle }}">
+                  <svg style="{{ h.checkIconStyle }}" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4 10-12"></path></svg>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+      <dc-import name="DailyTabBar" active="hoy" hint-size="402px,86px" style="flex-shrink:0"></dc-import>
+    </div>
+  </x-import>
+</div>
+
+<!-- ============ TAREAS ============ -->
+<div style="position:absolute;left:540px;top:104px;width:402px">
+  <div data-drags-parent="1" style="font-family:'Fredoka',sans-serif;font-size:15px;font-weight:600;color:#41414f;margin-bottom:14px;display:flex;align-items:center;gap:9px"><span style="width:11px;height:11px;border-radius:50%;background:#4D96FF"></span>Tareas</div>
+  <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402px,874px">
+    <div style="height:100%;display:flex;flex-direction:column;background:#15162B;position:relative;font-family:'Nunito',system-ui,sans-serif;color:#F4F4FB">
+      <div style="padding:62px 22px 8px;flex-shrink:0">
+        <div style="font-family:'Fredoka',sans-serif;font-size:31px;font-weight:600;line-height:1.05">Tareas</div>
+        <div style="font-size:14px;color:rgba(244,244,251,0.55);margin-top:6px">{{ tasksPendingCount }} pendientes &middot; {{ tasksDoneCount }} completadas</div>
+        <div style="display:flex;gap:9px;margin-top:16px">
+          <span style="font-size:13px;font-weight:800;color:#0E0F22;background:#4D96FF;padding:7px 15px;border-radius:99px">Todas</span>
+          <span style="font-size:13px;font-weight:700;color:rgba(244,244,251,0.6);background:#21234A;padding:7px 15px;border-radius:99px">Hoy</span>
+          <span style="font-size:13px;font-weight:700;color:rgba(244,244,251,0.6);background:#21234A;padding:7px 15px;border-radius:99px">Sin fecha</span>
+        </div>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:16px 20px 18px;display:flex;flex-direction:column;gap:20px">
+        <sc-for list="{{ groups }}" as="g" hint-placeholder-count="3">
+          <div>
+            <div style="font-family:'Fredoka',sans-serif;font-size:13.5px;font-weight:600;color:rgba(244,244,251,0.5);margin:0 2px 10px;letter-spacing:0.3px">{{ g.label }}</div>
+            <div style="background:#21234A;border-radius:22px;padding:4px 16px;box-shadow:0 12px 28px rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.05)">
+              <sc-for list="{{ g.items }}" as="t" hint-placeholder-count="2">
+                <div style="{{ t.rowStyleTop }}">
+                  <div onClick="{{ t.toggle }}" style="{{ t.checkStyle }}">
+                    <svg style="{{ t.iconStyle }}" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4 10-12"></path></svg>
+                  </div>
+                  <div style="flex:1;min-width:0">
+                    <div style="display:flex;align-items:center;gap:8px">
+                      <span style="{{ t.textStyle }}">{{ t.text }}</span>
+                      <sc-if value="{{ t.time }}" hint-placeholder-val="{{ true }}">
+                        <span style="margin-left:auto;font-size:12px;font-weight:800;color:#4D96FF;background:rgba(77,150,255,0.15);padding:4px 10px;border-radius:99px;white-space:nowrap">{{ t.time }}</span>
+                      </sc-if>
+                    </div>
+                    <div data-ph="Agregar descripción" contentEditable="true" suppressContentEditableWarning="{{ true }}" style="{{ t.descStyle }}">{{ t.desc }}</div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="position:absolute;right:20px;bottom:108px;width:58px;height:58px;border-radius:20px;background:#4D96FF;display:flex;align-items:center;justify-content:center;box-shadow:0 14px 30px rgba(77,150,255,0.45);cursor:pointer;z-index:40">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+      </div>
+      <dc-import name="DailyTabBar" active="tareas" hint-size="402px,86px" style="flex-shrink:0"></dc-import>
+    </div>
+  </x-import>
+</div>
+
+<!-- ============ CALENDARIO ============ -->
+<div style="position:absolute;left:1040px;top:104px;width:402px">
+  <div data-drags-parent="1" style="font-family:'Fredoka',sans-serif;font-size:15px;font-weight:600;color:#41414f;margin-bottom:14px;display:flex;align-items:center;gap:9px"><span style="width:11px;height:11px;border-radius:50%;background:#06D6A0"></span>Calendario</div>
+  <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402px,874px">
+    <div style="height:100%;display:flex;flex-direction:column;background:#15162B;position:relative;font-family:'Nunito',system-ui,sans-serif;color:#F4F4FB">
+      <div style="padding:62px 22px 8px;flex-shrink:0;display:flex;align-items:flex-end;justify-content:space-between">
+        <div style="font-family:'Fredoka',sans-serif;font-size:31px;font-weight:600;line-height:1.05">Junio <span style="color:rgba(244,244,251,0.4);font-weight:500">2026</span></div>
+        <div style="display:flex;gap:8px">
+          <div style="width:34px;height:34px;border-radius:11px;background:#21234A;display:flex;align-items:center;justify-content:center;cursor:pointer"><svg width="9" height="15" viewBox="0 0 12 20" fill="none" stroke="rgba(244,244,251,0.7)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2L2 10l8 8"></path></svg></div>
+          <div style="width:34px;height:34px;border-radius:11px;background:#21234A;display:flex;align-items:center;justify-content:center;cursor:pointer"><svg width="9" height="15" viewBox="0 0 12 20" fill="none" stroke="rgba(244,244,251,0.7)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2l8 8-8 8"></path></svg></div>
+        </div>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:14px 18px 18px;display:flex;flex-direction:column;gap:18px">
+        <div style="background:#21234A;border-radius:24px;padding:14px 12px 16px;box-shadow:0 12px 28px rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.05)">
+          <div style="display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:6px">
+            <sc-for list="{{ dow }}" as="d" hint-placeholder-count="7">
+              <div style="text-align:center;font-family:'Fredoka',sans-serif;font-size:11.5px;font-weight:600;color:rgba(244,244,251,0.4)">{{ d }}</div>
+            </sc-for>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(7,1fr)">
+            <sc-for list="{{ calCells }}" as="c" hint-placeholder-count="30">
+              <div style="height:44px;display:flex;align-items:center;justify-content:center;position:relative">
+                <div onClick="{{ c.onClick }}" style="{{ c.circleStyle }}">{{ c.day }}</div>
+                <div style="position:absolute;bottom:3px;display:flex;gap:3px">
+                  <sc-for list="{{ c.dots }}" as="dot" hint-placeholder-count="0">
+                    <div style="{{ dot.style }}"></div>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="display:flex;gap:18px;padding:0 4px;margin-top:-4px">
+          <div style="display:flex;align-items:center;gap:7px">
+            <span style="width:9px;height:9px;border-radius:50%;background:#06D6A0"></span>
+            <span style="font-size:12px;font-weight:700;color:rgba(244,244,251,0.6)">Recordatorio puntual</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:7px">
+            <span style="width:9px;height:9px;border-radius:50%;background:transparent;border:2px solid #FFD166;box-sizing:border-box"></span>
+            <span style="font-size:12px;font-weight:700;color:rgba(244,244,251,0.6)">Anual</span>
+          </div>
+        </div>
+        <div>
+          <div style="display:flex;align-items:baseline;gap:8px;margin:0 2px 11px">
+            <span style="font-family:'Fredoka',sans-serif;font-size:13.5px;font-weight:600;color:rgba(244,244,251,0.5);letter-spacing:0.3px">RECORDATORIOS</span>
+            <span style="font-size:12px;font-weight:700;color:rgba(244,244,251,0.35)">{{ selLabel }}</span>
+          </div>
+          <sc-if value="{{ hasEvents }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <sc-for list="{{ events }}" as="e" hint-placeholder-count="3">
+                <div style="display:flex;align-items:center;gap:13px;background:#21234A;border-radius:16px;padding:12px 14px;box-shadow:0 10px 24px rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.05)">
+                  <div style="{{ e.markStyle }}"></div>
+                  <div style="flex:1;min-width:0">
+                    <div style="font-size:14.5px;font-weight:700">{{ e.title }}</div>
+                    <span style="{{ e.timeStyle }}">{{ e.timeText }}</span>
+                  </div>
+                  <span style="{{ e.badgeStyle }}">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="{{ e.badgeIcon }}"></path></svg>
+                    {{ e.badgeText }}
+                  </span>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{ noEvents }}" hint-placeholder-val="{{ false }}">
+            <div style="text-align:center;padding:26px 0;color:rgba(244,244,251,0.4);font-size:14px">Sin recordatorios para este día.</div>
+          </sc-if>
+        </div>
+      </div>
+      <dc-import name="DailyTabBar" active="calendario" hint-size="402px,86px" style="flex-shrink:0"></dc-import>
+    </div>
+  </x-import>
+</div>
+
+<!-- ============ GIMNASIO ============ -->
+<div style="position:absolute;left:1540px;top:104px;width:402px">
+  <div data-drags-parent="1" style="font-family:'Fredoka',sans-serif;font-size:15px;font-weight:600;color:#41414f;margin-bottom:14px;display:flex;align-items:center;gap:9px"><span style="width:11px;height:11px;border-radius:50%;background:#FFD166"></span>Gimnasio</div>
+  <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402px,874px">
+    <div style="height:100%;display:flex;flex-direction:column;background:#15162B;position:relative;font-family:'Nunito',system-ui,sans-serif;color:#F4F4FB">
+      <div style="padding:62px 22px 8px;flex-shrink:0">
+        <div style="font-family:'Fredoka',sans-serif;font-size:31px;font-weight:600;line-height:1.05">Gimnasio</div>
+        <div style="font-size:14px;color:rgba(244,244,251,0.55);margin-top:6px">{{ gymDoneCount }} de {{ gymTrainingTotal }} entrenamientos &middot; {{ gymWeekText }}</div>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:16px 20px 18px;display:flex;flex-direction:column;gap:22px">
+
+        <div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin:0 2px 10px">
+            <span style="font-family:'Fredoka',sans-serif;font-size:13.5px;font-weight:600;color:rgba(244,244,251,0.5);letter-spacing:0.3px">PLAN SEMANAL</span>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div onClick="{{ gymPrev }}" style="width:30px;height:30px;border-radius:10px;background:#21234A;display:flex;align-items:center;justify-content:center;cursor:pointer"><svg width="8" height="13" viewBox="0 0 12 20" fill="none" stroke="rgba(244,244,251,0.7)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2L2 10l8 8"></path></svg></div>
+              <span style="font-family:'Fredoka',sans-serif;font-weight:600;font-size:13px;color:#FFD166;min-width:84px;text-align:center">{{ gymWeekLabel }}</span>
+              <div onClick="{{ gymNext }}" style="width:30px;height:30px;border-radius:10px;background:#21234A;display:flex;align-items:center;justify-content:center;cursor:pointer"><svg width="8" height="13" viewBox="0 0 12 20" fill="none" stroke="rgba(244,244,251,0.7)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2l8 8-8 8"></path></svg></div>
+            </div>
+          </div>
+          <div style="background:#21234A;border-radius:22px;padding:4px 6px;box-shadow:0 12px 28px rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.05)">
+            <sc-for list="{{ weekPlan }}" as="w" hint-placeholder-count="7">
+              <div>
+                <div style="{{ w.rowStyle }}">
+                  <span style="font-family:'Fredoka',sans-serif;font-weight:700;font-size:12.5px;color:rgba(244,244,251,0.5);width:30px;flex-shrink:0">{{ w.dayShort }}</span>
+                  <div onClick="{{ w.toggleExpand }}" style="{{ w.pillStyle }}">
+                    <span style="{{ w.dotStyle }}"></span>
+                    <span style="{{ w.pillTextStyle }}">{{ w.type }}</span>
+                    <svg style="{{ w.chevronStyle }}" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(244,244,251,0.4)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg>
+                  </div>
+                  <div onClick="{{ w.toggle }}" style="{{ w.checkStyle }}">
+                    <svg style="{{ w.iconStyle }}" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4 10-12"></path></svg>
+                  </div>
+                </div>
+                <sc-if value="{{ w.isExpanded }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;gap:7px;flex-wrap:wrap;padding:2px 10px 12px;">
+                    <sc-for list="{{ w.optionChips }}" as="oc" hint-placeholder-count="9">
+                      <span onClick="{{ oc.onClick }}" style="{{ oc.style }}">{{ oc.type }}</span>
+                    </sc-for>
+                  </div>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div>
+          <div style="font-family:'Fredoka',sans-serif;font-size:13.5px;font-weight:600;color:rgba(244,244,251,0.5);margin:0 2px 10px;letter-spacing:0.3px">SEGUIMIENTO DE PESOS</div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <sc-for list="{{ lifts }}" as="l" hint-placeholder-count="4">
+              <div style="position:relative;background:#21234A;border-radius:18px;padding:13px 15px;box-shadow:0 10px 24px rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.05)">
+                <div style="display:flex;align-items:center;gap:13px">
+                  <div style="flex:1;min-width:0">
+                    <div style="font-family:'Fredoka',sans-serif;font-weight:600;font-size:15px;padding-right:26px">{{ l.name }}</div>
+                    <div style="display:flex;align-items:baseline;gap:5px;margin-top:2px">
+                      <span style="{{ l.weightStyle }}">{{ l.weight }}</span>
+                      <span style="font-size:12px;color:rgba(244,244,251,0.5)">{{ l.unit }}</span>
+                      <span style="{{ l.deltaStyle }}">{{ l.delta }}</span>
+                    </div>
+                  </div>
+                  <svg width="118" height="44" viewBox="0 0 118 44" style="flex-shrink:0">
+                    <path d="{{ l.areaPath }}" fill="{{ l.areaFill }}"></path>
+                    <polyline points="{{ l.points }}" fill="none" stroke="{{ l.color }}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></polyline>
+                    <circle cx="{{ l.lastX }}" cy="{{ l.lastY }}" r="3.2" fill="{{ l.color }}"></circle>
+                  </svg>
+                </div>
+                <div onClick="{{ l.deleteFn }}" style="position:absolute;top:9px;right:9px;width:22px;height:22px;border-radius:8px;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;cursor:pointer">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(244,244,251,0.4)" stroke-width="2.8" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"></path></svg>
+                </div>
+              </div>
+            </sc-for>
+            <div onClick="{{ addNewLift }}" style="display:flex;align-items:center;justify-content:center;gap:9px;padding:13px;border-radius:18px;border:1.5px dashed rgba(255,209,102,0.45);background:rgba(255,209,102,0.07);cursor:pointer;color:#FFD166;font-family:'Fredoka',sans-serif;font-weight:600;font-size:14px">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#FFD166" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+              Agregar ejercicio
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div style="font-family:'Fredoka',sans-serif;font-size:13.5px;font-weight:600;color:rgba(244,244,251,0.5);margin:0 2px 10px;letter-spacing:0.3px">HISTORIAL</div>
+          <div style="background:#21234A;border-radius:22px;padding:6px 16px;box-shadow:0 12px 28px rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.05)">
+            <sc-for list="{{ history }}" as="hh" hint-placeholder-count="6">
+              <div style="{{ hh.rowStyle }}">
+                <span style="{{ hh.dotStyle }}"></span>
+                <span style="flex:1;min-width:0;font-size:14px;font-weight:700;color:rgba(244,244,251,0.92)">{{ hh.type }}</span>
+                <span style="font-family:'Fredoka',sans-serif;font-weight:600;font-size:12.5px;color:rgba(244,244,251,0.5)">{{ hh.date }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div>
+          <div style="font-family:'Fredoka',sans-serif;font-size:13.5px;font-weight:600;color:rgba(244,244,251,0.5);margin:0 2px 10px;letter-spacing:0.3px">RANKING POR TIPO</div>
+          <div style="background:#21234A;border-radius:22px;padding:16px 16px 8px;box-shadow:0 12px 28px rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.05)">
+            <sc-for list="{{ ranking }}" as="r" hint-placeholder-count="5">
+              <div style="margin-bottom:14px">
+                <div style="display:flex;align-items:center;gap:9px;margin-bottom:7px">
+                  <span style="{{ r.rankStyle }}">{{ r.rank }}</span>
+                  <span style="flex:1;font-family:'Fredoka',sans-serif;font-weight:600;font-size:14px">{{ r.type }}</span>
+                  <span style="font-family:'Fredoka',sans-serif;font-weight:600;font-size:13px;color:{{ r.color }}">{{ r.count }} veces</span>
+                </div>
+                <div style="height:7px;border-radius:99px;background:rgba(255,255,255,0.08);overflow:hidden">
+                  <div style="{{ r.barStyle }}"></div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+      <div style="position:absolute;right:20px;bottom:108px;width:58px;height:58px;border-radius:20px;background:#FFD166;display:flex;align-items:center;justify-content:center;box-shadow:0 14px 30px rgba(255,209,102,0.4);cursor:pointer;z-index:40">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#1a1a2e" stroke-width="2.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+      </div>
+      <dc-import name="DailyTabBar" active="gym" hint-size="402px,86px" style="flex-shrink:0"></dc-import>
+    </div>
+  </x-import>
+</div>
+
+<!-- ============ HÁBITOS ============ -->
+<div style="position:absolute;left:2040px;top:104px;width:402px">
+  <div data-drags-parent="1" style="font-family:'Fredoka',sans-serif;font-size:15px;font-weight:600;color:#41414f;margin-bottom:14px;display:flex;align-items:center;gap:9px"><span style="width:11px;height:11px;border-radius:50%;background:#C77DFF"></span>Hábitos</div>
+  <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402px,874px">
+    <div style="height:100%;display:flex;flex-direction:column;background:#15162B;position:relative;font-family:'Nunito',system-ui,sans-serif;color:#F4F4FB">
+      <div style="padding:62px 22px 8px;flex-shrink:0">
+        <div style="font-family:'Fredoka',sans-serif;font-size:31px;font-weight:600;line-height:1.05">Hábitos</div>
+        <div style="font-size:14px;color:rgba(244,244,251,0.55);margin-top:6px">{{ habitDaySub }}</div>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:16px 20px 18px;display:flex;flex-direction:column;gap:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;background:#21234A;border-radius:16px;padding:8px 10px;box-shadow:0 10px 24px rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.05)">
+          <div onClick="{{ habitPrev }}" style="width:34px;height:34px;border-radius:11px;background:rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:center;cursor:pointer"><svg width="9" height="15" viewBox="0 0 12 20" fill="none" stroke="rgba(244,244,251,0.7)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2L2 10l8 8"></path></svg></div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#C77DFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg>
+            <span style="font-family:'Fredoka',sans-serif;font-weight:600;font-size:15px">{{ habitDayLabel }}</span>
+            <sc-if value="{{ habitNotToday }}" hint-placeholder-val="{{ false }}">
+              <span style="font-size:10px;font-weight:800;color:#C77DFF;background:rgba(199,125,255,0.22);padding:3px 9px;border-radius:99px;letter-spacing:0.2px">retroactivo</span>
+            </sc-if>
+          </div>
+          <div onClick="{{ habitNext }}" style="width:34px;height:34px;border-radius:11px;background:rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:center;cursor:pointer"><svg width="9" height="15" viewBox="0 0 12 20" fill="none" stroke="rgba(244,244,251,0.7)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2l8 8-8 8"></path></svg></div>
+        </div>
+        <div style="background:#21234A;border-radius:22px;padding:16px;display:flex;align-items:center;gap:15px;box-shadow:0 12px 28px rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.05)">
+          <div style="width:52px;height:52px;border-radius:16px;background:rgba(199,125,255,0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="#C77DFF"><path d="M12 3c.6 3.2 3 4.4 3 7.6a3 3 0 0 1-6 0c0-1 .4-1.9 1-2.6-1.3.4-3.2 1.7-3.2 4.7a5.2 5.2 0 0 0 10.4 0C17.2 8.2 14.2 5.6 12 3z"></path></svg>
+          </div>
+          <div style="flex:1">
+            <div style="font-family:'Fredoka',sans-serif;font-weight:600;font-size:17px">{{ bestStreak }} días de racha</div>
+            <div style="font-size:12.5px;color:rgba(244,244,251,0.55);margin-top:2px">Tu mejor hábito es Ejercicio. ¡Seguí así!</div>
+          </div>
+        </div>
+
+        <sc-for list="{{ habitDayItems }}" as="h" hint-placeholder-count="4">
+          <div style="background:#21234A;border-radius:22px;padding:16px;box-shadow:0 12px 28px rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.05)">
+            <div style="display:flex;align-items:center;gap:14px">
+              <div style="{{ h.iconWrapLg }}">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="{{ h.color }}"><path d="{{ h.path }}"></path></svg>
+              </div>
+              <div style="flex:1;min-width:0">
+                <div data-ph="Nombre del hábito" contentEditable="true" suppressContentEditableWarning="{{ true }}" style="font-family:'Fredoka',sans-serif;font-weight:600;font-size:16px;outline:none;border-radius:6px">{{ h.name }}</div>
+                <div data-ph="Agregar descripción" contentEditable="true" suppressContentEditableWarning="{{ true }}" style="font-size:12.5px;color:rgba(244,244,251,0.5);margin-top:1px;outline:none;border-radius:6px;min-height:16px">{{ h.detail }}</div>
+              </div>
+              <div onClick="{{ h.toggle }}" style="{{ h.checkStyleLg }}">
+                <svg style="{{ h.checkIconStyle }}" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4 10-12"></path></svg>
+              </div>
+            </div>
+            <sc-if value="{{ showStreak }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-top:15px">
+                <div style="display:flex;align-items:center;gap:4px">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="{{ h.color }}"><path d="M12 3c.6 3.2 3 4.4 3 7.6a3 3 0 0 1-6 0c0-1 .4-1.9 1-2.6-1.3.4-3.2 1.7-3.2 4.7a5.2 5.2 0 0 0 10.4 0C17.2 8.2 14.2 5.6 12 3z"></path></svg>
+                  <span style="{{ h.streakStyle }}">{{ h.streak }} días</span>
+                </div>
+                <div style="display:flex;gap:6px">
+                  <sc-for list="{{ h.week }}" as="w" hint-placeholder-count="7">
+                    <div style="{{ w.style }}"></div>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-if>
+            <div style="height:7px;border-radius:99px;background:rgba(255,255,255,0.08);margin-top:13px;overflow:hidden">
+              <div style="{{ h.weekBarStyle }}"></div>
+            </div>
+          </div>
+        </sc-for>
+        <div onClick="{{ addHabit }}" style="display:flex;align-items:center;justify-content:center;gap:9px;padding:16px;border-radius:22px;border:1.5px dashed rgba(199,125,255,0.5);background:rgba(199,125,255,0.08);cursor:pointer;color:#C77DFF;font-family:'Fredoka',sans-serif;font-weight:600;font-size:15px">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C77DFF" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+          Agregar hábito
+        </div>
+      </div>
+      <dc-import name="DailyTabBar" active="habitos" hint-size="402px,86px" style="flex-shrink:0"></dc-import>
+    </div>
+  </x-import>
+</div>
+
+<!-- ============ MODAL · NUEVA TAREA ============ -->
+<div style="position:absolute;left:40px;top:1140px;width:402px">
+  <div data-drags-parent="1" style="font-family:'Fredoka',sans-serif;font-size:15px;font-weight:600;color:#41414f;margin-bottom:14px;display:flex;align-items:center;gap:9px"><span style="width:11px;height:11px;border-radius:50%;background:#4D96FF"></span>Tareas &middot; Nueva tarea</div>
+  <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402px,874px">
+    <div style="height:100%;display:flex;flex-direction:column;background:#15162B;font-family:'Nunito',system-ui,sans-serif;color:#F4F4FB">
+      <div style="padding:58px 20px 14px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.06)">
+        <span style="font-size:15px;font-weight:700;color:rgba(244,244,251,0.55)">Cancelar</span>
+        <span style="font-family:'Fredoka',sans-serif;font-weight:600;font-size:17px">Nueva tarea</span>
+        <span style="font-size:14px;font-weight:800;color:#0E0F22;background:#4D96FF;padding:8px 16px;border-radius:99px">Guardar</span>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:22px 20px;display:flex;flex-direction:column;gap:22px">
+        <div>
+          <div style="font-family:'Fredoka',sans-serif;font-size:12.5px;font-weight:600;color:rgba(244,244,251,0.5);margin:0 2px 9px;letter-spacing:0.4px">TÍTULO</div>
+          <div contentEditable="true" suppressContentEditableWarning="{{ true }}" style="background:#21234A;border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:15px;font-size:16px;font-weight:600;outline:none">Comprar entradas del recital</div>
+        </div>
+        <div>
+          <div style="font-family:'Fredoka',sans-serif;font-size:12.5px;font-weight:600;color:rgba(244,244,251,0.5);margin:0 2px 9px;letter-spacing:0.4px">LISTA</div>
+          <div style="display:flex;gap:9px">
+            <span style="font-size:13.5px;font-weight:800;color:#0E0F22;background:#4D96FF;padding:9px 16px;border-radius:99px">Hoy</span>
+            <span style="font-size:13.5px;font-weight:700;color:rgba(244,244,251,0.6);background:#21234A;padding:9px 16px;border-radius:99px">Mañana</span>
+            <span style="font-size:13.5px;font-weight:700;color:rgba(244,244,251,0.6);background:#21234A;padding:9px 16px;border-radius:99px">Sin fecha</span>
+          </div>
+        </div>
+        <div>
+          <div style="font-family:'Fredoka',sans-serif;font-size:12.5px;font-weight:600;color:rgba(244,244,251,0.5);margin:0 2px 9px;letter-spacing:0.4px">HORA <span style="font-weight:600;color:rgba(244,244,251,0.32)">· opcional</span></div>
+          <div style="display:flex;align-items:center;gap:12px;background:#21234A;border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:13px 15px">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4D96FF" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7.5v5l3 2"></path></svg>
+            <span style="flex:1;font-size:15px;font-weight:700">Asignar hora</span>
+            <span style="font-family:'Fredoka',sans-serif;font-weight:700;font-size:16px;color:#4D96FF">20:30</span>
+            <div style="width:42px;height:25px;border-radius:99px;background:#4D96FF;position:relative;flex-shrink:0"><div style="position:absolute;top:2.5px;right:2.5px;width:20px;height:20px;border-radius:50%;background:#fff"></div></div>
+          </div>
+        </div>
+        <div>
+          <div style="font-family:'Fredoka',sans-serif;font-size:12.5px;font-weight:600;color:rgba(244,244,251,0.5);margin:0 2px 9px;letter-spacing:0.4px">DESCRIPCIÓN <span style="font-weight:600;color:rgba(244,244,251,0.32)">· opcional</span></div>
+          <div contentEditable="true" suppressContentEditableWarning="{{ true }}" style="background:#21234A;border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:15px;font-size:14.5px;font-weight:600;line-height:1.5;color:rgba(244,244,251,0.78);outline:none;min-height:76px">Fila 12 — confirmar con Caro antes del jueves y reservar el estacionamiento.</div>
+        </div>
+      </div>
+    </div>
+  </x-import>
+</div>
+
+<!-- ============ MODAL · NUEVO RECORDATORIO ============ -->
+<div style="position:absolute;left:540px;top:1140px;width:402px">
+  <div data-drags-parent="1" style="font-family:'Fredoka',sans-serif;font-size:15px;font-weight:600;color:#41414f;margin-bottom:14px;display:flex;align-items:center;gap:9px"><span style="width:11px;height:11px;border-radius:50%;background:#06D6A0"></span>Calendario &middot; Nuevo recordatorio</div>
+  <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402px,874px">
+    <div style="height:100%;display:flex;flex-direction:column;background:#15162B;font-family:'Nunito',system-ui,sans-serif;color:#F4F4FB">
+      <div style="padding:58px 20px 14px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.06)">
+        <span style="font-size:15px;font-weight:700;color:rgba(244,244,251,0.55)">Cancelar</span>
+        <span style="font-family:'Fredoka',sans-serif;font-weight:600;font-size:17px">Recordatorio</span>
+        <span style="font-size:14px;font-weight:800;color:#0E0F22;background:#06D6A0;padding:8px 16px;border-radius:99px">Guardar</span>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:22px 20px;display:flex;flex-direction:column;gap:22px">
+        <div>
+          <div style="font-family:'Fredoka',sans-serif;font-size:12.5px;font-weight:600;color:rgba(244,244,251,0.5);margin:0 2px 9px;letter-spacing:0.4px">TIPO</div>
+          <div style="display:flex;gap:6px;background:#21234A;border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:5px">
+            <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:7px;padding:11px;border-radius:12px;background:#06D6A0;color:#0E0F22;font-family:'Fredoka',sans-serif;font-weight:600;font-size:14px">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6-5.7-6-10a6 6 0 0 1 12 0c0 4.3-6 10-6 10z"></path><circle cx="12" cy="11" r="1.5" fill="currentColor"></circle></svg>
+              Puntual
+            </div>
+            <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:7px;padding:11px;border-radius:12px;color:rgba(244,244,251,0.6);font-family:'Fredoka',sans-serif;font-weight:600;font-size:14px">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12v9H4v-9M2 7h20v5H2zM12 22V7M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"></path></svg>
+              Anual
+            </div>
+          </div>
+          <div style="font-size:12.5px;font-weight:600;color:rgba(244,244,251,0.4);margin:9px 4px 0">Aparece una sola vez en la fecha elegida.</div>
+        </div>
+        <div>
+          <div style="font-family:'Fredoka',sans-serif;font-size:12.5px;font-weight:600;color:rgba(244,244,251,0.5);margin:0 2px 9px;letter-spacing:0.4px">TÍTULO</div>
+          <div contentEditable="true" suppressContentEditableWarning="{{ true }}" style="background:#21234A;border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:15px;font-size:16px;font-weight:600;outline:none">Entrega del proyecto</div>
+        </div>
+        <div>
+          <div style="font-family:'Fredoka',sans-serif;font-size:12.5px;font-weight:600;color:rgba(244,244,251,0.5);margin:0 2px 9px;letter-spacing:0.4px">FECHA</div>
+          <div style="display:flex;align-items:center;gap:12px;background:#21234A;border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:14px 15px">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#06D6A0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg>
+            <span style="flex:1;font-size:15px;font-weight:700">Miércoles 8 de julio, 2026</span>
+          </div>
+        </div>
+        <div>
+          <div style="font-family:'Fredoka',sans-serif;font-size:12.5px;font-weight:600;color:rgba(244,244,251,0.5);margin:0 2px 9px;letter-spacing:0.4px">HORA <span style="font-weight:600;color:rgba(244,244,251,0.32)">· opcional</span></div>
+          <div style="display:flex;align-items:center;gap:12px;background:#21234A;border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:13px 15px">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#06D6A0" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7.5v5l3 2"></path></svg>
+            <span style="flex:1;font-size:15px;font-weight:700">18:00</span>
+            <div style="width:42px;height:25px;border-radius:99px;background:#06D6A0;position:relative;flex-shrink:0"><div style="position:absolute;top:2.5px;right:2.5px;width:20px;height:20px;border-radius:50%;background:#fff"></div></div>
+          </div>
+        </div>
+        <div>
+          <div style="font-family:'Fredoka',sans-serif;font-size:12.5px;font-weight:600;color:rgba(244,244,251,0.5);margin:0 2px 9px;letter-spacing:0.4px">DESCRIPCIÓN <span style="font-weight:600;color:rgba(244,244,251,0.32)">· opcional</span></div>
+          <div contentEditable="true" suppressContentEditableWarning="{{ true }}" style="background:#21234A;border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:15px;font-size:14.5px;font-weight:600;line-height:1.5;color:rgba(244,244,251,0.78);outline:none;min-height:62px">Subir el entregable final al drive compartido.</div>
+        </div>
+      </div>
+    </div>
+  </x-import>
+</div>
+
+<!-- ============ MODAL · CARGAR PESO ============ -->
+<div style="position:absolute;left:1040px;top:1140px;width:402px">
+  <div data-drags-parent="1" style="font-family:'Fredoka',sans-serif;font-size:15px;font-weight:600;color:#41414f;margin-bottom:14px;display:flex;align-items:center;gap:9px"><span style="width:11px;height:11px;border-radius:50%;background:#FFD166"></span>Gimnasio &middot; Cargar peso</div>
+  <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402px,874px">
+    <div style="height:100%;display:flex;flex-direction:column;background:#15162B;font-family:'Nunito',system-ui,sans-serif;color:#F4F4FB">
+      <div style="padding:58px 20px 14px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.06)">
+        <span style="font-size:15px;font-weight:700;color:rgba(244,244,251,0.55)">Cancelar</span>
+        <span style="font-family:'Fredoka',sans-serif;font-weight:600;font-size:17px">Cargar peso</span>
+        <span onClick="{{ saveDraft }}" style="font-size:14px;font-weight:800;color:#0E0F22;background:#FFD166;padding:8px 16px;border-radius:99px;cursor:pointer">Guardar</span>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:22px 20px;display:flex;flex-direction:column;gap:22px">
+        <div>
+          <div style="font-family:'Fredoka',sans-serif;font-size:12.5px;font-weight:600;color:rgba(244,244,251,0.5);margin:0 2px 9px;letter-spacing:0.4px">EJERCICIO</div>
+          <div style="display:flex;flex-wrap:wrap;gap:9px">
+            <sc-for list="{{ liftChips }}" as="lc" hint-placeholder-count="4">
+              <span onClick="{{ lc.onClick }}" style="{{ lc.style }}">{{ lc.name }}</span>
+            </sc-for>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:11px;background:#21234A;border:1.5px dashed rgba(255,209,102,0.5);border-radius:16px;padding:13px 15px">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#FFD166" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+            <span data-ph="Crear ejercicio nuevo…" contentEditable="true" suppressContentEditableWarning="{{ true }}" style="flex:1;font-size:14.5px;font-weight:600;color:#FFD166;outline:none"></span>
+          </div>
+        </div>
+        <div>
+          <div style="font-family:'Fredoka',sans-serif;font-size:12.5px;font-weight:600;color:rgba(244,244,251,0.5);margin:0 2px 9px;letter-spacing:0.4px">PESO</div>
+          <div style="display:flex;align-items:center;gap:14px;background:#21234A;border:1px solid rgba(255,255,255,0.06);border-radius:18px;padding:14px 16px">
+            <div onClick="{{ decDraftSmall }}" style="width:42px;height:42px;border-radius:13px;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F4F4FB" stroke-width="2.8" stroke-linecap="round"><path d="M5 12h14"></path></svg></div>
+            <div style="flex:1;text-align:center;display:flex;align-items:baseline;justify-content:center;gap:6px">
+              <span style="font-family:'Fredoka',sans-serif;font-weight:700;font-size:34px;color:#FFD166">{{ draftWeightNum }}</span>
+              <span style="font-size:15px;font-weight:700;color:rgba(244,244,251,0.5)">kg</span>
+            </div>
+            <div onClick="{{ incDraftSmall }}" style="width:42px;height:42px;border-radius:13px;background:rgba(255,209,102,0.18);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFD166" stroke-width="2.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg></div>
+          </div>
+          <div style="font-size:12.5px;font-weight:700;color:rgba(244,244,251,0.45);margin:10px 4px 0">Último registro: {{ draftLastWeight }} kg &middot; <span style="color:{{ draftGainColor }}">{{ draftGainStr }}</span></div>
+        </div>
+        <div>
+          <div style="font-family:'Fredoka',sans-serif;font-size:12.5px;font-weight:600;color:rgba(244,244,251,0.5);margin:0 2px 9px;letter-spacing:0.4px">FECHA</div>
+          <div style="display:flex;align-items:center;gap:12px;background:#21234A;border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:14px 15px">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFD166" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg>
+            <span style="flex:1;font-size:15px;font-weight:700">Lunes 29 de junio, 2026</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </x-import>
+</div>
+
+<!-- ============ MODAL · CREAR TIPO ============ -->
+<div style="position:absolute;left:1540px;top:1140px;width:402px">
+  <div data-drags-parent="1" style="font-family:'Fredoka',sans-serif;font-size:15px;font-weight:600;color:#41414f;margin-bottom:14px;display:flex;align-items:center;gap:9px"><span style="width:11px;height:11px;border-radius:50%;background:#FFD166"></span>Gimnasio &middot; Nuevo tipo de entrenamiento</div>
+  <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402px,874px">
+    <div style="height:100%;display:flex;flex-direction:column;background:#15162B;font-family:'Nunito',system-ui,sans-serif;color:#F4F4FB">
+      <div style="padding:58px 20px 14px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.06)">
+        <span style="font-size:15px;font-weight:700;color:rgba(244,244,251,0.55)">Cancelar</span>
+        <span style="font-family:'Fredoka',sans-serif;font-weight:600;font-size:17px">Nuevo tipo</span>
+        <span style="font-size:14px;font-weight:800;color:#0E0F22;background:#FFD166;padding:8px 16px;border-radius:99px;cursor:pointer">Agregar</span>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:22px 20px;display:flex;flex-direction:column;gap:24px">
+        <div>
+          <div style="font-family:'Fredoka',sans-serif;font-size:12.5px;font-weight:600;color:rgba(244,244,251,0.5);margin:0 2px 9px;letter-spacing:0.4px">NOMBRE</div>
+          <div contentEditable="true" style="background:#21234A;border:1.5px solid rgba(77,150,255,0.55);border-radius:16px;padding:15px;font-size:16px;font-weight:600;outline:none;box-shadow:0 0 0 4px rgba(77,150,255,0.14)">Espalda y bíceps</div>
+        </div>
+        <div>
+          <div style="font-family:'Fredoka',sans-serif;font-size:12.5px;font-weight:600;color:rgba(244,244,251,0.5);margin:0 2px 13px;letter-spacing:0.4px">COLOR</div>
+          <div style="display:flex;align-items:center;gap:13px">
+            <div style="width:40px;height:40px;border-radius:50%;background:#FF6B6B;cursor:pointer"></div>
+            <div style="width:40px;height:40px;border-radius:50%;background:#4D96FF;cursor:pointer;box-shadow:0 0 0 3.5px rgba(77,150,255,0.45);display:flex;align-items:center;justify-content:center">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4 10-12"></path></svg>
+            </div>
+            <div style="width:40px;height:40px;border-radius:50%;background:#06D6A0;cursor:pointer"></div>
+            <div style="width:40px;height:40px;border-radius:50%;background:#FFD166;cursor:pointer"></div>
+            <div style="width:40px;height:40px;border-radius:50%;background:#C77DFF;cursor:pointer"></div>
+            <div style="width:40px;height:40px;border-radius:50%;background:#22C3E6;cursor:pointer"></div>
+          </div>
+        </div>
+        <div>
+          <div style="font-family:'Fredoka',sans-serif;font-size:12.5px;font-weight:600;color:rgba(244,244,251,0.5);margin:0 2px 11px;letter-spacing:0.4px">VISTA PREVIA</div>
+          <div style="background:#21234A;border-radius:18px;padding:14px 14px 16px;border:1px solid rgba(255,255,255,0.06)">
+            <div style="font-family:'Fredoka',sans-serif;font-size:11px;font-weight:600;color:rgba(244,244,251,0.32);margin-bottom:12px;letter-spacing:0.3px">ASÍ SE VERÁ EN EL PLAN SEMANAL</div>
+            <div style="display:flex;align-items:center;gap:10px;padding:10px 10px;border-radius:14px;background:rgba(77,150,255,0.12)">
+              <span style="font-family:'Fredoka',sans-serif;font-weight:700;font-size:12.5px;color:rgba(244,244,251,0.5);width:30px;flex-shrink:0">Jue</span>
+              <div style="display:flex;align-items:center;gap:7px;flex:1;padding:7px 11px;border-radius:99px;background:rgba(77,150,255,0.22);border:1.5px solid rgba(77,150,255,0.5)">
+                <span style="width:9px;height:9px;border-radius:50%;background:#4D96FF;flex-shrink:0"></span>
+                <span style="font-family:'Fredoka',sans-serif;font-weight:600;font-size:13px;color:#4D96FF;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Espalda y bíceps</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(244,244,251,0.35)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg>
+              </div>
+              <div style="width:30px;height:30px;border-radius:10px;display:flex;align-items:center;justify-content:center;border:2px solid rgba(244,244,251,0.18);background:rgba(255,255,255,0.04)">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" style="opacity:0"><path d="M5 13l4 4 10-12"></path></svg>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div style="font-family:'Fredoka',sans-serif;font-size:12.5px;font-weight:600;color:rgba(244,244,251,0.5);margin:0 2px 9px;letter-spacing:0.4px">NOTA <span style="color:rgba(244,244,251,0.3)">· opcional</span></div>
+          <div contentEditable="true" style="background:#21234A;border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:15px;font-size:14.5px;font-weight:600;line-height:1.5;color:rgba(244,244,251,0.6);outline:none;min-height:52px">Jalón al pecho + curl de bíceps al final.</div>
+        </div>
+      </div>
+    </div>
+  </x-import>
+</div>
+
+<!-- ============ PANTALLA · ADMINISTRAR TIPOS ============ -->
+<div style="position:absolute;left:2040px;top:1140px;width:402px">
+  <div data-drags-parent="1" style="font-family:'Fredoka',sans-serif;font-size:15px;font-weight:600;color:#41414f;margin-bottom:14px;display:flex;align-items:center;gap:9px"><span style="width:11px;height:11px;border-radius:50%;background:#FFD166"></span>Gimnasio &middot; Administrar tipos</div>
+  <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402px,874px">
+    <div style="height:100%;display:flex;flex-direction:column;background:#15162B;font-family:'Nunito',system-ui,sans-serif;color:#F4F4FB">
+      <div style="padding:62px 22px 8px;flex-shrink:0;display:flex;align-items:flex-end;justify-content:space-between">
+        <div>
+          <div style="font-family:'Fredoka',sans-serif;font-size:31px;font-weight:600;line-height:1.05">Mis tipos</div>
+          <div style="font-size:14px;color:rgba(244,244,251,0.55);margin-top:6px">3 personalizados &middot; 7 estándar</div>
+        </div>
+        <div style="width:40px;height:40px;border-radius:14px;background:#FFD166;display:flex;align-items:center;justify-content:center;cursor:pointer;margin-bottom:4px;box-shadow:0 8px 18px rgba(255,209,102,0.35)">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0E0F22" stroke-width="2.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+        </div>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:16px 20px 18px;display:flex;flex-direction:column;gap:20px">
+        <div>
+          <div style="font-family:'Fredoka',sans-serif;font-size:13.5px;font-weight:600;color:rgba(244,244,251,0.5);margin:0 2px 10px;letter-spacing:0.3px">PERSONALIZADOS</div>
+          <div style="background:#21234A;border-radius:22px;overflow:hidden;box-shadow:0 12px 28px rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.05)">
+            <!-- Pecho y tríceps — normal -->
+            <div style="display:flex;align-items:center;gap:13px;padding:14px 16px;border-bottom:1px solid rgba(255,255,255,0.06)">
+              <span style="width:11px;height:11px;border-radius:50%;background:#C77DFF;flex-shrink:0"></span>
+              <span style="flex:1;font-family:'Fredoka',sans-serif;font-weight:600;font-size:15.5px">Pecho y tríceps</span>
+              <div style="display:flex;gap:8px">
+                <div style="width:30px;height:30px;border-radius:9px;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;cursor:pointer">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(244,244,251,0.5)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"></path></svg>
+                </div>
+                <div style="width:30px;height:30px;border-radius:9px;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;cursor:pointer">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(244,244,251,0.5)" stroke-width="2.6" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"></path></svg>
+                </div>
+              </div>
+            </div>
+            <!-- Full body — normal -->
+            <div style="display:flex;align-items:center;gap:13px;padding:14px 16px;border-bottom:1px solid rgba(255,255,255,0.06)">
+              <span style="width:11px;height:11px;border-radius:50%;background:#22C3E6;flex-shrink:0"></span>
+              <span style="flex:1;font-family:'Fredoka',sans-serif;font-weight:600;font-size:15.5px">Full body</span>
+              <div style="display:flex;gap:8px">
+                <div style="width:30px;height:30px;border-radius:9px;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;cursor:pointer">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(244,244,251,0.5)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"></path></svg>
+                </div>
+                <div style="width:30px;height:30px;border-radius:9px;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;cursor:pointer">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(244,244,251,0.5)" stroke-width="2.6" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"></path></svg>
+                </div>
+              </div>
+            </div>
+            <!-- Pecho y bíceps — delete confirmation expanded -->
+            <div style="background:rgba(255,107,107,0.08)">
+              <div style="display:flex;align-items:center;gap:13px;padding:14px 16px">
+                <span style="width:11px;height:11px;border-radius:50%;background:#FF6B6B;flex-shrink:0"></span>
+                <span style="flex:1;font-family:'Fredoka',sans-serif;font-weight:600;font-size:15.5px;color:#FF6B6B;text-decoration:line-through;text-decoration-color:rgba(255,107,107,0.5)">Pecho y bíceps</span>
+                <div style="display:flex;gap:8px">
+                  <div style="width:30px;height:30px;border-radius:9px;background:rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;opacity:0.3">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(244,244,251,0.5)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"></path></svg>
+                  </div>
+                  <div style="width:30px;height:30px;border-radius:9px;background:rgba(255,107,107,0.25);display:flex;align-items:center;justify-content:center;cursor:pointer">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FF6B6B" stroke-width="2.6" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"></path></svg>
+                  </div>
+                </div>
+              </div>
+              <div style="padding:0 16px 16px">
+                <div style="background:rgba(255,107,107,0.14);border:1px solid rgba(255,107,107,0.28);border-radius:14px;padding:14px 15px">
+                  <div style="font-family:'Fredoka',sans-serif;font-weight:600;font-size:15px;color:#FF6B6B">¿Eliminar "Pecho y bíceps"?</div>
+                  <div style="font-size:13px;color:rgba(244,244,251,0.5);margin-top:5px;line-height:1.4">Se quitará del selector del plan semanal. Los días ya marcados no se modifican.</div>
+                  <div style="display:flex;gap:10px;margin-top:14px">
+                    <div style="flex:1;padding:10px;border-radius:10px;background:rgba(255,255,255,0.07);text-align:center;cursor:pointer;font-family:'Fredoka',sans-serif;font-weight:600;font-size:14px;color:rgba(244,244,251,0.7)">Cancelar</div>
+                    <div style="flex:1;padding:10px;border-radius:10px;background:#FF6B6B;text-align:center;cursor:pointer;font-family:'Fredoka',sans-serif;font-weight:700;font-size:14px;color:#fff;box-shadow:0 6px 16px rgba(255,107,107,0.4)">Eliminar</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div style="font-family:'Fredoka',sans-serif;font-size:13.5px;font-weight:600;color:rgba(244,244,251,0.5);margin:0 2px 10px;letter-spacing:0.3px">ESTÁNDAR <span style="font-size:11px;font-weight:600;color:rgba(244,244,251,0.3)">· no editables</span></div>
+          <div style="background:#21234A;border-radius:22px;padding:4px 16px;box-shadow:0 12px 28px rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.05)">
+            <div style="display:flex;align-items:center;gap:13px;padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
+              <span style="width:10px;height:10px;border-radius:50%;background:#FF6B6B;flex-shrink:0"></span>
+              <span style="flex:1;font-family:'Fredoka',sans-serif;font-weight:600;font-size:14.5px;color:rgba(244,244,251,0.7)">Cuádriceps</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(244,244,251,0.2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+            </div>
+            <div style="display:flex;align-items:center;gap:13px;padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
+              <span style="width:10px;height:10px;border-radius:50%;background:#FFD166;flex-shrink:0"></span>
+              <span style="flex:1;font-family:'Fredoka',sans-serif;font-weight:600;font-size:14.5px;color:rgba(244,244,251,0.7)">Isquio y glúteo</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(244,244,251,0.2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+            </div>
+            <div style="display:flex;align-items:center;gap:13px;padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
+              <span style="width:10px;height:10px;border-radius:50%;background:#06D6A0;flex-shrink:0"></span>
+              <span style="flex:1;font-family:'Fredoka',sans-serif;font-weight:600;font-size:14.5px;color:rgba(244,244,251,0.7)">Espalda</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(244,244,251,0.2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+            </div>
+            <div style="display:flex;align-items:center;gap:13px;padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
+              <span style="width:10px;height:10px;border-radius:50%;background:#4D96FF;flex-shrink:0"></span>
+              <span style="flex:1;font-family:'Fredoka',sans-serif;font-weight:600;font-size:14.5px;color:rgba(244,244,251,0.7)">Pecho</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(244,244,251,0.2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+            </div>
+            <div style="display:flex;align-items:center;gap:13px;padding:12px 0">
+              <span style="width:10px;height:10px;border-radius:50%;background:rgba(244,244,251,0.3);flex-shrink:0"></span>
+              <span style="flex:1;font-size:13px;font-weight:600;color:rgba(244,244,251,0.35)">+ 3 más (Brazo, Cardio, Descanso)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </x-import>
+</div></x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:2540,&quot;height&quot;:1080},&quot;weekStart&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;Lunes&quot;,&quot;options&quot;:[&quot;Lunes&quot;,&quot;Domingo&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Calendario&quot;},&quot;showStreak&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Hábitos&quot;}}">
+class Component extends DCLogic {
+  state = {
+    selectedDay: 29,
+    tasks: [
+      { id:'t1', text:'Llamar al dentista', desc:'Pedir turno de control y limpieza', time:'09:30', done:false, group:'hoy' },
+      { id:'t2', text:'Terminar informe mensual', desc:'Cargar los números de junio y enviar a Marcela', time:null, done:false, group:'hoy' },
+      { id:'t3', text:'Comprar regalo de cumpleaños', desc:'', time:null, done:true, group:'hoy' },
+      { id:'t4', text:'Reunión de diseño', desc:'Revisar los prototipos de la v2', time:'15:00', done:false, group:'hoy' },
+      { id:'t5', text:'Pagar la factura de luz', desc:'', time:null, done:false, group:'manana' },
+      { id:'t6', text:'Renovar suscripción', desc:'Plan anual · tarjeta terminada en 4421', time:'11:00', done:false, group:'manana' },
+      { id:'t7', text:'Leer artículo guardado', desc:'', time:null, done:false, group:'sin' },
+      { id:'t8', text:'Organizar fotos del viaje', desc:'', time:null, done:false, group:'sin' },
+    ],
+    habits: [
+      { id:'h1', name:'Tomar agua', detail:'8 vasos al día', done:true, streak:12, color:'#06D6A0', path:'M12 3c3 4 6 7 6 11a6 6 0 0 1-12 0c0-4 3-7 6-11z', base:[true,true,true,true,true,true] },
+      { id:'h2', name:'Leer 20 min', detail:'Antes de dormir', done:false, streak:5, color:'#4D96FF', path:'M3 4h8v16H5a2 2 0 0 1-2-2zm18 0h-8v16h6a2 2 0 0 0 2-2z', base:[true,false,true,true,false,true] },
+      { id:'h3', name:'Ejercicio', detail:'30 minutos', done:false, streak:23, color:'#FF6B6B', path:'M3 9h2V7h2v10H5v-2H3zm18 0h-2V7h-2v10h2v-2h2zM7 11h10v2H7z', base:[true,true,true,true,true,true] },
+      { id:'h4', name:'Meditar', detail:'10 minutos', done:false, streak:3, color:'#C77DFF', path:'M5 19c0-8 6-14 14-14 0 8-6 14-14 14z', base:[false,true,true,false,true,true] },
+    ],
+    weekPlan: [
+      { id:'w1', dayShort:'Lun', type:'Cuádriceps',     done:true  },
+      { id:'w2', dayShort:'Mar', type:'Pecho',          done:true  },
+      { id:'w3', dayShort:'Mié', type:'Descanso',       done:true  },
+      { id:'w4', dayShort:'Jue', type:'Espalda',        done:false },
+      { id:'w5', dayShort:'Vie', type:'Brazo',          done:false },
+      { id:'w6', dayShort:'Sáb', type:'Cardio',         done:false },
+      { id:'w7', dayShort:'Dom', type:'Descanso',       done:false },
+    ],
+    history: [
+      { date:'Lun 23/6', type:'Cuádriceps' },
+      { date:'Mar 24/6', type:'Pecho' },
+      { date:'Jue 26/6', type:'Espalda' },
+      { date:'Vie 27/6', type:'Brazo' },
+      { date:'Sáb 28/6', type:'Cardio' },
+      { date:'Dom 22/6', type:'Isquio y glúteo' },
+      { date:'Sáb 21/6', type:'Cardio' },
+      { date:'Vie 20/6', type:'Pecho' },
+    ],
+    lifts: [
+      { id:'l1', name:'Press banca',  weight:72.5, unit:'kg',        color:'#FF6B6B', history:[60,62.5,65,67.5,70,72.5] },
+      { id:'l2', name:'Sentadilla',   weight:100,  unit:'kg',        color:'#4D96FF', history:[80,85,87.5,92.5,95,100] },
+      { id:'l3', name:'Peso muerto',  weight:120,  unit:'kg',        color:'#06D6A0', history:[95,100,105,110,115,120] },
+      { id:'l4', name:'Dominadas',    weight:12,   unit:'kg lastre', color:'#C77DFF', history:[0,2.5,5,7.5,10,12] },
+    ],
+    habitDays: [
+      { id:'d0', wd:'Jueves',  dm:'25 jun' },
+      { id:'d1', wd:'Viernes', dm:'26 jun' },
+      { id:'d2', wd:'Sábado',  dm:'27 jun' },
+      { id:'d3', wd:'Domingo', dm:'28 jun' },
+      { id:'d4', wd:'Lunes',   dm:'29 jun' },
+    ],
+    habitTodayIdx: 4,
+    habitDayIdx: 2,
+    habitLog: {
+      d0: { h1:true,  h2:true,  h3:true,  h4:false },
+      d1: { h1:true,  h2:false, h3:true,  h4:true  },
+      d2: { h1:true,  h2:true,  h3:false, h4:false },
+      d3: { h1:false, h2:true,  h3:true,  h4:false },
+    },
+    weeks: [
+      { id:'g0', range:'9 – 15 jun' },
+      { id:'g1', range:'16 – 22 jun' },
+      { id:'g2', range:'23 – 29 jun' },
+    ],
+    gymCurrentIdx: 2,
+    gymWeekIdx: 1,
+    weekPlans: {
+      g0: [
+        { id:'g0w1', dayShort:'Lun', type:'Pecho',          done:true  },
+        { id:'g0w2', dayShort:'Mar', type:'Espalda',        done:true  },
+        { id:'g0w3', dayShort:'Mié', type:'Descanso',       done:true  },
+        { id:'g0w4', dayShort:'Jue', type:'Cuádriceps',     done:true  },
+        { id:'g0w5', dayShort:'Vie', type:'Brazo',          done:true  },
+        { id:'g0w6', dayShort:'Sáb', type:'Cardio',         done:true  },
+        { id:'g0w7', dayShort:'Dom', type:'Descanso',       done:true  },
+      ],
+      g1: [
+        { id:'g1w1', dayShort:'Lun', type:'Cuádriceps',     done:true  },
+        { id:'g1w2', dayShort:'Mar', type:'Pecho',          done:true  },
+        { id:'g1w3', dayShort:'Mié', type:'Espalda',        done:true  },
+        { id:'g1w4', dayShort:'Jue', type:'Brazo',          done:true  },
+        { id:'g1w5', dayShort:'Vie', type:'Isquio y glúteo', done:false },
+        { id:'g1w6', dayShort:'Sáb', type:'Cardio',         done:true  },
+        { id:'g1w7', dayShort:'Dom', type:'Descanso',       done:true  },
+      ],
+    },
+    draftLiftId: 'l1',
+    draftWeight: 72.5,
+    expandedWeekDay: null,
+    customTypes: ['Cuádriceps','Isquio y glúteo','Brazo','Espalda','Pecho','Cardio','Descanso','Pecho y bíceps','Full body','Hombros'],
+  };
+
+  toggleTask(id) {
+    this.setState(s => ({ tasks: s.tasks.map(t => t.id === id ? { ...t, done: !t.done } : t) }));
+  }
+  toggleHabit(id) {
+    this.setState(s => ({ habits: s.habits.map(h => h.id === id ? { ...h, done: !h.done, streak: h.done ? h.streak - 1 : h.streak + 1 } : h) }));
+  }
+  addHabit() {
+    this.setState(s => {
+      const colors = ['#FF6B6B','#4D96FF','#06D6A0','#FFD166','#C77DFF','#22C3E6'];
+      const color = colors[s.habits.length % colors.length];
+      const nh = { id:'h'+Date.now(), name:'', detail:'', done:false, streak:0, color,
+        path:'M12 3l2.5 5.6 6.1.6-4.6 4.1 1.4 6L12 16.9 6.1 19.9l1.4-6L2.9 9.8l6.1-.6z',
+        base:[false,false,false,false,false,false] };
+      return { habits: s.habits.concat([nh]) };
+    });
+  }
+  selectDay(d) { this.setState({ selectedDay: d }); }
+  toggleTraining(id) {
+    this.setState(s => ({ weekPlan: s.weekPlan.map(w => w.id === id ? { ...w, done: !w.done } : w) }));
+  }
+  prevHabitDay() { this.setState(s => ({ habitDayIdx: Math.max(0, s.habitDayIdx - 1) })); }
+  nextHabitDay() { this.setState(s => ({ habitDayIdx: Math.min(s.habitDays.length - 1, s.habitDayIdx + 1) })); }
+  toggleHabitOnDay(dayId, habitId, isToday) {
+    if (isToday) { this.toggleHabit(habitId); return; }
+    this.setState(s => {
+      const log = { ...s.habitLog };
+      const day = { ...(log[dayId] || {}) };
+      day[habitId] = !day[habitId];
+      log[dayId] = day;
+      return { habitLog: log };
+    });
+  }
+  prevGymWeek() { this.setState(s => ({ gymWeekIdx: Math.max(0, s.gymWeekIdx - 1) })); }
+  nextGymWeek() { this.setState(s => ({ gymWeekIdx: Math.min(s.weeks.length - 1, s.gymWeekIdx + 1) })); }
+  toggleWeekDay(weekId, dayId) {
+    this.setState(s => {
+      const plans = { ...s.weekPlans };
+      plans[weekId] = (plans[weekId] || []).map(w => w.id === dayId ? { ...w, done: !w.done } : w);
+      return { weekPlans: plans };
+    });
+  }
+  setWeekDayType(weekId, dayId, type) {
+    this.setState(s => {
+      const plans = { ...s.weekPlans };
+      plans[weekId] = (plans[weekId] || []).map(w => w.id === dayId ? { ...w, type } : w);
+      return { weekPlans: plans };
+    });
+  }
+  incDraft(step) { this.setState(s => ({ draftWeight: parseFloat((s.draftWeight + step).toFixed(1)) })); }
+  decDraft(step) { this.setState(s => ({ draftWeight: parseFloat(Math.max(0, s.draftWeight - step).toFixed(1)) })); }
+  setDraftLift(id) {
+    const lift = this.state.lifts.find(l => l.id === id);
+    if (lift) this.setState({ draftLiftId: id, draftWeight: lift.weight });
+  }
+  saveDraft() {
+    this.setState(s => ({
+      lifts: s.lifts.map(l => l.id !== s.draftLiftId ? l : {
+        ...l, weight: s.draftWeight, history: l.history.concat([s.draftWeight])
+      })
+    }));
+  }
+  toggleWeekDayExpand(id) {
+    this.setState(s => ({ expandedWeekDay: s.expandedWeekDay === id ? null : id }));
+  }
+  deleteLift(id) {
+    this.setState(s => {
+      const remaining = s.lifts.filter(l => l.id !== id);
+      const newDraft = remaining.find(l => l.id === s.draftLiftId) ? s.draftLiftId : (remaining[0] || {}).id || 'l1';
+      return { lifts: remaining, draftLiftId: newDraft };
+    });
+  }
+  addLift() {
+    const colors = ['#FF6B6B','#4D96FF','#06D6A0','#FFD166','#C77DFF','#22C3E6'];
+    const id = 'l' + Date.now();
+    const color = colors[this.state.lifts.length % colors.length];
+    this.setState(s => ({ lifts: s.lifts.concat([{ id, name:'Nuevo ejercicio', weight:0, unit:'kg', color, history:[0] }]) }));
+  }
+
+  catColor(cat) {
+    const M = {
+      'Cuádriceps':'#FF6B6B', 'Isquio y glúteo':'#FFD166', 'Brazo':'#C77DFF',
+      'Espalda':'#06D6A0', 'Pecho':'#4D96FF', 'Cardio':'#22C3E6',
+      'Descanso':'rgba(244,244,251,0.4)',
+    };
+    return M[cat] || '#FFD166';
+  }
+  setTraining(id, type) {
+    this.setState(s => ({ weekPlan: s.weekPlan.map(w => w.id === id ? { ...w, type } : w) }));
+  }
+
+  vmTraining(w, isLast, weekId, isCurrent, expandedId, types) {
+    const rest = w.type === 'Descanso';
+    const c = rest ? 'rgba(244,244,251,0.28)' : this.catColor(w.type);
+    const doneBg = w.done ? (rest ? 'rgba(255,255,255,0.06)' : c + '1A') : 'transparent';
+    const isExpanded = expandedId === w.id;
+    const optionChips = (types || []).map(t => {
+      const tc = t === 'Descanso' ? 'rgba(244,244,251,0.4)' : this.catColor(t);
+      const isActive = t === w.type;
+      return {
+        type: t,
+        onClick: () => {
+          if (isCurrent) this.setTraining(w.id, t); else this.setWeekDayType(weekId, w.id, t);
+          this.toggleWeekDayExpand(w.id);
+        },
+        style: { fontSize:'12px', fontWeight: isActive ? 800 : 600, color: isActive ? '#0E0F22' : tc, background: isActive ? tc : tc + '20', padding:'6px 12px', borderRadius:'99px', cursor:'pointer', whiteSpace:'nowrap', flexShrink:0, border:'1.5px solid ' + (isActive ? 'transparent' : tc + '55'), transition:'all .15s' },
+      };
+    });
+    return {
+      id: w.id, dayShort: w.dayShort, type: w.type, isExpanded, optionChips,
+      toggle: () => isCurrent ? this.toggleTraining(w.id) : this.toggleWeekDay(weekId, w.id),
+      toggleExpand: () => this.toggleWeekDayExpand(w.id),
+      rowStyle: { display:'flex', alignItems:'center', gap:'10px', padding:'10px 10px', borderRadius:'14px', margin:'2px 0', background: doneBg, transition:'background .25s' },
+      dotStyle: { width:'9px', height:'9px', borderRadius:'50%', background: c, flexShrink:0, boxShadow: w.done && !rest ? '0 0 6px ' + c : 'none', transition:'box-shadow .25s' },
+      pillStyle: { display:'flex', alignItems:'center', gap:'7px', flex:1, minWidth:0, padding:'7px 11px', borderRadius:'99px', background: isExpanded ? c + '28' : c + '18', cursor:'pointer', border:'1.5px solid ' + c + '55', transition:'all .2s' },
+      pillTextStyle: { fontFamily:"'Fredoka',sans-serif", fontWeight:600, fontSize:'13px', color: w.done && !rest ? c : (rest ? 'rgba(244,244,251,0.5)' : '#F4F4FB'), flex:1, minWidth:0, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', transition:'color .25s' },
+      chevronStyle: { transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition:'transform .2s', flexShrink:0 },
+      checkStyle: { width:'30px', height:'30px', borderRadius:'10px', flexShrink:0, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', transition:'all .25s', border: w.done ? 'none' : '2px solid rgba(244,244,251,0.18)', background: w.done ? c : 'rgba(255,255,255,0.04)', boxShadow: w.done && !rest ? '0 3px 10px ' + c + '55' : 'none' },
+      iconStyle: { opacity: w.done ? 1 : 0, transform: w.done ? 'scale(1)' : 'scale(0.4)', transition:'all .2s' },
+    };
+  }
+
+  vmHistory(h, isLast) {
+    const rest = h.type === 'Descanso';
+    const c = rest ? 'rgba(244,244,251,0.4)' : this.catColor(h.type);
+    return {
+      type: h.type, date: h.date,
+      rowStyle: { display:'flex', alignItems:'center', gap:'12px', padding:'12px 2px', borderBottom: isLast ? 'none' : '1px solid rgba(255,255,255,0.06)' },
+      dotStyle: { width:'9px', height:'9px', borderRadius:'50%', background: c, flexShrink:0 },
+    };
+  }
+
+  vmLift(l) {
+    const W = 118, H = 44, padX = 4, padY = 7;
+    const data = l.history;
+    const min = Math.min.apply(null, data), max = Math.max.apply(null, data);
+    const range = max - min || 1;
+    const n = data.length;
+    const x = i => padX + (i / (n - 1)) * (W - padX * 2);
+    const y = v => padY + (1 - (v - min) / range) * (H - padY * 2);
+    const pts = data.map((v, i) => x(i).toFixed(1) + ',' + y(v).toFixed(1));
+    const lastX = +x(n - 1).toFixed(1), lastY = +y(data[n - 1]).toFixed(1);
+    const area = 'M' + pts.join(' L') + ' L' + lastX + ',' + (H - padY) + ' L' + x(0).toFixed(1) + ',' + (H - padY) + ' Z';
+    const first = data[0], gain = data[n - 1] - first;
+    return {
+      id: l.id, name: l.name, weight: l.weight, unit: l.unit, color: l.color,
+      points: pts.join(' '), areaPath: area, areaFill: l.color + '22', lastX, lastY,
+      weightStyle: { fontFamily:"'Fredoka',sans-serif", fontWeight:700, fontSize:'21px', color: l.color },
+      delta: '+' + (gain % 1 === 0 ? gain : gain.toFixed(1)) + ' kg',
+      deltaStyle: { fontSize:'11px', fontWeight:800, color:'#06D6A0', background:'rgba(6,214,160,0.16)', padding:'2px 7px', borderRadius:'99px', marginLeft:'2px' },
+      deleteFn: () => this.deleteLift(l.id),
+    };
+  }
+
+  vmTask(t, color, isLast) {
+    const done = t.done;
+    return {
+      id: t.id, text: t.text, time: t.time, desc: t.desc || '',
+      toggle: () => this.toggleTask(t.id),
+      rowStyle: { display:'flex', alignItems:'center', gap:'13px', padding:'13px 2px', borderBottom: isLast ? 'none' : '1px solid rgba(255,255,255,0.06)' },
+      rowStyleTop: { display:'flex', alignItems:'flex-start', gap:'13px', padding:'13px 2px', borderBottom: isLast ? 'none' : '1px solid rgba(255,255,255,0.06)' },
+      checkStyle: { width:'26px', height:'26px', borderRadius:'50%', flexShrink:0, marginTop:'1px', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', transition:'all .2s', border:'2px solid ' + (done ? color : 'rgba(244,244,251,0.28)'), background: done ? color : 'transparent' },
+      iconStyle: { opacity: done ? 1 : 0, transform: done ? 'scale(1)' : 'scale(0.4)', transition:'all .2s' },
+      textStyle: { fontSize:'15px', fontWeight:600, color: done ? 'rgba(244,244,251,0.4)' : '#F4F4FB', textDecoration: done ? 'line-through' : 'none', transition:'color .2s' },
+      descStyle: { fontSize:'13px', fontWeight:600, lineHeight:1.4, marginTop:'3px', color:'rgba(244,244,251,0.55)', outline:'none', borderRadius:'6px', minHeight:'17px' },
+    };
+  }
+
+  vmHabit(h) {
+    const week = h.base.concat([h.done]);
+    const fill = week.filter(Boolean).length;
+    return {
+      id: h.id, name: h.name, detail: h.detail, streak: h.streak, color: h.color, path: h.path, done: h.done,
+      toggle: () => this.toggleHabit(h.id),
+      iconWrap: { width:'36px', height:'36px', borderRadius:'12px', display:'flex', alignItems:'center', justifyContent:'center', background: h.color + '24', flexShrink:0 },
+      iconWrapLg: { width:'46px', height:'46px', borderRadius:'14px', display:'flex', alignItems:'center', justifyContent:'center', background: h.color + '24', flexShrink:0 },
+      checkStyle: { width:'30px', height:'30px', borderRadius:'50%', flexShrink:0, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', transition:'all .2s', border:'2px solid ' + (h.done ? h.color : 'rgba(244,244,251,0.28)'), background: h.done ? h.color : 'transparent' },
+      checkStyleLg: { width:'36px', height:'36px', borderRadius:'50%', flexShrink:0, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', transition:'all .2s', border:'2px solid ' + (h.done ? h.color : 'rgba(244,244,251,0.28)'), background: h.done ? h.color : 'transparent' },
+      checkIconStyle: { opacity: h.done ? 1 : 0, transform: h.done ? 'scale(1)' : 'scale(0.4)', transition:'all .2s' },
+      streakStyle: { fontFamily:"'Fredoka',sans-serif", fontWeight:600, fontSize:'13px', color: h.color },
+      week: week.map(f => ({ style: { width:'9px', height:'9px', borderRadius:'50%', background: f ? h.color : 'rgba(244,244,251,0.14)' } })),
+      weekBarStyle: { height:'100%', borderRadius:'99px', background: h.color, transition:'width .3s ease', width: Math.round(fill / 7 * 100) + '%' },
+    };
+  }
+
+  vmHabitDay(h, done, dayId, isToday) {
+    const week = h.base.concat([h.done]);
+    const fill = week.filter(Boolean).length;
+    return {
+      id: h.id, name: h.name, detail: h.detail, streak: h.streak, color: h.color, path: h.path, done: done,
+      toggle: () => this.toggleHabitOnDay(dayId, h.id, isToday),
+      iconWrapLg: { width:'46px', height:'46px', borderRadius:'14px', display:'flex', alignItems:'center', justifyContent:'center', background: h.color + '24', flexShrink:0 },
+      checkStyleLg: { width:'36px', height:'36px', borderRadius:'50%', flexShrink:0, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', transition:'all .2s', border:'2px solid ' + (done ? h.color : 'rgba(244,244,251,0.28)'), background: done ? h.color : 'transparent' },
+      checkIconStyle: { opacity: done ? 1 : 0, transform: done ? 'scale(1)' : 'scale(0.4)', transition:'all .2s' },
+      streakStyle: { fontFamily:"'Fredoka',sans-serif", fontWeight:600, fontSize:'13px', color: h.color },
+      week: week.map(f => ({ style: { width:'9px', height:'9px', borderRadius:'50%', background: f ? h.color : 'rgba(244,244,251,0.14)' } })),
+      weekBarStyle: { height:'100%', borderRadius:'99px', background: h.color, transition:'width .3s ease', width: Math.round(fill / 7 * 100) + '%' },
+    };
+  }
+
+  renderVals() {
+    const C = { coral:'#FF6B6B', blue:'#4D96FF', green:'#06D6A0', yellow:'#FFD166', purple:'#C77DFF' };
+    const tasks = this.state.tasks;
+    const showStreak = this.props.showStreak !== false;
+
+    const today = tasks.filter(t => t.group === 'hoy');
+    const todayTasks = today.map((t, i) => this.vmTask(t, C.coral, i === today.length - 1));
+    const reminders = today.filter(t => t.time).map(t => ({ text: t.text, time: t.time }));
+
+    const mkGroup = (label, key) => {
+      const arr = tasks.filter(t => t.group === key);
+      return { label, items: arr.map((t, i) => this.vmTask(t, C.blue, i === arr.length - 1)) };
+    };
+    const groups = [ mkGroup('HOY', 'hoy'), mkGroup('MAÑANA', 'manana'), mkGroup('SIN FECHA', 'sin') ];
+
+    const doneToday = today.filter(t => t.done).length;
+    const totalToday = today.length;
+    const pendingTasks = totalToday - doneToday;
+    const pct = totalToday ? Math.round(doneToday / totalToday * 100) : 0;
+    const progressMsg = pct >= 100 ? '¡Completaste todo! Día redondo.' : pct >= 50 ? '¡Buen ritmo! Ya casi terminás.' : 'Arranquemos con la primera tarea.';
+
+    const habits = this.state.habits.map(h => this.vmHabit(h));
+    const pendingHabits = this.state.habits.filter(h => !h.done).length;
+    const habitsDoneCount = this.state.habits.filter(h => h.done).length;
+    const bestStreak = Math.max.apply(null, this.state.habits.map(h => h.streak));
+
+    // Hábitos por día
+    const hdIdx = this.state.habitDayIdx;
+    const hd = this.state.habitDays[hdIdx];
+    const hdToday = hdIdx === this.state.habitTodayIdx;
+    const doneFor = (hid) => hdToday
+      ? ((this.state.habits.find(h => h.id === hid) || {}).done || false)
+      : !!((this.state.habitLog[hd.id] || {})[hid]);
+    const habitDayItems = this.state.habits.map(h => this.vmHabitDay(h, doneFor(h.id), hd.id, hdToday));
+    const habitDayDone = this.state.habits.filter(h => doneFor(h.id)).length;
+    const habitDayTotal = this.state.habits.length;
+    const habitDayLabel = (hdToday ? 'Hoy' : hd.wd) + ' ' + hd.dm;
+    const habitDaySub = (hdToday ? 'Hoy · ' : '') + habitDayDone + ' de ' + habitDayTotal + (hdToday ? ' completados' : ' hechos ese día');
+
+    // Gimnasio — semana navegable
+    const gwIdx = this.state.gymWeekIdx;
+    const gwInfo = this.state.weeks[gwIdx];
+    const isCurWeek = gwIdx === this.state.gymCurrentIdx;
+    const planArr = isCurWeek ? this.state.weekPlan : (this.state.weekPlans[gwInfo.id] || []);
+    const weekPlan = planArr.map((w, i) => this.vmTraining(w, i === planArr.length - 1, gwInfo.id, isCurWeek, this.state.expandedWeekDay, this.state.customTypes));
+    const trainingDays = planArr.filter(w => w.type !== 'Descanso');
+    const gymTrainingTotal = trainingDays.length;
+    const gymDoneCount = trainingDays.filter(w => w.done).length;
+    const gymWeekText = isCurWeek ? 'esta semana' : gwInfo.range;
+    const gymWeekLabel = isCurWeek ? 'Esta semana' : gwInfo.range;
+    const lifts = this.state.lifts.map(l => this.vmLift(l));
+    const history = this.state.history.map((h, i) => this.vmHistory(h, i === this.state.history.length - 1));
+
+    // Lift modal draft
+    const draftLift = this.state.lifts.find(l => l.id === this.state.draftLiftId) || this.state.lifts[0];
+    const draftLast = draftLift.history[draftLift.history.length - 1];
+    const draftGain = parseFloat((this.state.draftWeight - draftLast).toFixed(1));
+    const liftChips = this.state.lifts.map(l => ({
+      name: l.name,
+      onClick: () => this.setDraftLift(l.id),
+      style: { fontSize:'13.5px', fontWeight: l.id === this.state.draftLiftId ? 800 : 700, color: l.id === this.state.draftLiftId ? '#0E0F22' : 'rgba(244,244,251,0.6)', background: l.id === this.state.draftLiftId ? '#FFD166' : '#21234A', padding:'9px 15px', borderRadius:'99px', cursor:'pointer' },
+    }));
+
+    const rankRaw = [
+      { type:'Cuádriceps',      count:14 },
+      { type:'Pecho',           count:11 },
+      { type:'Espalda',         count:10 },
+      { type:'Brazo',           count:8  },
+      { type:'Cardio',          count:8  },
+      { type:'Isquio y glúteo', count:7  },
+      { type:'Descanso',        count:6  },
+    ];
+    const rankMax = Math.max.apply(null, rankRaw.map(r => r.count));
+    const ranking = rankRaw.map((r, i) => {
+      const col = this.catColor(r.type);
+      const isHex = col.charAt(0) === '#';
+      return {
+        type: r.type, count: r.count, color: col, rank: i + 1,
+        rankStyle: { width:'20px', height:'20px', borderRadius:'7px', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', fontFamily:"'Fredoka',sans-serif", fontWeight:700, fontSize:'11px', color: col, background: (isHex ? col : '#FFD166') + '24' },
+        barStyle: { height:'100%', borderRadius:'99px', background: col, width: Math.round(r.count / rankMax * 100) + '%' },
+      };
+    });
+
+    // Calendar — June 2026, June 1 is a Monday
+    const weekStartMon = (this.props.weekStart || 'Lunes') === 'Lunes';
+    const dow = weekStartMon ? ['L','M','M','J','V','S','D'] : ['D','L','M','M','J','V','S'];
+    const lead = weekStartMon ? 0 : 1;
+    // kind: 'event' = puntual · 'annual' = fecha anual recurrente (cumpleaños, festivos)
+    const annual = C.yellow;
+    const eventsByDay = {
+      2:[{ time:'10:00', title:'Turno médico', kind:'event' }],
+      8:[{ time:null, title:'Cumpleaños de Mamá', kind:'annual' }],
+      12:[{ time:'18:00', title:'Pago de tarjeta', kind:'event' }],
+      15:[{ time:'09:00', title:'Clase de yoga', kind:'event' }],
+      18:[{ time:'15:00', title:'Reunión de proyecto', kind:'event' },{ time:null, title:'Enviar propuesta', kind:'event' }],
+      20:[{ time:null, title:'Día del Amigo', kind:'annual' }],
+      22:[{ time:'19:00', title:'Cumpleaños de Sofi', kind:'annual' }],
+      25:[{ time:'11:30', title:'Llamada con cliente', kind:'event' },{ time:null, title:'Revisar presupuesto', kind:'event' }],
+      29:[{ time:'09:30', title:'Llamar al dentista', kind:'event' },{ time:'15:00', title:'Reunión de diseño', kind:'event' }],
+    };
+    const evColor = e => e.kind === 'annual' ? annual : C.green;
+    const sel = this.state.selectedDay;
+    const calCells = [];
+    for (let i = 0; i < lead; i++) calCells.push({ day:'', dots:[], onClick:()=>{}, circleStyle:{ width:'34px', height:'34px' } });
+    for (let d = 1; d <= 30; d++) {
+      const ev = eventsByDay[d] || [];
+      const isSel = d === sel;
+      const isToday = d === 29;
+      let cs;
+      if (isSel) cs = { width:'34px', height:'34px', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:"'Fredoka',sans-serif", fontSize:'14.5px', fontWeight:700, cursor:'pointer', background:C.green, color:'#0E0F22', transition:'all .15s' };
+      else if (isToday) cs = { width:'34px', height:'34px', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:"'Fredoka',sans-serif", fontSize:'14.5px', fontWeight:700, cursor:'pointer', border:'1.6px solid '+C.green, color:C.green, transition:'all .15s' };
+      else cs = { width:'34px', height:'34px', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:"'Fredoka',sans-serif", fontSize:'14.5px', fontWeight:500, cursor:'pointer', color:'#F4F4FB', transition:'all .15s' };
+      calCells.push({
+        day: d,
+        onClick: () => this.selectDay(d),
+        circleStyle: cs,
+        dots: ev.slice(0,3).map(e => {
+          const c = isSel ? 'rgba(14,15,34,0.6)' : evColor(e);
+          return { style: e.kind === 'annual'
+            ? { width:'6px', height:'6px', borderRadius:'50%', background:'transparent', border:'1.5px solid '+c, boxSizing:'border-box' }
+            : { width:'5px', height:'5px', borderRadius:'50%', background:c } };
+        }),
+      });
+    }
+    const names = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+    const GIFT = 'M20 12v9H4v-9M2 7h20v5H2zM12 22V7M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z';
+    const PIN = 'M12 21s-6-5.7-6-10a6 6 0 0 1 12 0c0 4.3-6 10-6 10zM12 11a0 0 0 1 0 0';
+    const selEvents = eventsByDay[sel] || [];
+    const events = selEvents.map(e => {
+      const isAnnual = e.kind === 'annual';
+      const c = evColor(e);
+      return {
+        title: e.title,
+        timeText: e.time ? e.time + ' hs' : (isAnnual ? 'Se repite cada año' : 'Todo el día'),
+        timeStyle: { fontFamily:"'Fredoka',sans-serif", fontWeight:600, fontSize:'12.5px', color:'rgba(244,244,251,0.5)' },
+        markStyle: isAnnual
+          ? { width:'12px', height:'12px', borderRadius:'50%', background:'transparent', border:'2.5px solid '+c, boxSizing:'border-box', flexShrink:0 }
+          : { width:'12px', height:'12px', borderRadius:'50%', background:c, flexShrink:0 },
+        badgeText: isAnnual ? 'Anual' : 'Puntual',
+        badgeIcon: isAnnual ? GIFT : 'M5 4h14v16l-7-4-7 4z',
+        badgeStyle: { display:'inline-flex', alignItems:'center', gap:'4px', flexShrink:0, fontSize:'11px', fontWeight:800, color:c, background:c+'24', padding:'4px 9px', borderRadius:'99px', whiteSpace:'nowrap' },
+      };
+    });
+
+    return {
+      true: true, false: false, showStreak,
+      pendingTasks, pendingHabits, doneToday, totalToday,
+      progressPct: pct + '%', progressMsg,
+      todayTasks, reminders, habits, addHabit: () => this.addHabit(),
+      tasksDoneCount: tasks.filter(t => t.done).length,
+      tasksPendingCount: tasks.filter(t => !t.done).length,
+      groups,
+      dow, calCells, selLabel: names[(sel - 1) % 7].toUpperCase() + ' ' + sel + ' DE JUNIO',
+      events, hasEvents: events.length > 0, noEvents: events.length === 0,
+      weekPlan, lifts, history, ranking, gymDoneCount, gymTrainingTotal,
+      gymWeekText, gymWeekLabel, gymIsCurrent: isCurWeek,
+      gymPrev: () => this.prevGymWeek(), gymNext: () => this.nextGymWeek(),
+      habitsDoneCount, habitsTotal: this.state.habits.length, bestStreak,
+      habitDayItems, habitDayLabel, habitDaySub, habitIsToday: hdToday, habitNotToday: !hdToday,
+      habitPrev: () => this.prevHabitDay(), habitNext: () => this.nextHabitDay(),
+      liftChips, addNewLift: () => this.addLift(),
+      draftWeightNum: this.state.draftWeight % 1 === 0 ? String(this.state.draftWeight) : this.state.draftWeight.toFixed(1),
+      draftLastWeight: draftLast % 1 === 0 ? String(draftLast) : draftLast.toFixed(1),
+      draftGainStr: (draftGain >= 0 ? '+' : '') + draftGain.toFixed(1) + ' kg',
+      draftGainColor: draftGain >= 0 ? '#06D6A0' : '#FF6B6B',
+      incDraftSmall: () => this.incDraft(0.5),
+      decDraftSmall: () => this.decDraft(0.5),
+      saveDraft: () => this.saveDraft(),
+    };
+  }
+}
+</script>
+</body>
+</html>

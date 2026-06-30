@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<div style="display:flex;align-items:flex-start;justify-content:space-around;padding:11px 10px 24px;background:rgba(13,14,30,0.94);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid rgba(255,255,255,0.06);font-family:'Fredoka',sans-serif">
+  <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;cursor:pointer">
+    <div style="width:48px;height:30px;border-radius:13px;display:flex;align-items:center;justify-content:center;transition:all .2s;background:{{ hoyBg }};color:{{ hoyColor }}">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+    </div>
+    <span style="font-size:10px;font-weight:600;color:{{ hoyColor }}">Hoy</span>
+  </div>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;cursor:pointer">
+    <div style="width:48px;height:30px;border-radius:13px;display:flex;align-items:center;justify-content:center;transition:all .2s;background:{{ tareasBg }};color:{{ tareasColor }}">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11"></path><path d="M4.5 6l1 1 1.8-2M4.5 12l1 1 1.8-2M4.5 18l1 1 1.8-2"></path></svg>
+    </div>
+    <span style="font-size:10px;font-weight:600;color:{{ tareasColor }}">Tareas</span>
+  </div>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;cursor:pointer">
+    <div style="width:48px;height:30px;border-radius:13px;display:flex;align-items:center;justify-content:center;transition:all .2s;background:{{ calBg }};color:{{ calColor }}">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg>
+    </div>
+    <span style="font-size:10px;font-weight:600;color:{{ calColor }}">Calendario</span>
+  </div>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;cursor:pointer">
+    <div style="width:48px;height:30px;border-radius:13px;display:flex;align-items:center;justify-content:center;transition:all .2s;background:{{ gymBg }};color:{{ gymColor }}">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 6.5v11M3.5 9v5M17.5 6.5v11M20.5 9v5M6.5 12h11"></path></svg>
+    </div>
+    <span style="font-size:10px;font-weight:600;color:{{ gymColor }}">Gimnasio</span>
+  </div>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;cursor:pointer">
+    <div style="width:48px;height:30px;border-radius:13px;display:flex;align-items:center;justify-content:center;transition:all .2s;background:{{ habBg }};color:{{ habColor }}">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c.6 3.2 3 4.4 3 7.6a3 3 0 0 1-6 0c0-1 .4-1.9 1-2.6-1.3.4-3.2 1.7-3.2 4.7a5.2 5.2 0 0 0 10.4 0C17.2 8.2 14.2 5.6 12 3z"></path></svg>
+    </div>
+    <span style="font-size:10px;font-weight:600;color:{{ habColor }}">Hábitos</span>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:402,&quot;height&quot;:86},&quot;active&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;hoy&quot;,&quot;options&quot;:[&quot;hoy&quot;,&quot;tareas&quot;,&quot;calendario&quot;,&quot;gym&quot;,&quot;habitos&quot;],&quot;tsType&quot;:&quot;string&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const a = this.props.active || 'hoy';
+    const C = { hoy:'#FF6B6B', tareas:'#4D96FF', calendario:'#06D6A0', gym:'#FFD166', habitos:'#C77DFF' };
+    const faint = 'rgba(244,244,251,0.42)';
+    const col = k => a === k ? C[k] : faint;
+    const bg = k => a === k ? C[k] + '24' : 'transparent';
+    return {
+      hoyColor: col('hoy'), hoyBg: bg('hoy'),
+      tareasColor: col('tareas'), tareasBg: bg('tareas'),
+      calColor: col('calendario'), calBg: bg('calendario'),
+      gymColor: col('gym'), gymBg: bg('gym'),
+      habColor: col('habitos'), habBg: bg('habitos'),
+    };
+  }
+}
+</script>
+</body>
+</html>
