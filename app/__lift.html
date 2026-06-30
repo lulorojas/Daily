@@ -1098,7 +1098,8 @@ document.addEventListener('click',e=>{
 });
 
 /* ============================ boot ============================ */
-render();
+state={tasks:[],reminders:[],gym:{customTypes:[],weekPlans:{},lifts:[{id:"l1",name:"Sentadilla",unit:"kg",color:"#FF6B6B",history:[{date:"2026-06-30",weight:60},{date:"2026-06-30",weight:67.5}]},{id:"l2",name:"Press banca",unit:"kg",color:"#4D96FF",history:[{date:"2026-06-30",weight:40}]}]},habits:[],habitLog:{}};
+render(); liftModal(state.gym.lifts[0]);
 if('serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{})); }
 </script>
 </body>
