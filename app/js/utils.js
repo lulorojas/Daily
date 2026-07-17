@@ -34,16 +34,47 @@ function tomorrowISO(){ return iso(addDays(todayD(),1)); }
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
 
 /* ============================ state ============================ */
-const KEY='daily.v1';
+// v2 vive en su propia clave. daily.v1 nunca se escribe ni se borra: queda
+// como backup automático para poder volver atrás.
+const KEY='daily.v2';
+const KEY_V1='daily.v1';
 let state = load();
-const ui = { tab:'hoy', calY:todayD().getFullYear(), calM:todayD().getMonth(), calSel:todayISO(), gymOffset:0, constEnd:0, habitDate:todayISO() };
+// habitDate lo sigue usando la pestaña Hábitos, que en esta etapa queda como está.
+const ui = { tab:'hoy', daySel:todayISO(), calY:todayD().getFullYear(), calM:todayD().getMonth(), calSel:todayISO(), gymOffset:0, constEnd:0, habitDate:todayISO() };
 
 function load(){
-  try{ const s=JSON.parse(localStorage.getItem(KEY)); if(s) return migrate(s); }catch(e){}
-  return seed();
+  try{ const s=JSON.parse(localStorage.getItem(KEY)); if(s) return normalize(s); }catch(e){}
+  try{
+    const old=JSON.parse(localStorage.getItem(KEY_V1));
+    if(old){ const s=normalize(migrateV1(old)); persist(s); return s; }  // daily.v1 queda intacta
+  }catch(e){}
+  return normalize(seed());
 }
-function migrate(s){
-  s.tasks ||= []; s.reminders ||= []; s.habits ||= []; s.habitLog ||= {};
+function persist(s){ try{ localStorage.setItem(KEY, JSON.stringify(s)); }catch(e){} }
+
+/* ---- migración v1 → v2 (determinista, no descarta nada) ----
+   tarea vieja sin fecha       → item tarea con date:null
+   tarea vieja con fecha/hora  → item tarea con date (+time), preservando `done`
+   recordatorio puntual        → cita (fecha + hora opcional; sin estado)
+   recordatorio anual          → anual recurrente (se repite por mes+día)
+   Cualquier otro recordatorio → cita (ante la duda, se conserva). */
+function migrateV1(o){
+  const items=[];
+  (o.tasks||[]).forEach(t=>{
+    items.push({ id:t.id||uid(), kind:'tarea', title:t.text||t.title||'', desc:t.desc||'',
+                 date:t.date||null, time:t.time||null, done:!!t.done });
+  });
+  (o.reminders||[]).forEach(r=>{
+    items.push({ id:r.id||uid(), kind:r.type==='anual'?'anual':'cita', title:r.title||'', desc:r.desc||'',
+                 date:r.date||todayISO(), time:r.time||null });
+  });
+  const clone=x=>x?JSON.parse(JSON.stringify(x)):x;
+  return { v:2, items, gym:clone(o.gym)||{}, habits:clone(o.habits)||[], habitLog:clone(o.habitLog)||{},
+           migratedFrom:KEY_V1, migratedAt:new Date().toISOString() };
+}
+
+function normalize(s){
+  s.v=2; s.items ||= []; s.habits ||= []; s.habitLog ||= {};
   s.gym ||= {}; s.gym.customTypes ||= []; s.gym.weekPlans ||= {}; s.gym.lifts ||= [];
   let changed=false;
   // One-time: seed the default training types as editable/removable custom types.
@@ -59,7 +90,7 @@ function migrate(s){
     if(!cur || cur.every(d=>d.type===REST)) s.gym.weekPlans[wk] = defaultPlanDays();
     s.gym.seeded = true; changed=true;
   }
-  if(changed){ try{ localStorage.setItem(KEY, JSON.stringify(s)); }catch(e){} }
+  if(changed) persist(s);
   return s;
 }
 // Predetermined gym content (editable/removable by the user afterwards).
@@ -86,10 +117,10 @@ function defaultTypes(){
 function seed(){
   // First run: pre-loaded with a starter week plan + sample exercises so nothing is blank.
   return {
-    tasks:[
-      { id:uid(), text:'Probar mi nueva app', desc:'Tocá el check para completar', time:null, date:todayISO(), done:false },
+    v:2,
+    items:[
+      { id:uid(), kind:'tarea', title:'Probar mi nueva app', desc:'Tocá el check para completar', date:todayISO(), time:null, done:false },
     ],
-    reminders:[],
     gym:{ customTypes:defaultTypes(), weekPlans:{ [iso(mondayOf(todayD()))]: defaultPlanDays() }, lifts:defaultLifts(), seeded:true, typesSeeded:true },
     habits:[
       { id:uid(), name:'Tomar agua', detail:'8 vasos al día', color:C.green, icon:'agua' },
@@ -107,17 +138,33 @@ function allTypes(){ return state.gym.customTypes.map(t=>({name:t.name,color:t.c
 function typeColor(name){ const t=allTypes().find(x=>x.name===name); return t?t.color:C.yellow; }
 function fmtNum(n){ return n%1===0?String(n):n.toFixed(1); }
 
-/* ---- calendar event derivation (tasks-with-time + reminders) ---- */
-function eventsForISO(dISO){
-  const d=parseISO(dISO), mo=d.getMonth(), da=d.getDate();
-  const out=[];
-  state.reminders.forEach(r=>{
-    if(r.type==='puntual' && r.date===dISO) out.push({kind:'puntual',title:r.title,time:r.time,id:r.id,ref:'reminder'});
-    if(r.type==='anual'){ const rd=parseISO(r.date); if(rd.getMonth()===mo && rd.getDate()===da) out.push({kind:'anual',title:r.title,time:r.time,id:r.id,ref:'reminder'}); }
-  });
-  state.tasks.forEach(t=>{ if(t.time && t.date===dISO) out.push({kind:'puntual',title:t.text,time:t.time,id:t.id,ref:'task'}); });
-  out.sort((a,b)=>(a.time||'99')<(b.time||'99')?-1:1);
-  return out;
+/* ============================ agenda items ============================ */
+/* Tres tipos, todos en state.items:
+   tarea → title, desc?, date (null = sin fecha), time?, done
+   cita  → title, desc?, date, time?            (no tiene estado: ocurre, no se completa)
+   anual → title, desc?, date, time?            (se repite por mes+día cada año) */
+const ITEM_COLOR = { tarea:C.coral, cita:C.green, anual:C.yellow };
+const ITEM_LABEL = { tarea:'Tarea', cita:'Cita', anual:'Anual' };
+
+function itemById(id){ return state.items.find(x=>x.id===id); }
+function byTime(a,b){ return (a.time||'99')<(b.time||'99')?-1:1; }
+function sameMonthDay(dISO,eISO){ const a=parseISO(dISO), b=parseISO(eISO); return a.getMonth()===b.getMonth() && a.getDate()===b.getDate(); }
+
+function pendientes(){ return state.items.filter(x=>x.kind==='tarea' && !x.date); }
+// Una tarea con fecha se muestra SOLO en su fecha, aunque haya vencido: no se arrastra
+// ni se mueve nunca. Vencida sin completar queda en su día (calendario / tira semanal).
+function tareasDe(dISO){ return state.items.filter(x=>x.kind==='tarea' && x.date===dISO).sort(byTime); }
+// Todo lo que "ocurre" ese día: citas de la fecha + anuales que caen en ese mes+día.
+function agendaDe(dISO){
+  return state.items.filter(x=>(x.kind==='cita' && x.date===dISO) || (x.kind==='anual' && sameMonthDay(dISO,x.date))).sort(byTime);
+}
+// Todo lo que el calendario muestra en un día (tareas con fecha + citas + anuales).
+function itemsDe(dISO){ return tareasDe(dISO).concat(agendaDe(dISO)).sort(byTime); }
+// Entreno planificado para una fecha (solo lectura; el plan lo maneja Gimnasio).
+function entrenoDe(dISO){
+  const d=parseISO(dISO), plan=state.gym.weekPlans[iso(mondayOf(d))];
+  const day=plan && plan[dow(d)];
+  return day && day.type!==REST ? day : null;
 }
 
 function taskRow(t,color,showDate){
@@ -126,9 +173,25 @@ function taskRow(t,color,showDate){
   return `<div class="trow" data-act="task-open" data-id="${t.id}">
     <div class="check ${on?'on':''}" style="border-color:${on?color:'rgba(244,244,251,0.28)'};background:${on?color:'transparent'}" data-act="task-toggle" data-id="${t.id}" data-stop="1">${CHECK_SVG}</div>
     <div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:8px">
-      <span class="ttext ${on?'done':''}">${esc(t.text)}</span>
+      <span class="ttext ${on?'done':''}">${esc(t.title)}</span>
       ${pill?`<span class="timepill" style="color:${color};background:${tint(color,'26')}">${pill}</span>`:''}
     </div>${t.desc?`<div class="tdesc">${esc(t.desc)}</div>`:''}</div>
+  </div>`;
+}
+
+// Fila de cita/anual: sin check, porque no se completan.
+function eventRow(e){
+  const col=ITEM_COLOR[e.kind], annual=e.kind==='anual';
+  const sub=e.time?e.time+' hs':(annual?'Se repite cada año':'Todo el día');
+  const icon=annual
+    ? 'M20 12v9H4v-9M2 7h20v5H2zM12 22V7M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z'
+    : 'M12 21s-6-5.7-6-10a6 6 0 0 1 12 0c0 4.3-6 10-6 10z';
+  return `<div class="softcard evt" data-act="event-open" data-id="${e.id}">
+    <div style="width:38px;height:38px;border-radius:12px;background:${tint(col,'24')};display:flex;align-items:center;justify-content:center;flex-shrink:0">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="${col}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${icon}"/></svg></div>
+    <div style="flex:1;min-width:0"><div style="font-size:14.5px;font-weight:700">${esc(e.title)}</div>
+      <span class="fr" style="font-weight:600;font-size:12.5px;color:rgba(244,244,251,0.5)">${sub}</span></div>
+    <span class="badge" style="color:${col};background:${tint(col,'24')}">${ITEM_LABEL[e.kind]}</span>
   </div>`;
 }
 
@@ -151,9 +214,43 @@ function openModal(title,bodyHTML,saveColor,onSave,saveLabel){
       ${onSave?`<span class="save" style="background:${saveColor}" data-act="modal-save">${saveLabel||'Guardar'}</span>`:`<span style="width:44px"></span>`}</div>
     <div class="mbody">${bodyHTML}</div></div>`;
   overlay.classList.add('show');
+  // Al corregir un campo marcado, su aviso desaparece.
+  onOverlay('input',e=>{
+    const f=e.target.closest('.bad'); if(!f) return;
+    f.classList.remove('bad');
+    const host=f.closest('.fld')||f.parentElement, er=host&&host.querySelector('.ferr');
+    if(er) er.remove();
+  });
 }
 function closeModal(){ overlay.classList.remove('show'); overlay.innerHTML=''; modalSave=null; clearModalHandlers(); }
 function mq(sel){ return overlay.querySelector(sel); }
+
+/* ---- validación de formularios ----
+   Nada se guarda a medias ni falla en silencio: se marca el campo y se explica qué falta. */
+function clearFieldErrors(){
+  overlay.querySelectorAll('.ferr').forEach(n=>n.remove());
+  overlay.querySelectorAll('.bad').forEach(n=>n.classList.remove('bad'));
+}
+function markFieldError(sel,msg){
+  const el=mq(sel); if(!el) return;
+  // El borde va en la caja visible: si el input vive dentro de una .rowinp, se marca la fila.
+  (el.closest('.rowinp')||el).classList.add('bad');
+  const host=el.closest('.fld')||el.parentElement;
+  host.insertAdjacentHTML('beforeend',
+    `<div class="ferr"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5"/><path d="M12 16.5v.01"/></svg><span>${esc(msg)}</span></div>`);
+}
+// checks: [[selector, condiciónOK, mensaje], ...] → true si está todo bien.
+// Si algo falla, marca TODOS los campos con problema y lleva el foco al primero.
+function validateForm(checks){
+  clearFieldErrors();
+  const bad=checks.filter(c=>!c[1]);
+  bad.forEach(([sel,,msg])=>markFieldError(sel,msg));
+  if(bad.length){
+    const first=mq(bad[0][0]);
+    if(first){ if(first.focus) first.focus(); if(first.scrollIntoView) first.scrollIntoView({block:'center'}); }
+  }
+  return bad.length===0;
+}
 
 /* ---- reusable custom time picker ---- */
 const TP_MINS=[0,5,10,15,20,25,30,35,40,45,50,55];

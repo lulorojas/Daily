@@ -76,6 +76,20 @@ button{font-family:inherit;color:inherit;border:none;background:none;cursor:poin
 /* FAB */
 .fab{position:fixed;bottom:calc(var(--tab-h) + var(--safe-bottom) + 16px);width:58px;height:58px;border-radius:20px;display:flex;align-items:center;justify-content:center;z-index:40;left:50%;transform:translateX(calc(260px - 58px - 20px))}
 @media(max-width:560px){.fab{left:auto;right:20px;transform:none}}
+/* + de carga rápida: centrado sobre la barra de 5 pestañas */
+.fab.fab-center{left:50%;right:auto;transform:translateX(-50%);z-index:60}
+@media(max-width:560px){.fab.fab-center{left:50%;right:auto;transform:translateX(-50%)}}
+
+/* tira semanal de Hoy */
+.weekstrip{display:flex;align-items:center;gap:4px}
+.weekstrip .nb{width:26px;height:26px;border-radius:9px;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer}
+.wdays{flex:1;display:flex;justify-content:space-between;gap:2px}
+.wcell{display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;flex:1}
+.wdow{font-family:'Fredoka',sans-serif;font-size:10.5px;font-weight:600;color:rgba(244,244,251,0.42)}
+.wcirc{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Fredoka',sans-serif;font-size:14px;box-sizing:border-box;transition:all .2s}
+
+/* botón chico dentro de una fila (ej: poner fecha a un pendiente) */
+.minibtn{width:30px;height:30px;border-radius:10px;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer}
 
 /* tab bar */
 .tabbar{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:520px;display:flex;align-items:flex-start;justify-content:space-around;padding:11px 10px calc(18px + var(--safe-bottom));background:rgba(13,14,30,0.94);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid rgba(255,255,255,0.06);font-family:'Fredoka',sans-serif;z-index:50}
@@ -143,6 +157,9 @@ button{font-family:inherit;color:inherit;border:none;background:none;cursor:poin
 .fld .opt{font-weight:600;color:rgba(244,244,251,0.32)}
 .inp{background:var(--card);border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:15px;font-size:16px;font-weight:600;width:100%;color:var(--ink);font-family:inherit}
 textarea.inp{min-height:76px;font-size:14.5px;line-height:1.5;resize:vertical}
+/* aviso de validación: campo marcado + motivo debajo */
+.bad{border:1.5px solid var(--coral) !important}
+.ferr{display:flex;align-items:center;gap:6px;margin:8px 4px 0;font-size:12.5px;font-weight:700;color:var(--coral)}
 .rowinp{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:11px 15px}
 .rowinp input[type=time],.rowinp input[type=date]{background:none;border:none;color:var(--ink);font-family:'Fredoka',sans-serif;font-weight:700;font-size:16px;flex:1;color-scheme:dark}
 .switch{width:42px;height:25px;border-radius:99px;position:relative;flex-shrink:0;background:rgba(255,255,255,0.15);transition:background .2s;cursor:pointer}

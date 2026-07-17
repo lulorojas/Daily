@@ -80,7 +80,8 @@ function habitModal(hab){
     </div></div>
     ${editing?`<div class="delbtn" data-act="habit-delete" data-id="${h.id}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${C.coral}" stroke-width="2.4" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>Eliminar hábito</div>`:''}`;
   openModal(editing?'Editar hábito':'Nuevo hábito',body,C.purple,()=>{
-    const name=mq('#h-name').value.trim(); if(!name){ mq('#h-name').focus(); return; }
+    const name=mq('#h-name').value.trim();
+    if(!validateForm([['#h-name', !!name, 'Poné un nombre para el hábito.']])) return;
     const detail=mq('#h-detail').value.trim();
     if(editing){ const o=state.habits.find(x=>x.id===h.id); Object.assign(o,{name,detail,color,icon}); }
     else state.habits.push({id:uid(),name,detail,color,icon});

@@ -4,19 +4,25 @@ const app=document.getElementById('app');
 function render(){
   let html='';
   if(ui.tab==='hoy') html=viewHoy();
-  else if(ui.tab==='tareas') html=viewTareas();
   else if(ui.tab==='calendario') html=viewCalendario();
   else if(ui.tab==='gym') html=viewGym();
   else if(ui.tab==='habitos') html=viewHabitos();
-  app.innerHTML = html + tabbar();
+  else if(ui.tab==='progreso') html=viewProgreso();
+  app.innerHTML = html + quickAddBtn() + tabbar();
+}
+
+// Botón + central de carga rápida (flota sobre la barra).
+function quickAddBtn(){
+  return `<div class="fab fab-center" style="background:${C.coral};box-shadow:0 14px 30px rgba(255,107,107,0.45)" data-act="quick-add">
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>`;
 }
 
 function tabbar(){
   const items=[['hoy','Hoy',C.coral,'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'],
-    ['tareas','Tareas',C.blue,'<path d="M9 6h11M9 12h11M9 18h11"/><path d="M4.5 6l1 1 1.8-2M4.5 12l1 1 1.8-2M4.5 18l1 1 1.8-2"/>'],
     ['calendario','Calendario',C.green,'<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/>'],
     ['gym','Gimnasio',C.yellow,'<path d="M6.5 6.5v11M3.5 9v5M17.5 6.5v11M20.5 9v5M6.5 12h11"/>'],
-    ['habitos','Hábitos',C.purple,'<path d="M12 3c.6 3.2 3 4.4 3 7.6a3 3 0 0 1-6 0c0-1 .4-1.9 1-2.6-1.3.4-3.2 1.7-3.2 4.7a5.2 5.2 0 0 0 10.4 0C17.2 8.2 14.2 5.6 12 3z"/>']];
+    ['habitos','Hábitos',C.purple,'<path d="M12 3c.6 3.2 3 4.4 3 7.6a3 3 0 0 1-6 0c0-1 .4-1.9 1-2.6-1.3.4-3.2 1.7-3.2 4.7a5.2 5.2 0 0 0 10.4 0C17.2 8.2 14.2 5.6 12 3z"/>'],
+    ['progreso','Progreso',C.cyan,'<path d="M3 20h18M6 20v-6M11 20V8M16 20v-9M21 20V5"/>']];
   return '<div class="tabbar">'+items.map(([k,lb,col,ic])=>{
     const on=ui.tab===k;
     const c=on?col:'rgba(244,244,251,0.42)';
@@ -37,18 +43,38 @@ document.addEventListener('click',e=>{
   switch(act){
     case 'tab': ui.tab=a.dataset.tab; ui.gymExpand=null; render(); break;
 
-    case 'task-toggle': { const t=state.tasks.find(x=>x.id===id); if(t){t.done=!t.done; commit();} break; }
-    case 'task-open': { const t=state.tasks.find(x=>x.id===id); if(t) taskModal(t); break; }
-    case 'task-new': taskModal(null); break;
-    case 'task-delete': confirmDelete('¿Eliminar esta tarea?','La tarea y su recordatorio asociado se quitan de la app.',()=>{ state.tasks=state.tasks.filter(x=>x.id!==a.dataset.id); closeModal(); commit(); }); break;
-    case 'task-filter': ui.taskFilter=a.dataset.f; render(); break;
+    // ---- Hoy: tira semanal ----
+    case 'day-sel': ui.daySel=a.dataset.d; render(); break;
+    case 'week-prev': ui.daySel=iso(addDays(parseISO(ui.daySel),-7)); render(); break;
+    case 'week-next': ui.daySel=iso(addDays(parseISO(ui.daySel),7)); render(); break;
 
+    // ---- ítems de agenda (tarea / cita / anual) ----
+    case 'task-toggle': { const t=itemById(id); if(t && t.kind==='tarea'){ t.done=!t.done; commit(); } break; }
+    // task-schedule es el atajo "poner fecha" de la bandeja: mismo form, ya con el datepicker.
+    case 'task-open': case 'task-schedule': { const t=itemById(id); if(t) taskModal(t); break; }
+    case 'event-open': { const e=itemById(id); if(e) eventModal(e); break; }
+    case 'item-delete': {
+      const it=itemById(a.dataset.id); if(!it) break;
+      const q={ tarea:['¿Eliminar esta tarea?','La tarea se quita de la app.'],
+                cita:['¿Eliminar esta cita?','Se quita del calendario.'],
+                anual:['¿Eliminar esta fecha anual?','Se quita del calendario y deja de repetirse cada año.'] }[it.kind];
+      confirmDelete(q[0],q[1],()=>{ state.items=state.items.filter(x=>x.id!==it.id); closeModal(); commit(); });
+      break;
+    }
+
+    // ---- botón + de carga rápida ----
+    case 'quick-add': quickAddMenu(); break;
+    case 'quick-task': closeModal(); taskModal(null, ui.tab==='hoy'?ui.daySel:todayISO()); break;
+    case 'quick-event': closeModal(); eventModal(null, ui.tab==='hoy'?ui.daySel:ui.calSel); break;
+    case 'quick-habit': closeModal(); habitModal(null); break;
+
+    // ---- calendario ----
     case 'cal-prev': { let m=ui.calM-1,y=ui.calY; if(m<0){m=11;y--;} ui.calM=m;ui.calY=y; render(); break; }
     case 'cal-next': { let m=ui.calM+1,y=ui.calY; if(m>11){m=0;y++;} ui.calM=m;ui.calY=y; render(); break; }
     case 'cal-day': ui.calSel=a.dataset.d; render(); break;
-    case 'reminder-new': reminderModal(null); break;
-    case 'reminder-open': { const r=state.reminders.find(x=>x.id===id); if(r) reminderModal(r); break; }
-    case 'reminder-delete': confirmDelete('¿Eliminar este recordatorio?','Se quita del calendario. Si es anual, deja de repetirse.',()=>{ state.reminders=state.reminders.filter(x=>x.id!==a.dataset.id); closeModal(); commit(); }); break;
+    case 'cal-add': calAddMenu(a.dataset.d); break;
+    case 'cal-add-task': { const d=a.dataset.d; closeModal(); taskModal(null,d); break; }
+    case 'cal-add-event': { const d=a.dataset.d; closeModal(); eventModal(null,d); break; }
 
     case 'gym-prev': ui.gymOffset--; ui.gymExpand=null; render(); break;
     case 'gym-next': ui.gymOffset++; ui.gymExpand=null; render(); break;

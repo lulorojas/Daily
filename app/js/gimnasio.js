@@ -224,12 +224,14 @@ function liftModal(existing){
     const nm=overlay.querySelector('#l-new');
     const newN=nm?nm.value.trim():'';
     const dt=overlay.querySelector('#l-date').value||todayISO();
+    // Sin ejercicio elegido ni nombre nuevo no hay a qué cargarle el peso.
+    if(!validateForm([['#l-new', !!(newN||selId), 'Elegí un ejercicio o creá uno nuevo.']])) return;
     if(newN){
       const color=PALETTE[state.gym.lifts.length%PALETTE.length];
       state.gym.lifts.push({id:uid(),name:newN,unit:'kg',color,history:[{date:dt,weight}]});
-    } else if(selId){
+    } else {
       const l=state.gym.lifts.find(x=>x.id===selId); l.history.push({date:dt,weight});
-    } else { return; }
+    }
     closeModal(); commit();
   });
   onOverlay('click',e=>{
@@ -259,7 +261,8 @@ function typeCreateModal(typeObj){
       ${PALETTE.map(c=>`<div class="cdot" data-pick="color" data-v="${c}" style="background:${c};${color===c?'box-shadow:0 0 0 3.5px '+tint(c,'73'):''}">${color===c?'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4 10-12"/></svg>':''}</div>`).join('')}
     </div></div>`;
   openModal(editing?'Editar tipo':'Nuevo tipo',body,C.green,()=>{
-    const name=mq('#ty-name').value.trim(); if(!name){ mq('#ty-name').focus(); return; }
+    const name=mq('#ty-name').value.trim();
+    if(!validateForm([['#ty-name', !!name, 'Poné un nombre para el tipo de entreno.']])) return;
     if(editing){ const o=state.gym.customTypes.find(x=>x.id===t.id); const old=o.name; o.name=name; o.color=color;
       // keep references in plans pointing to renamed type
       if(old!==name) Object.values(state.gym.weekPlans).forEach(p=>p.forEach(d=>{if(d.type===old)d.type=name;}));

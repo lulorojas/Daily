@@ -1,7 +1,7 @@
 // Daily — service worker.
 // HTML shell: network-first (los cambios aparecen apenas hay internet).
 // Assets estáticos (íconos, manifest): cache-first con refresco en segundo plano.
-const CACHE = 'daily-v3';
+const CACHE = 'daily-v4';
 const ASSETS = [
   './',
   './index.html',
@@ -9,10 +9,11 @@ const ASSETS = [
   './css/styles.css',
   './js/utils.js',
   './js/hoy.js',
-  './js/tareas.js',
+  './js/agenda.js',
   './js/calendario.js',
   './js/gimnasio.js',
   './js/habitos.js',
+  './js/progreso.js',
   './js/app.js',
   './icons/icon-180.png',
   './icons/icon-192.png',
