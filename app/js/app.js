@@ -85,6 +85,9 @@ document.addEventListener('click',e=>{
     case 'gym-toggle': { const i=+a.dataset.i; const d=getWeekPlan(ui.gymOffset)[i]; d.done=!d.done; commit(); break; }
     case 'gym-managetypes': manageTypesModal(); break;
 
+    // ---- progreso (solo lectura: el selector solo cambia el recorte de la vista) ----
+    case 'prog-period': ui.progPeriod=a.dataset.p; render(); break;
+
     case 'const-prev': ui.constEnd-=8; render(); break;
     case 'const-next': ui.constEnd=Math.min(0,ui.constEnd+8); render(); break;
 

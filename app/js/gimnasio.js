@@ -6,6 +6,63 @@ function getWeekPlan(offset){
   if(!state.gym.weekPlans[k]) state.gym.weekPlans[k]=DOW_SHORT.map(()=>({type:REST,done:false}));
   return state.gym.weekPlans[k];
 }
+// Semana (su lunes) a la que pertenece una fecha. Clave para agrupar por semana.
+function weekOf(dISO){ return iso(mondayOf(parseISO(dISO))); }
+
+// Entrenos por semana: {lunesISO: cantidad}. Se le pasa el historial ya filtrado.
+function gymWeekCounts(hist){
+  const out={};
+  hist.forEach(x=>{ const k=weekOf(x.date); out[k]=(out[k]||0)+1; });
+  return out;
+}
+
+// Racha POR TIPO de entrenamiento (no por semana): cuántas semanas seguidas, contando
+// hacia atrás, se hizo ese tipo al menos una vez. Un tipo "está en racha" a partir de 2
+// semanas seguidas. La semana en curso no corta la racha: si todavía no se hizo, se empieza
+// a contar desde la anterior (mismo criterio indulgente que habitStreak).
+function gymTypeStreaks(){
+  const weeks={};                                  // tipo -> Set de semanas en que se hizo
+  gymHistory().forEach(x=>{ (weeks[x.type] ||= new Set()).add(weekOf(x.date)); });
+  const curW=iso(mondayOf(todayD()));
+  const prevW=w=>iso(addDays(parseISO(w),-7));
+  return Object.keys(weeks).map(type=>{
+    const set=weeks[type];
+    let w=set.has(curW)?curW:prevW(curW), n=0;
+    while(set.has(w)){ n++; w=prevW(w); }
+    return { type, weeks:n };
+  }).filter(x=>x.weeks>0).sort((a,b)=>b.weeks-a.weeks || (a.type<b.type?-1:1));
+}
+
+// Mayor avance de carga dentro de una ventana: por cada ejercicio con 2+ registros ahí
+// adentro, cuánto subió entre el primero y el último. De mayor a menor.
+// startISO null = todo el historial.
+function liftGains(startISO){
+  return state.gym.lifts.map(l=>{
+    const h=l.history.filter(p=>!startISO || p.date>=startISO).slice().sort((a,b)=>a.date<b.date?-1:1);
+    if(h.length<2) return null;
+    const from=h[0].weight, to=h[h.length-1].weight;
+    return { id:l.id, name:l.name, color:l.color, unit:l.unit||'kg',
+             gain:+(to-from).toFixed(1), from, to, n:h.length };
+  }).filter(Boolean).sort((a,b)=>b.gain-a.gain);
+}
+
+// Cuántas veces se hizo cada tipo, de más a menos. Lo comparten Gimnasio y Progreso:
+// se le pasa el historial ya filtrado (Progreso lo recorta por período, Gimnasio lo pasa entero).
+function gymRanking(hist){
+  const counts={};
+  hist.forEach(x=>counts[x.type]=(counts[x.type]||0)+1);
+  return Object.keys(counts).map(t=>({type:t,count:counts[t]})).sort((a,b)=>b.count-a.count);
+}
+// Las filas con barra del ranking. Asume ranked.length > 0.
+function rankingRows(ranked){
+  const max=Math.max(...ranked.map(r=>r.count));
+  return ranked.map((r,i)=>{const col=typeColor(r.type);return `<div class="rankrow">
+    <div style="display:flex;align-items:center;gap:9px;margin-bottom:7px">
+      <span class="ranknum" style="color:${col};background:${tint(col,'24')}">${i+1}</span>
+      <span class="fr" style="flex:1;font-weight:600;font-size:14px">${esc(r.type)}</span>
+      <span class="fr" style="font-weight:600;font-size:13px;color:${col}">${r.count} ${r.count===1?'vez':'veces'}</span></div>
+    <div class="bartrack"><div style="height:100%;border-radius:99px;background:${col};width:${Math.round(r.count/max*100)}%"></div></div></div>`;}).join('');
+}
 function gymHistory(){
   const out=[];
   Object.keys(state.gym.weekPlans).forEach(k=>{
@@ -135,19 +192,10 @@ function viewGym(){
   h+=`</div>`;
 
   // ranking
-  const counts={};
-  hist.forEach(x=>counts[x.type]=(counts[x.type]||0)+1);
-  const ranked=Object.keys(counts).map(t=>({type:t,count:counts[t]})).sort((a,b)=>b.count-a.count);
+  const ranked=gymRanking(hist);
   if(ranked.length){
-    const max=Math.max(...ranked.map(r=>r.count));
     h+=`<div><div class="sectlabel">RANKING POR TIPO</div><div class="card" style="padding:16px 16px 8px">`+
-      ranked.map((r,i)=>{const col=typeColor(r.type);return `<div class="rankrow">
-        <div style="display:flex;align-items:center;gap:9px;margin-bottom:7px">
-          <span class="ranknum" style="color:${col};background:${tint(col,'24')}">${i+1}</span>
-          <span class="fr" style="flex:1;font-weight:600;font-size:14px">${esc(r.type)}</span>
-          <span class="fr" style="font-weight:600;font-size:13px;color:${col}">${r.count} ${r.count===1?'vez':'veces'}</span></div>
-        <div class="bartrack"><div style="height:100%;border-radius:99px;background:${col};width:${Math.round(r.count/max*100)}%"></div></div></div>`;}).join('')+
-      `</div></div>`;
+      rankingRows(ranked)+`</div></div>`;
   }
 
   h+=`</div></div>`;

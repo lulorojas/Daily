@@ -42,7 +42,8 @@ let state = load();
 // habitDate lo sigue usando la pestaña Hábitos, que en esta etapa queda como está.
 // gymSub/rutId/rutDayId: nivel abierto en la sub-pantalla de Rutinas (null = Gimnasio normal).
 const ui = { tab:'hoy', daySel:todayISO(), calY:todayD().getFullYear(), calM:todayD().getMonth(), calSel:todayISO(),
-             gymOffset:0, constEnd:0, habitDate:todayISO(), gymSub:null, rutId:null, rutDayId:null };
+             gymOffset:0, constEnd:0, habitDate:todayISO(), gymSub:null, rutId:null, rutDayId:null,
+             progPeriod:'mes' };
 
 function load(){
   try{ const s=JSON.parse(localStorage.getItem(KEY)); if(s) return normalize(s); }catch(e){}
@@ -219,6 +220,25 @@ function sparkline(data,color,W,H,opt){
     <polyline points="${pts.join(' ')}" fill="none" stroke="${color}" stroke-width="${o.sw||2.5}" stroke-linecap="round" stroke-linejoin="round"/>
     <circle cx="${lastX}" cy="${lastY}" r="${o.r||3.2}" fill="${color}"/>
   </svg>`;
+}
+
+/* ---- dona de distribución ----
+   slices: [{value,color}] en el orden en que se dibujan. Devuelve el anillo como SVG.
+   Con total 0 devuelve '' — quien llama decide qué mostrar en su lugar. */
+function donut(slices,size,thick){
+  const total=slices.reduce((a,s)=>a+s.value,0);
+  if(!total) return '';
+  const R=size/2, rad=R-thick/2, CIRC=2*Math.PI*rad;
+  let acc=0;
+  const rings=slices.map(s=>{
+    const len=s.value/total*CIRC;
+    const el=`<circle cx="${R}" cy="${R}" r="${rad.toFixed(2)}" fill="none" stroke="${s.color}" stroke-width="${thick}"
+      stroke-dasharray="${len.toFixed(2)} ${(CIRC-len).toFixed(2)}" stroke-dashoffset="${(-acc).toFixed(2)}"
+      transform="rotate(-90 ${R} ${R})"/>`;
+    acc+=len;
+    return el;
+  }).join('');
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="flex-shrink:0">${rings}</svg>`;
 }
 
 /* ---- small svg builders ---- */

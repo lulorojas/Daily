@@ -7,6 +7,29 @@ function habitStreak(id,refISO){
   let n=0; while(habitDone(id,iso(cur))){ n++; cur=addDays(cur,-1); }
   return n;
 }
+// Cuántos hábitos se marcaron ese día. Solo cuenta los hábitos que existen hoy: habitLog
+// puede conservar marcas de hábitos ya borrados.
+function habitDoneCount(dISO){
+  const day=state.habitLog[dISO];
+  return day ? state.habits.filter(h=>day[h.id]).length : 0;
+}
+// Primer día con alguna marca, o null. Sirve para acotar rangos en Progreso.
+function habitFirstISO(){
+  const ds=Object.keys(state.habitLog).filter(d=>habitDoneCount(d)>0).sort();
+  return ds.length?ds[0]:null;
+}
+// Racha más larga que llegó a tener el hábito. Se calcula al vuelo recorriendo las marcas
+// que ya están en habitLog: no se guarda nada nuevo.
+function habitBestStreak(id){
+  const days=Object.keys(state.habitLog).filter(d=>state.habitLog[d] && state.habitLog[d][id]).sort();
+  let best=0, run=0, prev=null;
+  days.forEach(d=>{
+    run = (prev && iso(addDays(parseISO(prev),1))===d) ? run+1 : 1;
+    if(run>best) best=run;
+    prev=d;
+  });
+  return best;
+}
 function viewHabitos(){
   const dISO=ui.habitDate, d=parseISO(dISO), isToday=dISO===todayISO();
   const total=state.habits.length;
