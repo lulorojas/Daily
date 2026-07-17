@@ -65,12 +65,26 @@ function viewGym(){
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="${C.green}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Administrar tipos</div></div>
   </div>`;
 
+  // entrada a la biblioteca de rutinas (sub-pantalla)
+  const nRut=state.gym.routines.length;
+  h+=`<div><div class="sectlabel">RUTINAS</div>
+    <div class="softcard evt" data-act="rut-open-lib">
+      <div style="width:38px;height:38px;border-radius:12px;background:${tint(C.purple,'24')};display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="${C.purple}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5zM9 7.5h7M9 11h5"/></svg></div>
+      <div style="flex:1;min-width:0"><div class="fr" style="font-weight:600;font-size:15px">Mis rutinas</div>
+        <div style="font-size:12.5px;color:rgba(244,244,251,0.5);margin-top:1px">${nRut?nRut+(nRut===1?' rutina guardada':' rutinas guardadas'):'Todavía no creaste ninguna'}</div></div>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(244,244,251,0.35)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+    </div></div>`;
+
   // seguimiento de pesos
   h+=`<div><div class="sectlabel">SEGUIMIENTO DE PESOS</div><div style="display:flex;flex-direction:column;gap:10px">`;
   state.gym.lifts.forEach(l=>{ h+=liftCard(l); });
   h+=`<div class="dashed" style="border:1.5px dashed ${tint(C.green,'73')};background:${tint(C.green,'12')};color:${C.green}" data-act="lift-new">
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="${C.green}" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Agregar ejercicio</div>`;
   h+=`</div></div>`;
+
+  // peso corporal
+  h+=bodyWeightSection();
 
   // constancia (mapa de días entrenados — con navegación por meses)
   const hist=gymHistory();
@@ -142,13 +156,6 @@ function viewGym(){
 function liftCard(l){
   const data=l.history.map(p=>p.weight);
   const cur=data[data.length-1], gain=cur-data[0];
-  const W=118,H=44,padX=4,padY=7,n=data.length;
-  const min=Math.min(...data),max=Math.max(...data),range=(max-min)||1;
-  const X=i=>n>1?padX+(i/(n-1))*(W-padX*2):W/2;
-  const Y=v=>padY+(1-(v-min)/range)*(H-padY*2);
-  const pts=data.map((v,i)=>X(i).toFixed(1)+','+Y(v).toFixed(1));
-  const lastX=X(n-1).toFixed(1),lastY=Y(data[n-1]).toFixed(1);
-  const area='M'+pts.join(' L')+' L'+lastX+','+(H-padY)+' L'+X(0).toFixed(1)+','+(H-padY)+' Z';
   return `<div class="lift softcard" data-act="lift-open" data-id="${l.id}">
     <div style="display:flex;align-items:center;gap:13px">
       <div style="flex:1;min-width:0"><div class="nm">${esc(l.name)}</div>
@@ -157,14 +164,103 @@ function liftCard(l){
           <span style="font-size:12px;color:rgba(244,244,251,0.5)">${esc(l.unit||'kg')}</span>
           ${data.length>1?`<span class="delta" style="color:${gain<0?C.coral:C.green};background:${gain<0?tint(C.coral,'29'):'rgba(6,214,160,0.16)'}">${gain>=0?'+':''}${fmtNum(gain)} kg</span>`:''}
         </div></div>
-      <svg width="118" height="44" viewBox="0 0 118 44" style="flex-shrink:0">
-        <path d="${area}" fill="${tint(l.color,'22')}"/>
-        <polyline points="${pts.join(' ')}" fill="none" stroke="${l.color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-        <circle cx="${lastX}" cy="${lastY}" r="3.2" fill="${l.color}"/>
-      </svg>
+      ${sparkline(data,l.color,118,44,{style:'flex-shrink:0'})}
     </div>
     <div class="delx" data-act="lift-delete" data-id="${l.id}" data-stop="1"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(244,244,251,0.4)" stroke-width="2.8" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></div>
   </div>`;
+}
+
+/* ============================ PESO CORPORAL ============================
+   Métrica propia, separada del peso que se levanta en cada ejercicio (state.gym.lifts).
+   Cada registro es { id, date, kg }. Se listan siempre ordenados por fecha. */
+function bodyList(){ return state.gym.bodyWeights.slice().sort((a,b)=>a.date<b.date?-1:1); }
+
+function bodyWeightSection(){
+  const log=bodyList(), col=C.cyan;
+  let h=`<div><div style="display:flex;align-items:center;justify-content:space-between;margin:0 2px 10px">
+    <div style="display:flex;align-items:baseline;gap:8px">
+      <span class="fr" style="font-size:13.5px;font-weight:600;color:rgba(244,244,251,0.5);letter-spacing:0.3px">PESO CORPORAL</span>
+      ${log.length?`<span style="font-size:12px;font-weight:700;color:rgba(244,244,251,0.35)">${log.length} ${log.length===1?'registro':'registros'}</span>`:''}</div>
+    ${log.length?`<div class="iconcirc" data-act="body-manage"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(244,244,251,0.5)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></div>`:''}
+  </div>`;
+
+  if(log.length){
+    const data=log.map(p=>p.kg), cur=data[data.length-1], gain=+(cur-data[0]).toFixed(1);
+    const last=log[log.length-1];
+    h+=`<div class="card" style="padding:16px">
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px">
+        <div><div style="display:flex;align-items:baseline;gap:5px">
+          <span class="fr" style="font-weight:700;font-size:34px;color:${col}">${fmtNum(cur)}</span>
+          <span style="font-size:14px;font-weight:700;color:rgba(244,244,251,0.5)">kg</span>
+          ${data.length>1?`<span class="delta" style="color:${gain<0?C.coral:C.green};background:${gain<0?tint(C.coral,'29'):'rgba(6,214,160,0.16)'}">${gain>=0?'+':''}${fmtNum(gain)} kg</span>`:''}
+        </div>
+        <div style="font-size:12px;font-weight:600;color:rgba(244,244,251,0.45);margin-top:3px">Último registro · ${shortDate(last.date)}</div></div>
+      </div>
+      ${data.length>1?`<div style="margin-top:14px">${sparkline(data,col,300,86,{padX:6,padY:10,style:'width:100%;height:86px',r:3.6})}</div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:700;color:rgba(244,244,251,0.35);margin-top:6px">
+        <span>${shortDate(log[0].date)}</span><span>${shortDate(last.date)}</span></div>`
+      :`<div style="font-size:12px;font-weight:600;color:rgba(244,244,251,0.4);margin-top:10px">Cargá otro registro para ver la tendencia.</div>`}
+    </div>`;
+  } else {
+    h+=`<div class="card" style="padding:6px 16px"><div class="empty">Todavía no registraste tu peso.</div></div>`;
+  }
+  h+=`<div style="margin-top:10px"><div class="dashed" style="border:1.5px dashed ${tint(col,'73')};background:${tint(col,'12')};color:${col}" data-act="body-new">
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="${col}" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Registrar peso</div></div>`;
+  return h+`</div>`;
+}
+
+/* ---- registrar / editar peso corporal ---- */
+function bodyModal(rec){
+  const editing=!!rec;
+  const r=rec||{kg:'',date:todayISO()};
+  const col=C.cyan;
+  const bdp=dpState(r.date);
+  const body=`
+    <div class="fld"><div class="flabel">PESO <span class="opt">· kg</span></div>
+      <input class="inp" id="b-kg" inputmode="decimal" placeholder="Ej: 72.5" value="${r.kg===''?'':fmtNum(r.kg)}"></div>
+    <div class="fld"><div class="flabel">FECHA</div>
+      ${dateField('b',col,bdp)}</div>
+    ${editing?`<div class="delbtn" data-act="body-delete" data-id="${r.id}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${C.coral}" stroke-width="2.4" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>Eliminar registro</div>`:''}`;
+  openModal(editing?'Editar registro':'Registrar peso',body,col,()=>{
+    const raw=mq('#b-kg').value.trim().replace(',','.');
+    const kg=Number(raw);
+    // Tiene que ser un número real y positivo: un peso vacío, con letras o <= 0 no es un peso.
+    const valido = raw!=='' && Number.isFinite(kg) && kg>0;
+    if(!validateForm([
+      ['#b-kg',   valido,     raw===''?'Poné cuánto pesás en kg.':'Poné un peso válido en kg (mayor a 0).'],
+      ['#b-drow', !!bdp.sel,  'Elegí una fecha.'],
+    ])) return;
+    const val=+kg.toFixed(1);
+    if(editing) Object.assign(state.gym.bodyWeights.find(x=>x.id===r.id),{kg:val,date:bdp.sel});
+    else state.gym.bodyWeights.push({id:uid(),kg:val,date:bdp.sel});
+    closeModal(); commit();
+  });
+  onOverlay('click', wireDatePicker('b',col,bdp));
+}
+
+/* ---- listado de registros de peso (editar / borrar) ---- */
+function bodyManageModal(){
+  const log=bodyList().reverse(); // más recientes primero
+  let body=`
+    <div class="fld"><div style="display:flex;align-items:center;justify-content:space-between">
+      <div><div class="fr" style="font-size:24px;font-weight:600">Mis registros</div>
+      <div style="font-size:14px;color:rgba(244,244,251,0.55);margin-top:4px">${log.length} ${log.length===1?'registro':'registros'} · tocá para editar o borrar</div></div>
+      <div style="width:40px;height:40px;border-radius:14px;background:${C.cyan};display:flex;align-items:center;justify-content:center;box-shadow:0 8px 18px rgba(34,195,230,0.35)" data-act="body-new">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0E0F22" stroke-width="2.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
+    </div></div>`;
+  body+=`<div class="fld"><div class="flabel">HISTORIAL DE PESO</div>`;
+  if(log.length){
+    body+=`<div class="card" style="overflow:hidden;padding:0">`+log.map(r=>`
+      <div class="managerow">
+        <span class="fr" style="font-weight:700;font-size:15.5px;color:${C.cyan};min-width:62px">${fmtNum(r.kg)} kg</span>
+        <span style="flex:1;font-size:13px;color:rgba(244,244,251,0.5)">${fmtDateLong(r.date)}</span>
+        <div style="display:flex;gap:8px">
+          <div class="iconcirc" data-act="body-edit" data-id="${r.id}"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(244,244,251,0.5)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></div>
+          <div class="iconcirc" data-act="body-delete" data-id="${r.id}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(244,244,251,0.5)" stroke-width="2.6" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></div>
+        </div></div>`).join('')+`</div>`;
+  } else body+=`<div class="empty">Todavía no registraste tu peso.</div>`;
+  body+=`</div>`;
+  openModal('Peso corporal',body,null,null);
 }
 
 /* ---- lift (cargar peso) modal ---- */

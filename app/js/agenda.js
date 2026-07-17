@@ -118,6 +118,7 @@ function quickAddMenu(){
     ['task','Nueva tarea',C.coral,'M9 6h11M9 12h11M9 18h11M4.5 6l1 1 1.8-2M4.5 12l1 1 1.8-2M4.5 18l1 1 1.8-2'],
     ['event','Nueva cita',C.green,'M3 5h18v16H3zM3 10h18M8 3v4M16 3v4'],
     ['habit','Nuevo hábito',C.purple,'M12 3c.6 3.2 3 4.4 3 7.6a3 3 0 0 1-6 0c0-1 .4-1.9 1-2.6-1.3.4-3.2 1.7-3.2 4.7a5.2 5.2 0 0 0 10.4 0C17.2 8.2 14.2 5.6 12 3z'],
+    ['body','Registrar peso',C.cyan,'M3 20h18M6 20v-6M11 20V8M16 20v-9M21 20V5'],
   ];
   const body=`<div style="display:flex;flex-direction:column;gap:10px">`+opts.map(([k,lb,col,ic])=>
     `<div class="softcard evt" data-act="quick-${k}">

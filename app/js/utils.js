@@ -40,7 +40,9 @@ const KEY='daily.v2';
 const KEY_V1='daily.v1';
 let state = load();
 // habitDate lo sigue usando la pestaña Hábitos, que en esta etapa queda como está.
-const ui = { tab:'hoy', daySel:todayISO(), calY:todayD().getFullYear(), calM:todayD().getMonth(), calSel:todayISO(), gymOffset:0, constEnd:0, habitDate:todayISO() };
+// gymSub/rutId/rutDayId: nivel abierto en la sub-pantalla de Rutinas (null = Gimnasio normal).
+const ui = { tab:'hoy', daySel:todayISO(), calY:todayD().getFullYear(), calM:todayD().getMonth(), calSel:todayISO(),
+             gymOffset:0, constEnd:0, habitDate:todayISO(), gymSub:null, rutId:null, rutDayId:null };
 
 function load(){
   try{ const s=JSON.parse(localStorage.getItem(KEY)); if(s) return normalize(s); }catch(e){}
@@ -76,6 +78,10 @@ function migrateV1(o){
 function normalize(s){
   s.v=2; s.items ||= []; s.habits ||= []; s.habitLog ||= {};
   s.gym ||= {}; s.gym.customTypes ||= []; s.gym.weekPlans ||= {}; s.gym.lifts ||= [];
+  // Etapa 2. Nada que migrar: quien ya tenía datos arranca con estas dos colecciones vacías.
+  // routines: biblioteca de consulta, independiente del plan semanal y del historial.
+  // bodyWeights: peso corporal, métrica aparte del peso que se levanta por ejercicio.
+  s.gym.routines ||= []; s.gym.bodyWeights ||= [];
   let changed=false;
   // One-time: seed the default training types as editable/removable custom types.
   if(!s.gym.typesSeeded){
@@ -121,7 +127,8 @@ function seed(){
     items:[
       { id:uid(), kind:'tarea', title:'Probar mi nueva app', desc:'Tocá el check para completar', date:todayISO(), time:null, done:false },
     ],
-    gym:{ customTypes:defaultTypes(), weekPlans:{ [iso(mondayOf(todayD()))]: defaultPlanDays() }, lifts:defaultLifts(), seeded:true, typesSeeded:true },
+    // routines y bodyWeights arrancan vacías a propósito: sin datos de arranque inventados.
+    gym:{ customTypes:defaultTypes(), weekPlans:{ [iso(mondayOf(todayD()))]: defaultPlanDays() }, lifts:defaultLifts(), routines:[], bodyWeights:[], seeded:true, typesSeeded:true },
     habits:[
       { id:uid(), name:'Tomar agua', detail:'8 vasos al día', color:C.green, icon:'agua' },
     ],
@@ -193,6 +200,25 @@ function eventRow(e){
       <span class="fr" style="font-weight:600;font-size:12.5px;color:rgba(244,244,251,0.5)">${sub}</span></div>
     <span class="badge" style="color:${col};background:${tint(col,'24')}">${ITEM_LABEL[e.kind]}</span>
   </div>`;
+}
+
+/* ---- gráfico de línea de tendencia ----
+   Lo comparten el seguimiento de cargas por ejercicio y el peso corporal, para que
+   las dos métricas se lean igual. `data` son los valores ya ordenados por fecha. */
+function sparkline(data,color,W,H,opt){
+  const o=opt||{}, padX=o.padX!=null?o.padX:4, padY=o.padY!=null?o.padY:7, n=data.length;
+  if(!n) return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"></svg>`;
+  const min=Math.min(...data), max=Math.max(...data), range=(max-min)||1;
+  const X=i=>n>1?padX+(i/(n-1))*(W-padX*2):W/2;
+  const Y=v=>padY+(1-(v-min)/range)*(H-padY*2);
+  const pts=data.map((v,i)=>X(i).toFixed(1)+','+Y(v).toFixed(1));
+  const lastX=X(n-1).toFixed(1), lastY=Y(data[n-1]).toFixed(1);
+  const area='M'+pts.join(' L')+' L'+lastX+','+(H-padY)+' L'+X(0).toFixed(1)+','+(H-padY)+' Z';
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" ${o.style?`style="${o.style}"`:''}>
+    <path d="${area}" fill="${tint(color,'22')}"/>
+    <polyline points="${pts.join(' ')}" fill="none" stroke="${color}" stroke-width="${o.sw||2.5}" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="${lastX}" cy="${lastY}" r="${o.r||3.2}" fill="${color}"/>
+  </svg>`;
 }
 
 /* ---- small svg builders ---- */

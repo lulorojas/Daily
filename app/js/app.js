@@ -5,7 +5,8 @@ function render(){
   let html='';
   if(ui.tab==='hoy') html=viewHoy();
   else if(ui.tab==='calendario') html=viewCalendario();
-  else if(ui.tab==='gym') html=viewGym();
+  // Rutinas es una sub-pantalla de Gimnasio: ocupa la pestaña sin ser una pestaña propia.
+  else if(ui.tab==='gym') html=(ui.gymSub==='rutinas'?viewRutinas():viewGym());
   else if(ui.tab==='habitos') html=viewHabitos();
   else if(ui.tab==='progreso') html=viewProgreso();
   app.innerHTML = html + quickAddBtn() + tabbar();
@@ -67,6 +68,7 @@ document.addEventListener('click',e=>{
     case 'quick-task': closeModal(); taskModal(null, ui.tab==='hoy'?ui.daySel:todayISO()); break;
     case 'quick-event': closeModal(); eventModal(null, ui.tab==='hoy'?ui.daySel:ui.calSel); break;
     case 'quick-habit': closeModal(); habitModal(null); break;
+    case 'quick-body': closeModal(); bodyModal(null); break;
 
     // ---- calendario ----
     case 'cal-prev': { let m=ui.calM-1,y=ui.calY; if(m<0){m=11;y--;} ui.calM=m;ui.calY=y; render(); break; }
@@ -89,6 +91,53 @@ document.addEventListener('click',e=>{
     case 'lift-new': liftModal(null); break;
     case 'lift-open': { const l=state.gym.lifts.find(x=>x.id===id); if(l) liftModal(l); break; }
     case 'lift-delete': { const l=state.gym.lifts.find(x=>x.id===id); if(l) confirmDelete('¿Eliminar "'+l.name+'"?','Se borra el ejercicio y todo su historial de pesos.',()=>{ state.gym.lifts=state.gym.lifts.filter(x=>x.id!==id); closeModal(); commit(); }); break; }
+
+    // ---- rutinas (biblioteca de consulta, sub-pantalla de Gimnasio) ----
+    case 'rut-open-lib': ui.gymSub='rutinas'; ui.rutId=null; ui.rutDayId=null; render(); break;
+    case 'rut-back':
+      if(ui.rutDayId) ui.rutDayId=null;
+      else if(ui.rutId) ui.rutId=null;
+      else ui.gymSub=null;
+      render(); break;
+    case 'rut-open': ui.rutId=id; ui.rutDayId=null; render(); break;
+    case 'rut-new': rutModal(null); break;
+    case 'rut-edit': { const r=rutById(id); if(r) rutModal(r); break; }
+    case 'rut-delete': { const r=rutById(id); if(!r) break;
+      confirmDelete('¿Eliminar "'+r.name+'"?','Se borra la rutina con todos sus días y ejercicios.',()=>{
+        state.gym.routines=state.gym.routines.filter(x=>x.id!==r.id);
+        if(ui.rutId===r.id){ ui.rutId=null; ui.rutDayId=null; }
+        commit(); }); break; }
+    case 'rut-move': { const i=state.gym.routines.findIndex(x=>x.id===id);
+      if(moveInArray(state.gym.routines,i,+a.dataset.dir)) commit(); break; }
+
+    case 'rut-day-open': ui.rutDayId=id; render(); break;
+    case 'rut-day-new': rutDayModal(null); break;
+    case 'rut-day-edit': { const r=rutCur(), d=r&&r.days.find(x=>x.id===id); if(d) rutDayModal(d); break; }
+    case 'rut-day-delete': { const r=rutCur(), d=r&&r.days.find(x=>x.id===id); if(!d) break;
+      confirmDelete('¿Eliminar "'+d.name+'"?','Se borra el día con todos sus ejercicios.',()=>{
+        r.days=r.days.filter(x=>x.id!==d.id);
+        if(ui.rutDayId===d.id) ui.rutDayId=null;
+        commit(); }); break; }
+    case 'rut-day-move': { const r=rutCur(); if(!r) break;
+      const i=r.days.findIndex(x=>x.id===id);
+      if(moveInArray(r.days,i,+a.dataset.dir)) commit(); break; }
+
+    case 'rut-ex-new': rutExModal(null); break;
+    case 'rut-ex-edit': { const d=rutDayCur(), e=d&&d.exercises.find(x=>x.id===id); if(e) rutExModal(e); break; }
+    case 'rut-ex-delete': { const d=rutDayCur(), e=d&&d.exercises.find(x=>x.id===id); if(!e) break;
+      confirmDelete('¿Eliminar "'+e.name+'"?','Se quita el ejercicio de este día.',()=>{
+        d.exercises=d.exercises.filter(x=>x.id!==e.id); commit(); }); break; }
+    case 'rut-ex-move': { const d=rutDayCur(); if(!d) break;
+      const i=d.exercises.findIndex(x=>x.id===id);
+      if(moveInArray(d.exercises,i,+a.dataset.dir)) commit(); break; }
+
+    // ---- peso corporal ----
+    case 'body-new': closeModal(); bodyModal(null); break;
+    case 'body-manage': bodyManageModal(); break;
+    case 'body-edit': { const r=state.gym.bodyWeights.find(x=>x.id===id); if(r){ closeModal(); bodyModal(r); } break; }
+    case 'body-delete': { const r=state.gym.bodyWeights.find(x=>x.id===id); if(!r) break;
+      confirmDelete('¿Eliminar este registro?',fmtNum(r.kg)+' kg del '+fmtDateLong(r.date)+'. Se quita de la tendencia.',()=>{
+        state.gym.bodyWeights=state.gym.bodyWeights.filter(x=>x.id!==r.id); closeModal(); commit(); }); break; }
 
     case 'type-new': typeCreateModal(null); break;
     case 'type-edit': { const t=state.gym.customTypes.find(x=>x.id===id); if(t) typeCreateModal(t); break; }
