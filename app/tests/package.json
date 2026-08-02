@@ -1,0 +1,11 @@
+{
+  "name": "daily-tests",
+  "private": true,
+  "description": "Tests de integración de la app Daily (corren en jsdom).",
+  "scripts": {
+    "test": "node test.js"
+  },
+  "devDependencies": {
+    "jsdom": "^29.1.1"
+  }
+}

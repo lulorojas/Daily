@@ -3,7 +3,8 @@
 const app=document.getElementById('app');
 function render(){
   let html='';
-  if(ui.tab==='hoy') html=viewHoy();
+  // Ajustes es una sub-pantalla de Hoy: se abre con el engranaje, sin ocupar una pestaña.
+  if(ui.tab==='hoy') html=(ui.hoySub==='ajustes'?viewAjustes():viewHoy());
   else if(ui.tab==='calendario') html=viewCalendario();
   // Rutinas es una sub-pantalla de Gimnasio: ocupa la pestaña sin ser una pestaña propia.
   else if(ui.tab==='gym') html=(ui.gymSub==='rutinas'?viewRutinas():viewGym());
@@ -84,6 +85,14 @@ document.addEventListener('click',e=>{
     case 'gym-settype': { const i=+a.dataset.i; getWeekPlan(ui.gymOffset)[i].type=a.dataset.type; ui.gymExpand=null; commit(); break; }
     case 'gym-toggle': { const i=+a.dataset.i; const d=getWeekPlan(ui.gymOffset)[i]; d.done=!d.done; commit(); break; }
     case 'gym-managetypes': manageTypesModal(); break;
+
+    // ---- ajustes / backup ----
+    case 'ajustes-open': ui.hoySub='ajustes'; render(); break;
+    case 'ajustes-back': ui.hoySub=null; render(); break;
+    case 'bk-export': doExport(); break;
+    case 'bk-import': doImport(); break;
+    // Posponer: el aviso vuelve dentro de una semana.
+    case 'bk-snooze': bkSet({ snoozeUntil: iso(addDays(todayD(),BACKUP_DAYS)) }); render(); break;
 
     // ---- progreso (solo lectura: el selector solo cambia el recorte de la vista) ----
     case 'prog-period': ui.progPeriod=a.dataset.p; render(); break;

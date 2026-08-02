@@ -43,7 +43,7 @@ let state = load();
 // gymSub/rutId/rutDayId: nivel abierto en la sub-pantalla de Rutinas (null = Gimnasio normal).
 const ui = { tab:'hoy', daySel:todayISO(), calY:todayD().getFullYear(), calM:todayD().getMonth(), calSel:todayISO(),
              gymOffset:0, constEnd:0, habitDate:todayISO(), gymSub:null, rutId:null, rutDayId:null,
-             progPeriod:'mes' };
+             progPeriod:'mes', hoySub:null };
 
 function load(){
   try{ const s=JSON.parse(localStorage.getItem(KEY)); if(s) return normalize(s); }catch(e){}
@@ -412,20 +412,33 @@ function wireDatePicker(pfx,color,st,onChange){
   };
 }
 
-/* ---- confirm delete (generic small confirm) ---- */
-function confirmDelete(titleQ,desc,onYes){
-  const body=`<div class="confirm"><div class="ct">${esc(titleQ)}</div><div class="cd">${esc(desc)}</div>
-    <div class="row"><div class="b" style="background:rgba(255,255,255,0.07);color:rgba(244,244,251,0.7)" data-act="confirm-no">Cancelar</div>
-    <div class="b" style="background:${C.coral};color:#fff;box-shadow:0 6px 16px rgba(255,107,107,0.4)" data-act="confirm-yes">Eliminar</div></div></div>`;
+/* ---- confirm / aviso (cartel chico sobre lo que haya abierto) ---- */
+// Capa suelta, por encima del modal abierto si lo hay. La comparten el confirm y el aviso.
+function noticeLayer(bodyHTML){
   const layer=document.createElement('div');
   layer.style.cssText='position:fixed;inset:0;z-index:200;display:flex;align-items:center;padding:20px;background:rgba(0,0,0,0.55)';
-  layer.innerHTML=`<div style="width:100%;max-width:480px;margin:0 auto">${body}</div>`;
-  // Append over the open modal sheet if any, otherwise straight to the page.
+  layer.innerHTML=`<div style="width:100%;max-width:480px;margin:0 auto">${bodyHTML}</div>`;
   const sheet=overlay.querySelector('.sheet');
   (sheet||document.body).appendChild(layer);
+  return layer;
+}
+// Confirmación genérica. okLabel es el texto del botón que confirma.
+function confirmAction(titleQ,desc,okLabel,onYes){
+  const body=`<div class="confirm"><div class="ct">${esc(titleQ)}</div><div class="cd">${esc(desc)}</div>
+    <div class="row"><div class="b" style="background:rgba(255,255,255,0.07);color:rgba(244,244,251,0.7)" data-act="confirm-no">Cancelar</div>
+    <div class="b" style="background:${C.coral};color:#fff;box-shadow:0 6px 16px rgba(255,107,107,0.4)" data-act="confirm-yes">${esc(okLabel)}</div></div></div>`;
+  const layer=noticeLayer(body);
   layer.addEventListener('click',e=>{
     if(e.target.closest('[data-act="confirm-no"]')||e.target===layer){ layer.remove(); }
     else if(e.target.closest('[data-act="confirm-yes"]')){ layer.remove(); onYes(); }
   });
+}
+function confirmDelete(titleQ,desc,onYes){ confirmAction(titleQ,desc,'Eliminar',onYes); }
+// Aviso de un solo botón: algo salió mal y no hay nada que confirmar.
+function notice(title,desc){
+  const body=`<div class="confirm"><div class="ct">${esc(title)}</div><div class="cd">${esc(desc)}</div>
+    <div class="row"><div class="b" style="background:${C.blue};color:#fff" data-act="notice-ok">Entendido</div></div></div>`;
+  const layer=noticeLayer(body);
+  layer.addEventListener('click',e=>{ if(e.target.closest('[data-act="notice-ok"]')||e.target===layer) layer.remove(); });
 }
 

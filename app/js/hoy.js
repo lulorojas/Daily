@@ -40,11 +40,17 @@ function viewHoy(){
     : (isFuture?'Así viene este día.':'Podés marcar los hábitos de este día.');
 
   let h=`<div class="view"><div class="head">
-    <div class="kicker" style="color:${C.coral}">${kicker}</div>
-    <h1>${isToday?saludo():dayTitle(d)}</h1>
-    <div class="sub">${sub}</div>
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+      <div style="flex:1;min-width:0">
+        <div class="kicker" style="color:${C.coral}">${kicker}</div>
+        <h1>${isToday?saludo():dayTitle(d)}</h1>
+        <div class="sub">${sub}</div></div>
+      <div class="iconcirc" style="width:36px;height:36px;border-radius:12px;margin-top:2px;flex-shrink:0" data-act="ajustes-open" title="Ajustes">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="rgba(244,244,251,0.6)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 7 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0-1.1-2.7H1a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 2.6 7a1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H7a1.6 1.6 0 0 0 1-1.5V1a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 2.7 1.1 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V7a1.6 1.6 0 0 0 1.5 1H23a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z" transform="scale(0.86) translate(2 2)"/></svg></div>
+    </div>
   </div><div class="body">`;
 
+  h+=bkBanner();
   h+=weekStrip(dISO);
 
   h+=`<div class="progress"><div class="row"><span class="t">Progreso del día</span><span class="c">${done} de ${total}</span></div>
