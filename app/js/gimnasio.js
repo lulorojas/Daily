@@ -218,6 +218,80 @@ function liftCard(l){
   </div>`;
 }
 
+/* ---- detalle de un ejercicio: gráfico + récord + todos los registros por fecha ---- */
+function liftDetailModal(l){
+  const col=l.color, unit=l.unit||'kg';
+  // Ascendente para el gráfico; descendente (con el índice real) para la lista editable.
+  const asc=l.history.map((p,i)=>({p,i})).sort((a,b)=>a.p.date<b.p.date?-1:1);
+  const desc=asc.slice().reverse();
+  const data=asc.map(x=>x.p.weight);
+  const cur=data[data.length-1], first=data[0], gain=+(cur-first).toFixed(1), pr=Math.max(...data);
+  const prRec=asc.find(x=>x.p.weight===pr).p;   // primera vez que alcanzó el récord
+
+  let body=`
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:4px">
+      <div style="display:flex;align-items:baseline;gap:5px">
+        <span class="fr" style="font-weight:700;font-size:34px;color:${col}">${fmtNum(cur)}</span>
+        <span style="font-size:14px;font-weight:700;color:rgba(244,244,251,0.5)">${esc(unit)}</span>
+        ${data.length>1?`<span class="delta" style="color:${gain<0?C.coral:C.green};background:${gain<0?tint(C.coral,'29'):'rgba(6,214,160,0.16)'}">${gain>=0?'+':''}${fmtNum(gain)} ${esc(unit)}</span>`:''}
+      </div>
+      <div style="text-align:right"><div style="font-size:11px;font-weight:700;color:rgba(244,244,251,0.4)">RÉCORD</div>
+        <div class="fr" style="font-weight:700;font-size:16px;color:${C.yellow}">${fmtNum(pr)} ${esc(unit)}</div></div>
+    </div>`;
+
+  if(data.length>1){
+    body+=`<div class="fld">${lineChart(asc.map(x=>({date:x.p.date,v:x.p.weight})),col,320,96,{unit,style:'width:100%;height:96px'})}
+      <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:700;color:rgba(244,244,251,0.35);margin-top:5px">
+        <span>${shortDate(asc[0].p.date)}</span>
+        <span style="color:${C.yellow}">récord ${shortDate(prRec.date)}</span>
+        <span>${shortDate(asc[asc.length-1].p.date)}</span></div>
+      <div style="font-size:11px;font-weight:600;color:rgba(244,244,251,0.35);margin-top:6px">Tocá un punto para ver su fecha y peso.</div></div>`;
+  } else {
+    body+=`<div class="fld"><div style="font-size:12.5px;font-weight:600;color:rgba(244,244,251,0.4)">Cargá otro registro para ver la evolución.</div></div>`;
+  }
+
+  body+=`<div class="fld"><div class="flabel">REGISTROS · POR FECHA</div>
+    <div class="card" style="overflow:hidden;padding:0">`+desc.map(x=>{
+      const esPr=x.p.weight===pr;
+      return `<div class="managerow">
+        <span class="fr" style="font-weight:700;font-size:15.5px;color:${col};min-width:70px">${fmtNum(x.p.weight)} ${esc(unit)}</span>
+        <span style="flex:1;min-width:0;font-size:13px;color:rgba(244,244,251,0.5)">${fmtDateLong(x.p.date)}</span>
+        ${esPr?`<span style="font-size:10px;font-weight:800;color:${C.yellow};background:${tint(C.yellow,'24')};padding:2px 7px;border-radius:99px;flex-shrink:0">récord</span>`:''}
+        <div style="display:flex;gap:8px;flex-shrink:0">
+          <div class="iconcirc" data-act="lift-rec-edit" data-lift="${l.id}" data-i="${x.i}"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(244,244,251,0.5)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></div>
+          <div class="iconcirc" data-act="lift-rec-delete" data-lift="${l.id}" data-i="${x.i}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(244,244,251,0.5)" stroke-width="2.6" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></div>
+        </div></div>`;
+    }).join('')+`</div></div>`;
+
+  body+=`<div class="fld"><div class="dashed" style="border:1.5px dashed ${tint(col,'80')};background:${tint(col,'14')};color:${col}" data-act="lift-log" data-id="${l.id}">
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="${col}" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Cargar peso</div></div>`;
+  body+=`<div class="delbtn" data-act="lift-delete" data-id="${l.id}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${C.coral}" stroke-width="2.4" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>Eliminar ejercicio</div>`;
+
+  openModal(l.name,body,null,null);
+}
+
+/* ---- editar un registro puntual de un ejercicio (peso + fecha) ---- */
+function liftRecModal(l,idx){
+  const rec=l.history[idx]; if(!rec) return;
+  const col=l.color, unit=l.unit||'kg';
+  const rdp=dpState(rec.date);
+  const body=`
+    <div class="fld"><div class="flabel">PESO <span class="opt">· ${esc(unit)}</span></div>
+      <input class="inp" id="lr-kg" inputmode="decimal" placeholder="Ej: 60" value="${fmtNum(rec.weight)}"></div>
+    <div class="fld"><div class="flabel">FECHA</div>${dateField('lr',col,rdp)}</div>`;
+  openModal('Editar registro',body,col,()=>{
+    const raw=mq('#lr-kg').value.trim().replace(',','.');
+    const w=Number(raw);
+    if(!validateForm([
+      ['#lr-kg',   raw!=='' && Number.isFinite(w) && w>0, raw===''?'Poné el peso.':'Poné un peso válido (mayor a 0).'],
+      ['#lr-drow', !!rdp.sel, 'Elegí una fecha.'],
+    ])) return;
+    l.history[idx]={ date:rdp.sel, weight:+w.toFixed(1) };
+    save(); render(); liftDetailModal(l);
+  });
+  onOverlay('click', wireDatePicker('lr',col,rdp));
+}
+
 /* ============================ PESO CORPORAL ============================
    Métrica propia, separada del peso que se levanta en cada ejercicio (state.gym.lifts).
    Cada registro es { id, date, kg }. Se listan siempre ordenados por fecha. */
@@ -244,9 +318,9 @@ function bodyWeightSection(){
         </div>
         <div style="font-size:12px;font-weight:600;color:rgba(244,244,251,0.45);margin-top:3px">Último registro · ${shortDate(last.date)}</div></div>
       </div>
-      ${data.length>1?`<div style="margin-top:14px">${sparkline(data,col,300,86,{padX:6,padY:10,style:'width:100%;height:86px',r:3.6})}</div>
+      ${data.length>1?`<div style="margin-top:14px">${lineChart(log.map(p=>({date:p.date,v:p.kg})),col,300,86,{unit:'kg',style:'width:100%;height:86px'})}</div>
       <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:700;color:rgba(244,244,251,0.35);margin-top:6px">
-        <span>${shortDate(log[0].date)}</span><span>${shortDate(last.date)}</span></div>`
+        <span>${shortDate(log[0].date)}</span><span>Tocá un punto para ver el registro</span><span>${shortDate(last.date)}</span></div>`
       :`<div style="font-size:12px;font-weight:600;color:rgba(244,244,251,0.4);margin-top:10px">Cargá otro registro para ver la tendencia.</div>`}
     </div>`;
   } else {

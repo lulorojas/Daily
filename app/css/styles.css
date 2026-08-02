@@ -91,6 +91,11 @@ button{font-family:inherit;color:inherit;border:none;background:none;cursor:poin
 /* botón chico dentro de una fila (ej: poner fecha a un pendiente) */
 .minibtn{width:30px;height:30px;border-radius:10px;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer}
 
+/* gráfico de línea interactivo: contenedor + tooltip */
+.chartwrap{position:relative}
+.charttip{position:absolute;display:none;transform:translate(-50%,-138%);background:#0E0F22;border:1px solid rgba(255,255,255,0.16);color:#F4F4FB;font-family:'Fredoka',sans-serif;font-size:11.5px;font-weight:700;padding:4px 9px;border-radius:9px;white-space:nowrap;pointer-events:none;z-index:6;box-shadow:0 6px 16px rgba(0,0,0,0.45)}
+.charttip.show{display:block}
+
 /* barras verticales de Progreso (frecuencia, cumplimiento) */
 .progbars{display:flex;align-items:flex-end;gap:2px;height:72px}
 .progbar{flex:1;min-width:0;height:100%;display:flex;align-items:flex-end;background:rgba(255,255,255,0.05);border-radius:3px;overflow:hidden}

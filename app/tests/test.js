@@ -307,4 +307,163 @@ try {
   ok('y sigue borrando', wf.itemById('r1') === undefined);
 } catch (e) { ok('regresión etapa 4', false, e.message); }
 
+/* ---------- 31. pendiente completada desaparece al día siguiente ---------- */
+console.log('\n31. Pendientes completadas');
+try {
+  const w = boot(null, null);
+  const s = w.ev('state');
+  s.items = [
+    { id:'p1', kind:'tarea', title:'Pend activa', desc:'', date:null, time:null, done:false },
+    { id:'p2', kind:'tarea', title:'Pend hecha hoy', desc:'', date:null, time:null, done:true, doneAt:TODAY },
+    { id:'p3', kind:'tarea', title:'Pend hecha ayer', desc:'', date:null, time:null, done:true, doneAt:ago(1) },
+    { id:'p4', kind:'tarea', title:'Pend hecha sin fecha', desc:'', date:null, time:null, done:true },
+  ];
+  w.save();
+  ok('pendientes() sigue devolviendo todas', w.pendientes().length === 4);
+  // pendVisible se evalúa contra el día que se está mirando.
+  ok('activa: se ve cualquier día',            w.pendVisible(w.itemById('p1'), TODAY) === true && w.pendVisible(w.itemById('p1'), ago(1)) === true);
+  ok('completada hoy: se ve mirando hoy',      w.pendVisible(w.itemById('p2'), TODAY) === true);
+  ok('completada hoy: NO se ve mirando otro día', w.pendVisible(w.itemById('p2'), ago(1)) === false && w.pendVisible(w.itemById('p2'), ago(3)) === false);
+  ok('completada ayer: no se ve mirando hoy',  w.pendVisible(w.itemById('p3'), TODAY) === false);
+  ok('completada sin doneAt: nunca se ve',     w.pendVisible(w.itemById('p4'), TODAY) === false && w.pendVisible(w.itemById('p4'), ago(1)) === false);
+
+  // en la vista de hoy: activa + la que se completó hoy; NO la de ayer
+  w.ev('ui').tab = 'hoy'; w.ev('ui').hoySub = null; w.ev('ui').daySel = TODAY; w.render();
+  let h = w.document.getElementById('app').innerHTML;
+  ok('bandeja de hoy: muestra activa y la de hoy', h.includes('Pend activa') && h.includes('Pend hecha hoy'));
+  ok('bandeja de hoy: oculta la de ayer',          !h.includes('Pend hecha ayer'));
+
+  // al navegar la tira a otro día, la completada hoy YA NO aparece; la activa sí
+  w.ev('ui').daySel = ago(2); w.render();
+  h = w.document.getElementById('app').innerHTML;
+  ok('otro día: la completada no aparece', !h.includes('Pend hecha hoy'));
+  ok('otro día: la activa (backlog) sigue', h.includes('Pend activa'));
+
+  // marcar una pendiente usa el día que se está mirando como doneAt
+  w.ev('ui').daySel = TODAY; w.render();
+  w.document.querySelector('[data-act="task-toggle"][data-id="p1"]').click();
+  ok('marcar hoy: doneAt = hoy', w.itemById('p1').done === true && w.itemById('p1').doneAt === TODAY);
+  w.document.querySelector('[data-act="task-toggle"][data-id="p1"]').click();
+  ok('descompletar borra doneAt', w.itemById('p1').done === false && !('doneAt' in w.itemById('p1')));
+  // marcar mientras se mira otro día: queda en ESE día
+  w.ev('ui').daySel = ago(2); w.render();
+  w.document.querySelector('[data-act="task-toggle"][data-id="p1"]').click();
+  ok('marcar mirando otro día: doneAt = ese día', w.itemById('p1').doneAt === ago(2));
+  ok('y se sigue viendo en ese día', w.document.getElementById('app').innerHTML.includes('Pend activa'));
+  w.ev('ui').daySel = TODAY; w.render();
+  ok('pero desde hoy ya no aparece', !w.document.getElementById('app').innerHTML.includes('Pend activa'));
+} catch (e) { ok('pendientes completadas', false, e.message); }
+
+/* ---------- 32. gráfico de línea interactivo ---------- */
+console.log('\n32. Gráfico interactivo (lineChart)');
+try {
+  const w = boot(null, null);
+  ok('lineChart existe', typeof w.ev('lineChart') === 'function');
+  const svg = w.ev(`lineChart([{date:'${ago(4)}',v:60},{date:'${ago(2)}',v:62.5},{date:'${TODAY}',v:65}],'#FF6B6B',300,86,{unit:'kg'})`);
+  ok('envuelve en .chartwrap con tooltip', svg.includes('class="chartwrap"') && svg.includes('class="charttip"'));
+  ok('dibuja un punto tocable por registro', (svg.match(/data-act="chart-pt"/g) || []).length === 3);
+  ok('cada punto lleva su etiqueta fecha+valor', svg.includes('62.5 kg') && svg.includes('data-lbl'));
+  ok('dibuja líneas guía de mín/máx', (svg.match(/stroke-dasharray/g) || []).length >= 2);
+  ok('serie vacía no rompe', w.ev(`lineChart([],'#fff',100,40)`).includes('chartwrap'));
+  ok('un solo punto no rompe', w.ev(`lineChart([{date:'${TODAY}',v:70}],'#fff',100,40)`).includes('data-act="chart-pt"'));
+
+  // el tooltip aparece al tocar un punto y se cierra al tocar otra vez
+  const s = w.ev('state');
+  s.gym.bodyWeights = [{ id:'b1', kg:72, date:ago(3) }, { id:'b2', kg:71, date:TODAY }];
+  w.save(); w.ev('ui').tab = 'gym'; w.ev('ui').gymSub = null; w.render();
+  const pt = w.document.querySelector('.chartwrap [data-act="chart-pt"]');
+  ok('el peso corporal usa el gráfico interactivo', pt !== null);
+  // Un <circle> SVG no tiene .click() en jsdom; en el navegador el click burbujea igual.
+  const tap = el => el.dispatchEvent(new w.MouseEvent('click', { bubbles:true }));
+  tap(pt);
+  const tip = w.document.querySelector('.chartwrap .charttip');
+  ok('tocar un punto muestra el tooltip', tip.classList.contains('show') && /kg/.test(tip.textContent));
+  tap(pt);
+  ok('tocar de nuevo lo cierra', !tip.classList.contains('show'));
+  // tocar fuera también lo cierra
+  tap(pt);
+  ok('reabre', w.document.querySelector('.charttip').classList.contains('show'));
+  w.document.getElementById('app').click();
+  ok('tocar fuera del gráfico cierra el tooltip', !w.document.querySelector('.charttip').classList.contains('show'));
+} catch (e) { ok('lineChart', false, e.message); }
+
+/* ---------- 33. detalle de ejercicio: registros por fecha + récord ---------- */
+console.log('\n33. Detalle de ejercicio');
+try {
+  const w = boot(null, null);
+  const s = w.ev('state');
+  s.gym.lifts = [{ id:'LX', name:'Press banca', unit:'kg', color:'#4D96FF', history:[
+    { date:ago(20), weight:40 }, { date:ago(10), weight:47.5 }, { date:ago(2), weight:45 } ] }];
+  w.save();
+  w.ev('ui').tab = 'gym'; w.ev('ui').gymSub = null; w.render();
+
+  // tocar la tarjeta del ejercicio abre el detalle (no el form de cargar peso)
+  w.document.querySelector('[data-act="lift-open"][data-id="LX"]').click();
+  const ov = w.document.getElementById('overlay');
+  const h = ov.innerHTML;
+  ok('abre el detalle del ejercicio', ov.classList.contains('show') && h.includes('Press banca'));
+  ok('lista los 3 registros por fecha', (h.match(/data-act="lift-rec-edit"/g) || []).length === 3);
+  ok('muestra las fechas de cada registro', h.includes('kg') && h.includes(String(new Date(d.getTime()-20*86400000).getDate())));
+  ok('marca el récord (47.5 fue el máximo)', h.includes('récord') && h.includes('47.5'));
+  ok('tiene el gráfico interactivo', h.includes('data-act="chart-pt"'));
+  ok('ofrece cargar peso y borrar ejercicio', h.includes('data-act="lift-log"') && h.includes('data-act="lift-delete"'));
+
+  // editar un registro
+  w.document.querySelectorAll('[data-act="lift-rec-edit"]')[0].click(); // el más reciente (ago 2, 45)
+  ok('abre el form de editar registro', w.document.getElementById('overlay').innerHTML.includes('Editar registro'));
+  const kg = w.document.querySelector('#lr-kg');
+  kg.value = '50';
+  w.document.querySelector('[data-act="modal-save"]').click();
+  ok('editar cambia el peso del registro', w.ev('state').gym.lifts[0].history.some(r => r.weight === 50) && !w.ev('state').gym.lifts[0].history.some(r => r.weight === 45));
+  ok('vuelve al detalle tras editar', w.document.getElementById('overlay').innerHTML.includes('Press banca'));
+
+  // editar con peso inválido no guarda
+  w.document.querySelectorAll('[data-act="lift-rec-edit"]')[0].click();
+  w.document.querySelector('#lr-kg').value = '0';
+  w.document.querySelector('[data-act="modal-save"]').click();
+  ok('peso 0 no guarda y avisa', w.document.querySelectorAll('.ferr').length === 1 && !w.ev('state').gym.lifts[0].history.some(r => r.weight === 0));
+  w.closeModal();
+
+  // borrar un registro (quedan 3, se puede)
+  w.document.querySelector('[data-act="lift-open"][data-id="LX"]').click();
+  const antes = w.ev('state').gym.lifts[0].history.length;
+  w.document.querySelectorAll('[data-act="lift-rec-delete"]')[0].click();
+  w.document.querySelector('[data-act="confirm-yes"]').click();
+  ok('borra un registro con confirmación', w.ev('state').gym.lifts[0].history.length === antes - 1);
+
+  // no deja borrar el último registro
+  const l = w.ev('state').gym.lifts[0];
+  l.history = [{ date:TODAY, weight:60 }];
+  w.save();
+  w.document.querySelector('[data-act="lift-open"][data-id="LX"]').click();
+  w.document.querySelector('[data-act="lift-rec-delete"]').click();
+  ok('no deja borrar el único registro', w.document.getElementById('overlay').innerHTML.includes('único registro') || w.document.querySelector('[data-act="notice-ok"]') !== null);
+  ok('el registro sigue ahí', w.ev('state').gym.lifts[0].history.length === 1);
+} catch (e) { ok('detalle de ejercicio', false, e.message); }
+
+/* ---------- 34. sigue sin romper el resto ---------- */
+console.log('\n34. Regresión de los cambios 3.6');
+try {
+  const w = bootBk(V1_RAW, null);
+  // export/import round-trip sigue exacto con el campo doneAt presente
+  const s = w.ev('state');
+  s.items[0].done = true; s.items[0].doneAt = TODAY;
+  w.save();
+  const json = JSON.stringify(w.backupPayload());
+  const antes = JSON.stringify(w.ev('state'));
+  s.items = [];
+  w.save();
+  w.importFromText(json);
+  w.document.querySelector('[data-act="confirm-yes"]').click();
+  ok('round-trip con doneAt vuelve exacto', JSON.stringify(w.ev('state')) === antes);
+  ok('doneAt sobrevive al backup', w.ev('state').items.some(x => x.doneAt === TODAY));
+
+  // el gym sigue entero
+  w.ev('ui').tab = 'gym'; w.ev('ui').gymSub = null; w.render();
+  const h = w.document.getElementById('app').innerHTML;
+  ok('gym sigue con plan, cargas y peso', h.includes('PLAN SEMANAL') && h.includes('SEGUIMIENTO DE PESOS') && h.includes('PESO CORPORAL'));
+  ok('las tarjetas de ejercicio siguen ahí', h.includes('data-act="lift-open"'));
+  ok('daily.v1 intacta', w.localStorage.getItem('daily.v1') === V1_RAW);
+} catch (e) { ok('regresión 3.6', false, e.message); }
+
 done();

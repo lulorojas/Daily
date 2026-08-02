@@ -312,9 +312,9 @@ function progBodyWeight(per,start){
     <div style="font-size:12px;font-weight:600;color:rgba(244,244,251,0.45);margin-top:3px">
       Último registro · ${shortDate(cur.date)}${hayTend?' · variación en '+progLabel(per).toLowerCase():''}</div>`;
   if(hayTend){
-    h+=`<div style="margin-top:14px">${sparkline(win.map(r=>r.kg),col,300,86,{padX:6,padY:10,style:'width:100%;height:86px',r:3.6})}</div>
+    h+=`<div style="margin-top:14px">${lineChart(win.map(r=>({date:r.date,v:r.kg})),col,300,86,{unit:'kg',style:'width:100%;height:86px'})}</div>
       <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:700;color:rgba(244,244,251,0.35);margin-top:6px">
-        <span>${shortDate(win[0].date)}</span><span>${shortDate(win[win.length-1].date)}</span></div>`;
+        <span>${shortDate(win[0].date)}</span><span>Tocá un punto para ver el registro</span><span>${shortDate(win[win.length-1].date)}</span></div>`;
   } else {
     // Hay peso cargado, pero no alcanza para dibujar una línea en este recorte.
     h+=`<div style="font-size:12.5px;font-weight:600;color:rgba(244,244,251,0.4);margin-top:12px;line-height:1.5">

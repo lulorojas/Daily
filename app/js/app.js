@@ -51,7 +51,20 @@ document.addEventListener('click',e=>{
     case 'week-next': ui.daySel=iso(addDays(parseISO(ui.daySel),7)); render(); break;
 
     // ---- ítems de agenda (tarea / cita / anual) ----
-    case 'task-toggle': { const t=itemById(id); if(t && t.kind==='tarea'){ t.done=!t.done; commit(); } break; }
+    case 'task-toggle': { const t=itemById(id); if(t && t.kind==='tarea'){ t.done=!t.done;
+      // doneAt: el día en que se marcó (el que se está mirando en la tira). La bandeja usa
+      // esto para mostrar una pendiente completada solo ese día y no arrastrarla a los demás.
+      if(t.done) t.doneAt=ui.daySel; else delete t.doneAt;
+      commit(); } break; }
+
+    // tooltip de los gráficos: toca un punto y salta su fecha + valor. No re-renderiza.
+    case 'chart-pt': {
+      const wrap=a.closest('.chartwrap'), tip=wrap&&wrap.querySelector('.charttip'); if(!tip) break;
+      const key=a.dataset.i;
+      if(tip.classList.contains('show') && tip.dataset.for===key){ tip.classList.remove('show'); }
+      else { tip.textContent=a.dataset.lbl; tip.style.left=a.dataset.xp+'%'; tip.style.top=a.dataset.yp+'%'; tip.dataset.for=key; tip.classList.add('show'); }
+      break;
+    }
     // task-schedule es el atajo "poner fecha" de la bandeja: mismo form, ya con el datepicker.
     case 'task-open': case 'task-schedule': { const t=itemById(id); if(t) taskModal(t); break; }
     case 'event-open': { const e=itemById(id); if(e) eventModal(e); break; }
@@ -101,7 +114,17 @@ document.addEventListener('click',e=>{
     case 'const-next': ui.constEnd=Math.min(0,ui.constEnd+8); render(); break;
 
     case 'lift-new': liftModal(null); break;
-    case 'lift-open': { const l=state.gym.lifts.find(x=>x.id===id); if(l) liftModal(l); break; }
+    case 'lift-open': { const l=state.gym.lifts.find(x=>x.id===id); if(l) liftDetailModal(l); break; }
+    case 'lift-log': { const l=state.gym.lifts.find(x=>x.id===id); if(l) liftModal(l); break; }
+    case 'lift-rec-edit': { const l=state.gym.lifts.find(x=>x.id===a.dataset.lift); if(l) liftRecModal(l, +a.dataset.i); break; }
+    case 'lift-rec-delete': {
+      const l=state.gym.lifts.find(x=>x.id===a.dataset.lift); if(!l) break;
+      if(l.history.length<=1){ notice('No se puede borrar','Es el único registro del ejercicio. Editalo, o eliminá el ejercicio entero.'); break; }
+      const rec=l.history[+a.dataset.i]; if(!rec) break;
+      confirmDelete('¿Eliminar este registro?',fmtNum(rec.weight)+' kg del '+fmtDateLong(rec.date)+'. Se quita del historial.',()=>{
+        l.history.splice(+a.dataset.i,1); save(); render(); liftDetailModal(l); });
+      break;
+    }
     case 'lift-delete': { const l=state.gym.lifts.find(x=>x.id===id); if(l) confirmDelete('¿Eliminar "'+l.name+'"?','Se borra el ejercicio y todo su historial de pesos.',()=>{ state.gym.lifts=state.gym.lifts.filter(x=>x.id!==id); closeModal(); commit(); }); break; }
 
     // ---- rutinas (biblioteca de consulta, sub-pantalla de Gimnasio) ----
@@ -166,6 +189,12 @@ document.addEventListener('click',e=>{
     case 'modal-save': if(modalSave) modalSave(); break;
   }
 });
+
+// Cierra el tooltip de un gráfico al tocar fuera de cualquier gráfico (en captura, así
+// se cierra aunque el click no dispare ninguna acción).
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.chartwrap')) document.querySelectorAll('.charttip.show').forEach(t=>t.classList.remove('show'));
+},true);
 
 /* ============================ boot ============================ */
 render();

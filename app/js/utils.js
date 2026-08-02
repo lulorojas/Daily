@@ -159,6 +159,10 @@ function byTime(a,b){ return (a.time||'99')<(b.time||'99')?-1:1; }
 function sameMonthDay(dISO,eISO){ const a=parseISO(dISO), b=parseISO(eISO); return a.getMonth()===b.getMonth() && a.getDate()===b.getDate(); }
 
 function pendientes(){ return state.items.filter(x=>x.kind==='tarea' && !x.date); }
+// En la bandeja, una pendiente completada solo se muestra en el día en que se marcó: si mirás
+// cualquier otro día (con la tira de días) o pasa el tiempo, ya no aparece, ni como completada.
+// Las no completadas se ven siempre (son el backlog). dISO = día que se está mirando.
+function pendVisible(t,dISO){ return !t.done || t.doneAt===dISO; }
 // Una tarea con fecha se muestra SOLO en su fecha, aunque haya vencido: no se arrastra
 // ni se mueve nunca. Vencida sin completar queda en su día (calendario / tira semanal).
 function tareasDe(dISO){ return state.items.filter(x=>x.kind==='tarea' && x.date===dISO).sort(byTime); }
@@ -220,6 +224,37 @@ function sparkline(data,color,W,H,opt){
     <polyline points="${pts.join(' ')}" fill="none" stroke="${color}" stroke-width="${o.sw||2.5}" stroke-linecap="round" stroke-linejoin="round"/>
     <circle cx="${lastX}" cy="${lastY}" r="${o.r||3.2}" fill="${color}"/>
   </svg>`;
+}
+
+/* ---- gráfico de línea interactivo ----
+   Como sparkline pero con un punto por registro y tooltip al tocarlo (fecha + valor), y
+   líneas guía tenues en el mín y el máx para leer la escala. `pts` = [{date, v}] ordenados.
+   La interacción la maneja el handler global (data-act="chart-pt"), sin re-render. */
+function lineChart(pts,color,W,H,opt){
+  const o=opt||{}, padX=o.padX!=null?o.padX:8, padY=o.padY!=null?o.padY:12, n=pts.length;
+  const wrap=inner=>`<div class="chartwrap" style="${o.wrapStyle||''}">${inner}<div class="charttip"></div></div>`;
+  if(!n) return wrap(`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"></svg>`);
+  const vals=pts.map(p=>p.v), min=Math.min(...vals), max=Math.max(...vals), range=(max-min)||1;
+  const X=i=>n>1?padX+(i/(n-1))*(W-padX*2):W/2;
+  const Y=v=>padY+(1-(v-min)/range)*(H-padY*2);
+  const co=pts.map((p,i)=>({x:X(i),y:Y(p.v),p,i}));
+  const poly=co.map(c=>c.x.toFixed(1)+','+c.y.toFixed(1)).join(' ');
+  const area='M'+poly.split(' ').join(' L')+' L'+co[n-1].x.toFixed(1)+','+(H-padY)+' L'+co[0].x.toFixed(1)+','+(H-padY)+' Z';
+  const unit=o.unit?(' '+o.unit):'';
+  const guide=(v,y)=>`<line x1="${padX}" y1="${y.toFixed(1)}" x2="${W-padX}" y2="${y.toFixed(1)}" stroke="${tint(color,'26')}" stroke-width="1" stroke-dasharray="3 3"/>`;
+  const guides = n>1 ? guide(max,Y(max))+guide(min,Y(min)) : '';
+  const dots=co.map(c=>{
+    const lbl=shortDate(c.p.date)+' · '+fmtNum(c.p.v)+unit;
+    const xp=(c.x/W*100).toFixed(2), yp=(c.y/H*100).toFixed(2);
+    return `<circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="${o.r||3}" fill="${color}"/>`+
+      `<circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="11" fill="transparent" style="cursor:pointer" data-act="chart-pt" data-stop="1" data-i="${c.i}" data-lbl="${esc(lbl)}" data-xp="${xp}" data-yp="${yp}"/>`;
+  }).join('');
+  return wrap(`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" ${o.style?`style="${o.style}"`:''} preserveAspectRatio="none">
+    ${guides}
+    <path d="${area}" fill="${tint(color,'22')}"/>
+    <polyline points="${poly}" fill="none" stroke="${color}" stroke-width="${o.sw||2.5}" stroke-linecap="round" stroke-linejoin="round"/>
+    ${dots}
+  </svg>`);
 }
 
 /* ---- dona de distribución ----

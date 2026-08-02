@@ -25,7 +25,7 @@ function viewHoy(){
   // Solo lo cuya fecha es exactamente este día: una tarea vencida no se arrastra hasta acá,
   // se la ve navegando a su fecha original (o en el calendario, ese día).
   const tareas=tareasDe(dISO);
-  const citas=agendaDe(dISO), entreno=entrenoDe(dISO), pend=pendientes();
+  const citas=agendaDe(dISO), entreno=entrenoDe(dISO), pend=pendientes().filter(t=>pendVisible(t,dISO));
 
   // Progreso del día: tareas de este día y hábitos de este día.
   const doneT=tareas.filter(x=>x.done).length;
