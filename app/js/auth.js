@@ -43,7 +43,11 @@ function authGate(){
 function authInit(){
   const a=fbAuth(); if(!a) return;
   a.onAuthStateChanged(u=>{
+    const wasUser=!!AUTH.user;
     AUTH.ready=true; AUTH.user=u||null; AUTH.busy=false; AUTH.flash=null;
+    // Al cerrarse una sesión (de tener usuario a no tener), la puerta vuelve al login y no
+    // al último formulario que se hubiera visto (registro/reset).
+    if(!u && wasUser) AUTH.screen='login';
     render();
   });
   // Al volver a la app después de abrir el mail, se re-chequea la verificación en silencio.

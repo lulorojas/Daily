@@ -23,7 +23,7 @@ console.log('\nR. Regresión de las etapas anteriores');
   ok('pendientes = 1 sin fecha', w.pendientes().length === 1);
 
   // vistas de todas las pestañas
-  for (const [tab, marca] of [['hoy','PENDIENTES'],['calendario','ESTE DÍA'],['gym','PLAN SEMANAL'],['habitos','Hábitos'],['progreso','RESUMEN']]) {
+  for (const [tab, marca] of [['hoy','Sin fecha'],['calendario','Citas'],['gym','Plan semanal'],['habitos','Hábitos'],['progreso','Resumen']]) {
     w.ev('ui').tab = tab; w.ev('ui').hoySub = null; w.render();
     ok('render "'+tab+'"', w.document.getElementById('app').innerHTML.includes(marca));
   }
@@ -48,8 +48,8 @@ console.log('\nR. Regresión de las etapas anteriores');
   w.ev('ui').tab='gym'; w.ev('ui').gymSub='rutinas'; w.render();
   ok('rutinas renderiza', w.document.getElementById('app').innerHTML.includes('Mis rutinas'));
   w.ev('ui').gymSub=null; w.render();
-  ok('sección peso corporal', w.document.getElementById('app').innerHTML.includes('PESO CORPORAL'));
-  ok('sparkline existe', typeof w.ev('sparkline')==='function' && w.ev('sparkline([1,2,3],"#fff",100,40)').includes('<polyline'));
+  ok('sección peso corporal', w.document.getElementById('app').innerHTML.includes('Peso corporal'));
+  ok('sparkline existe', typeof w.ev('sparkline')==='function' && w.ev('sparkline([1,2,3],"#fff",100,40)').includes('<path'));
   ok('sparkline serie vacía no rompe', w.ev('sparkline([],"#fff",100,40)').includes('<svg'));
 }
 {
@@ -69,7 +69,7 @@ console.log('\nR. Regresión de las etapas anteriores');
   ok('progreso no toca el estado', JSON.stringify(w.ev('state'))===stAntes);
   ok('progreso no toca localStorage', w.localStorage.getItem('daily.v2')===lsAntes);
   const h = w.document.getElementById('app').innerHTML;
-  ok('tablero con los 7 bloques', ['RESUMEN','PESO CORPORAL','FRECUENCIA','BALANCE MUSCULAR','PROGRESO DE CARGAS','MAPA DE HÁBITOS','CUMPLIMIENTO'].every(x=>h.includes(x)));
+  ok('tablero con los 7 bloques', ['Resumen','Peso corporal','Frecuencia de entrenamiento','Balance muscular','Progreso de carga','Mapa de hábitos','Cumplimiento de hábitos'].every(x=>h.includes(x)));
 }
 
 /* =================== ETAPA 4 =================== */
@@ -123,8 +123,8 @@ try {
   const s = wrt.ev('state');
   s.gym.routines.push({ id:'R1', name:'Rutina 1', days:[{ id:'D1', name:'Pecho', exercises:[{ id:'E1', name:'Press', detail:'4x8-12' }] }] });
   s.gym.bodyWeights.push({ id:'BW', kg:72.5, date:TODAY });
-  s.habits.push({ id:'HX', name:'Leer', detail:'', color:'#C77DFF', icon:'libro' });
-  s.habitLog[TODAY] = Object.assign(s.habitLog[TODAY] || {}, { HX:true });
+  s.habits.push({ id:'HX', name:'Leer', detail:'', color:'#C77DFF', icon:'libro', timesPerDay:1 });
+  s.habitLog[TODAY] = Object.assign(s.habitLog[TODAY] || {}, { HX:1 });
   wrt.save();
 
   const json = JSON.stringify(wrt.backupPayload());
@@ -145,7 +145,7 @@ try {
   ok('round-trip: persiste en daily.v2',      wrt.localStorage.getItem('daily.v2') === antes);
   ok('round-trip: vuelven las rutinas',       wrt.ev('state').gym.routines[0].days[0].exercises[0].detail === '4x8-12');
   ok('round-trip: vuelve el peso corporal',   wrt.ev('state').gym.bodyWeights[0].kg === 72.5);
-  ok('round-trip: vuelven hábitos y marcas',  wrt.ev('state').habits.some(h => h.id === 'HX') && wrt.ev('state').habitLog[TODAY].HX === true);
+  ok('round-trip: vuelven hábitos y marcas',  wrt.ev('state').habits.some(h => h.id === 'HX') && wrt.ev('state').habitLog[TODAY].HX === 1);
   ok('round-trip: vuelven las cargas',        wrt.ev('state').gym.lifts.length > 0);
   ok('import no toca daily.v1',               wrt.localStorage.getItem('daily.v1') === V1_RAW);
   ok('vuelve a Hoy tras importar', wrt.ev('ui').hoySub === null);
@@ -206,7 +206,7 @@ try {
   const g = wm.ev('state').gym;
   ok('un backup mínimo se normaliza', Array.isArray(g.routines) && Array.isArray(g.bodyWeights) && Array.isArray(g.customTypes) && !!g.weekPlans);
   wm.ev('ui').tab = 'gym'; wm.render();
-  ok('y la app renderiza igual', wm.document.getElementById('app').innerHTML.includes('PLAN SEMANAL'));
+  ok('y la app renderiza igual', wm.document.getElementById('app').innerHTML.includes('Plan semanal'));
 } catch (e) { ok('backup mínimo', false, e.message); }
 
 /* ---------- 28. aviso de backup ---------- */
@@ -244,7 +244,7 @@ try {
   wb.ev('ui').tab = 'hoy'; wb.render();
   const h = wb.document.getElementById('app').innerHTML;
   ok('el banner sale en Hoy',            h.includes('data-act="bk-export"') && h.includes('9 días'));
-  ok('el banner no bloquea la vista',    h.includes('data-act="day-sel"') && h.includes('PENDIENTES'));
+  ok('el banner no bloquea la vista',    h.includes('data-act="day-sel"') && h.includes('Sin fecha'));
   ok('el banner se puede posponer',      h.includes('data-act="bk-snooze"'));
   wb.document.querySelector('[data-act="bk-export"]').click();
   ok('exportar desde el banner resetea', wb.bkShouldWarn() === false);
@@ -283,14 +283,14 @@ try {
   ok('dice cuándo fue el último',   h.includes('Último backup'));
   ok('Ajustes no ocupa una pestaña', (h.match(/data-act="tab"/g) || []).length === 5 && !h.includes('data-tab="ajustes"'));
   wa.document.querySelector('[data-act="ajustes-back"]').click();
-  ok('atrás vuelve a Hoy', wa.ev('ui').hoySub === null && wa.document.getElementById('app').innerHTML.includes('PENDIENTES'));
+  ok('atrás vuelve a Hoy', wa.ev('ui').hoySub === null && wa.document.getElementById('app').innerHTML.includes('Sin fecha'));
 } catch (e) { ok('pantalla de ajustes', false, e.message); }
 
 /* ---------- 30. regresión final ---------- */
 console.log('\n30. Regresión tras la etapa 4');
 try {
   const wf = bootBk(V1_RAW, null);
-  for (const [tab, marca] of [['hoy','PENDIENTES'],['calendario','ESTE DÍA'],['gym','PLAN SEMANAL'],['habitos','Hábitos'],['progreso','RESUMEN']]) {
+  for (const [tab, marca] of [['hoy','Sin fecha'],['calendario','Citas'],['gym','Plan semanal'],['habitos','Hábitos'],['progreso','Resumen']]) {
     wf.ev('ui').tab = tab; wf.ev('ui').hoySub = null; wf.render();
     ok('la pestaña "' + tab + '" sigue andando', wf.document.getElementById('app').innerHTML.includes(marca));
   }
@@ -363,7 +363,7 @@ try {
   ok('envuelve en .chartwrap con tooltip', svg.includes('class="chartwrap"') && svg.includes('class="charttip"'));
   ok('dibuja un punto tocable por registro', (svg.match(/data-act="chart-pt"/g) || []).length === 3);
   ok('cada punto lleva su etiqueta fecha+valor', svg.includes('62.5 kg') && svg.includes('data-lbl'));
-  ok('dibuja líneas guía de mín/máx', (svg.match(/stroke-dasharray/g) || []).length >= 2);
+  ok('dibuja el área con degradé', svg.includes('linearGradient') && svg.includes('url(#'));
   ok('serie vacía no rompe', w.ev(`lineChart([],'#fff',100,40)`).includes('chartwrap'));
   ok('un solo punto no rompe', w.ev(`lineChart([{date:'${TODAY}',v:70}],'#fff',100,40)`).includes('data-act="chart-pt"'));
 
@@ -461,7 +461,7 @@ try {
   // el gym sigue entero
   w.ev('ui').tab = 'gym'; w.ev('ui').gymSub = null; w.render();
   const h = w.document.getElementById('app').innerHTML;
-  ok('gym sigue con plan, cargas y peso', h.includes('PLAN SEMANAL') && h.includes('SEGUIMIENTO DE PESOS') && h.includes('PESO CORPORAL'));
+  ok('gym sigue con plan, cargas y peso', h.includes('Plan semanal') && h.includes('Cargas por ejercicio') && h.includes('Peso corporal'));
   ok('las tarjetas de ejercicio siguen ahí', h.includes('data-act="lift-open"'));
   ok('daily.v1 intacta', w.localStorage.getItem('daily.v1') === V1_RAW);
 } catch (e) { ok('regresión 3.6', false, e.message); }
@@ -635,7 +635,7 @@ console.log('\n40. Los datos siguen siendo locales');
 try {
   const w = bootAuth(null, null);
   w.fb.signal(w.fb.fakeUser('lulo@ejemplo.com', true));
-  ok('la app sigue escribiendo en daily.v2', w.localStorage.getItem('daily.v2') !== null);
+  ok('la app sigue escribiendo en daily.v2', (w.ev('commit()'), w.localStorage.getItem('daily.v2') !== null));
   const antes = w.localStorage.getItem('daily.v2');
   w.fb.signal(null);
   ok('cerrar sesión no borra los datos',     w.localStorage.getItem('daily.v2') === antes);

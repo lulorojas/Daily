@@ -159,7 +159,7 @@ function viewAjustes(){
 
   h+=`<div class="sect"><div class="sectlabel">Backup</div>
     <div style="display:flex;flex-direction:column;gap:9px">
-      ${row('bk-export',C.teal,'Exportar backup','Un archivo .json con todo','M12 15.5V4M8 11.5l4 4 4-4M4.5 19.5h15')}
+      ${row('bk-export',C.teal,'Exportar backup','Descarga '+BACKUP_FILE,'M12 15.5V4M8 11.5l4 4 4-4M4.5 19.5h15')}
       ${row('bk-import',C.violet,'Importar backup','Reemplaza los datos actuales','M12 4v11.5M8 8l4-4 4 4M4.5 19.5h15')}
     </div>
     <div style="font-size:12px;color:rgba(242,244,248,.4);margin:12px 4px 0;line-height:1.5">Último backup: ${esc(ultimo)}. El archivo siempre se llama igual, así reemplaza al anterior en Drive o Archivos.</div></div>`;
