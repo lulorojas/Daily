@@ -346,12 +346,15 @@ function mq(sel){ return overlay.querySelector(sel); }
 
 /* ---- validación de formularios ----
    Nada se guarda a medias ni falla en silencio: se marca el campo y se explica qué falta. */
-function clearFieldErrors(){
-  overlay.querySelectorAll('.ferr').forEach(n=>n.remove());
-  overlay.querySelectorAll('.bad').forEach(n=>n.classList.remove('bad'));
+// `root` es dónde buscar los campos. Por defecto el modal abierto, que es de donde salen
+// casi todos los formularios; las pantallas de sesión (auth.js) viven en #app y lo pasan.
+function clearFieldErrors(root){
+  const R=root||overlay;
+  R.querySelectorAll('.ferr').forEach(n=>n.remove());
+  R.querySelectorAll('.bad').forEach(n=>n.classList.remove('bad'));
 }
-function markFieldError(sel,msg){
-  const el=mq(sel); if(!el) return;
+function markFieldError(sel,msg,root){
+  const el=(root||overlay).querySelector(sel); if(!el) return;
   // El borde va en la caja visible: si el input vive dentro de una .rowinp, se marca la fila.
   (el.closest('.rowinp')||el).classList.add('bad');
   const host=el.closest('.fld')||el.parentElement;
@@ -360,12 +363,13 @@ function markFieldError(sel,msg){
 }
 // checks: [[selector, condiciónOK, mensaje], ...] → true si está todo bien.
 // Si algo falla, marca TODOS los campos con problema y lleva el foco al primero.
-function validateForm(checks){
-  clearFieldErrors();
+function validateForm(checks,root){
+  const R=root||overlay;
+  clearFieldErrors(R);
   const bad=checks.filter(c=>!c[1]);
-  bad.forEach(([sel,,msg])=>markFieldError(sel,msg));
+  bad.forEach(([sel,,msg])=>markFieldError(sel,msg,R));
   if(bad.length){
-    const first=mq(bad[0][0]);
+    const first=R.querySelector(bad[0][0]);
     if(first){ if(first.focus) first.focus(); if(first.scrollIntoView) first.scrollIntoView({block:'center'}); }
   }
   return bad.length===0;

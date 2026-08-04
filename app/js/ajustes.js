@@ -170,7 +170,17 @@ function viewAjustes(){
       ${info('Primer día de la semana','Lunes',true)}
       ${info('Unidad de peso','Kilogramos',false)}</div></div>`;
 
-  h+=`<div style="text-align:center;font-size:11.5px;color:rgba(242,244,248,.25);margin-top:4px">Daily · versión 2.0</div>`;
+  // Cuenta: solo si la capa de sesión está cargada y hay alguien logueado.
+  const usr = (typeof authUser==='function') ? authUser() : null;
+  if(usr){
+    h+=`<div class="sect"><div class="sectlabel">Cuenta</div>
+      <div class="card" style="padding:4px 6px">${info('Sesión iniciada como',esc(usr.email||''),false)}</div>
+      <div class="delbtn" data-act="auth-logout" style="margin-top:9px">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 17.5V20a1.5 1.5 0 0 1-1.5 1.5h-8A1.5 1.5 0 0 1 4 20V4a1.5 1.5 0 0 1 1.5-1.5h8A1.5 1.5 0 0 1 15 4v2.5M10 12h11M17.5 8.5 21 12l-3.5 3.5"/></svg>
+        Cerrar sesión</div></div>`;
+  }
+
+  h+=`<div style="text-align:center;font-size:11.5px;color:rgba(242,244,248,.25);margin-top:4px">Daily · versión 3.0</div>`;
   return h+`</div></div>`;
 }
 function backPillAjustes(){

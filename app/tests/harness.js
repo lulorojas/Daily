@@ -9,6 +9,8 @@ const { JSDOM } = require('jsdom');
 // La app está una carpeta más arriba (app/), sin importar dónde esté clonado el repo.
 const APP = path.resolve(__dirname, '..');
 const FILES = ['utils.js','hoy.js','agenda.js','calendario.js','gimnasio.js','rutinas.js','habitos.js','progreso.js','ajustes.js','app.js'];
+// Con la capa de sesión encima, en el mismo orden que index.html.
+const FILES_AUTH = ['firebase-config.js'].concat(FILES.slice(0,-1)).concat(['auth.js','app.js']);
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra) => {
@@ -56,8 +58,60 @@ function boot(seedV1, seedV2) {
   return w;
 }
 
+/* ---- SDK de Firebase de mentira ----
+   El flujo real de Auth depende de servicios de Google, así que acá se simula: registra
+   qué se llamó y con qué, y deja disparar a mano el cambio de sesión. Alcanza para probar
+   la puerta de acceso y las validaciones de los formularios sin tocar la red. */
+function fakeFirebase(win, opts) {
+  const o = opts || {};
+  const calls = [];
+  let onChange = null;
+  const rec = (name, args, res) => { calls.push({ name, args }); return res; };
+  const boom = () => Promise.reject({ code: o.failCode });
+
+  function fakeUser(email, verified) {
+    return {
+      email, emailVerified: !!verified,
+      sendEmailVerification() { return rec('sendEmailVerification', [email], o.failCode ? boom() : Promise.resolve()); },
+      reload() { return rec('reload', [email], o.failCode ? boom() : Promise.resolve()); },
+    };
+  }
+  const auth = {
+    currentUser: null,
+    onAuthStateChanged(fn) { onChange = fn; return () => {}; },
+    signInWithEmailAndPassword(...a) { return rec('signIn', a, o.failCode ? boom() : Promise.resolve({ user: fakeUser(a[0], true) })); },
+    createUserWithEmailAndPassword(...a) { return rec('createUser', a, o.failCode ? boom() : Promise.resolve({ user: fakeUser(a[0], false) })); },
+    sendPasswordResetEmail(...a) { return rec('sendPasswordResetEmail', a, o.failCode ? boom() : Promise.resolve()); },
+    signOut() { return rec('signOut', [], Promise.resolve()); },
+  };
+  if (!o.noSdk) win.firebase = { apps: [], initializeApp() { this.apps.push({}); return {}; }, auth: () => auth };
+  return {
+    auth, calls, fakeUser,
+    called: n => calls.filter(c => c.name === n),
+    // Simula que Firebase avisa el estado de sesión: null, o un usuario (verificado o no).
+    signal(u) { auth.currentUser = u || null; if (onChange) onChange(u || null); },
+  };
+}
+
+// Bootea la app CON la capa de sesión y el SDK simulado. opts: {failCode, noSdk}.
+function bootAuth(seedV2, opts) {
+  const dom = new JSDOM('<!doctype html><html><body><div id="app"></div><div class="overlay" id="overlay"></div></body></html>',
+    { url:'http://localhost/', pretendToBeVisual:true, runScripts:'outside-only' });
+  const w = dom.window;
+  if (seedV2) w.localStorage.setItem('daily.v2', seedV2);
+  const fb = fakeFirebase(w, opts);
+  const ctx = dom.getInternalVMContext();
+  for (const f of FILES_AUTH) vm.runInContext(fs.readFileSync(path.join(APP, 'js', f), 'utf8'), ctx, { filename:f });
+  w.ev = code => vm.runInContext(code, ctx);
+  w.fb = fb;
+  w.html = () => w.document.getElementById('app').innerHTML;
+  w.set = (sel, val) => { w.document.querySelector(sel).value = val; };
+  w.tap = sel => { const el = w.document.querySelector(sel); if (!el) throw new Error('no existe ' + sel); el.click(); };
+  return w;
+}
+
 module.exports = {
-  boot, ok,
+  boot, bootAuth, ok,
   done: () => { console.log('\n' + '='.repeat(46)); console.log(pass + ' ok, ' + fail + ' fail'); process.exit(fail ? 1 : 0); },
   d, iso, TODAY, TOMORROW, ANUAL_DATE, ago, V1_RAW,
 };

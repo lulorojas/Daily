@@ -9,23 +9,34 @@ function screenKey(){ return [ui.tab,ui.hoySub,ui.gymSub,ui.rutId,ui.rutDayId].j
 let lastScreen=null;
 
 function render(){
-  const prev=app.querySelector('.view'), key=screenKey();
+  // Puerta de sesión: sin cuenta iniciada, o con el email sin verificar, no se dibuja nada
+  // de la app. authGate() devuelve null cuando hay vía libre. Si auth.js no está cargado
+  // (los tests de datos no lo cargan) la app se dibuja como siempre.
+  const gate = (typeof authGate==='function') ? authGate() : null;
+
+  const prev=app.querySelector('.view'), key=gate?('auth:'+gate):screenKey();
   const same = !!prev && key===lastScreen;
   const keepScroll = same ? prev.scrollTop : 0;
   lastScreen=key;
-  let html='';
-  // Ajustes es una sub-pantalla de Hoy: se abre con el engranaje, sin ocupar una pestaña.
-  if(ui.tab==='hoy') html=(ui.hoySub==='ajustes'?viewAjustes():viewHoy());
-  else if(ui.tab==='calendario') html=viewCalendario();
-  // Rutinas es una sub-pantalla de Gimnasio: ocupa la pestaña sin ser una pestaña propia.
-  else if(ui.tab==='gym') html=(ui.gymSub==='rutinas'?viewRutinas():viewGym());
-  else if(ui.tab==='habitos') html=viewHabitos();
-  else if(ui.tab==='progreso') html=viewProgreso();
-  // El acento de la sección tiñe la nav, el botón + y el glow superior (vars CSS en #app).
-  const acc=SECT[ui.tab]||C.amber;
+
+  let html='', acc;
+  if(gate){
+    html=authView(gate); acc=C.amber;
+  } else {
+    // Ajustes es una sub-pantalla de Hoy: se abre con el engranaje, sin ocupar una pestaña.
+    if(ui.tab==='hoy') html=(ui.hoySub==='ajustes'?viewAjustes():viewHoy());
+    else if(ui.tab==='calendario') html=viewCalendario();
+    // Rutinas es una sub-pantalla de Gimnasio: ocupa la pestaña sin ser una pestaña propia.
+    else if(ui.tab==='gym') html=(ui.gymSub==='rutinas'?viewRutinas():viewGym());
+    else if(ui.tab==='habitos') html=viewHabitos();
+    else if(ui.tab==='progreso') html=viewProgreso();
+    // El acento de la sección tiñe la nav, el botón + y el glow superior (vars CSS en #app).
+    acc=SECT[ui.tab]||C.amber;
+    html+=navbar(acc);
+  }
   app.style.setProperty('--accent', acc);
   app.style.setProperty('--glow', tint(acc,'1F'));
-  app.innerHTML = html + navbar(acc);
+  app.innerHTML = html;
   if(same){
     const view=app.querySelector('.view');
     if(view){ view.classList.add('nofx'); view.scrollTop=keepScroll; }
@@ -59,6 +70,9 @@ document.addEventListener('click',e=>{
   const act=a.dataset.act, id=a.dataset.id;
   // stop bubbling for nested checks/delete inside openable rows
   if(a.dataset.stop) e.stopPropagation();
+
+  // Todo lo de la capa de sesión se resuelve en auth.js.
+  if(act.indexOf('auth-')===0){ if(typeof authAction==='function') authAction(act,a); return; }
 
   switch(act){
     case 'tab': ui.tab=a.dataset.tab; ui.gymExpand=null; ui.habMenu=null; render(); break;
@@ -232,5 +246,8 @@ document.addEventListener('click',e=>{
 },true);
 
 /* ============================ boot ============================ */
+// authInit() se suscribe al estado de sesión y redibuja cuando Firebase contesta. El primer
+// render() de acá abajo dibuja mientras tanto la pantalla de "Abriendo tu Daily…".
+if(typeof authInit==='function') authInit();
 render();
 if('serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{})); }

@@ -1,4 +1,4 @@
-const { boot, ok, done, d, iso, TODAY, TOMORROW, ANUAL_DATE, ago, V1_RAW } = require('./harness');
+const { boot, bootAuth, ok, done, d, iso, TODAY, TOMORROW, ANUAL_DATE, ago, V1_RAW } = require('./harness');
 
 /* =================== REGRESIÓN etapas 1–3.5 =================== */
 console.log('\nR. Regresión de las etapas anteriores');
@@ -466,4 +466,181 @@ try {
   ok('daily.v1 intacta', w.localStorage.getItem('daily.v1') === V1_RAW);
 } catch (e) { ok('regresión 3.6', false, e.message); }
 
-done();
+/* =================== v3 etapa 1: sesión =================== */
+// El SDK real habla con Google, así que acá corre el simulado (ver fakeFirebase en el
+// harness). Lo que se prueba es NUESTRA lógica: la puerta de acceso y las validaciones.
+// El registro/login/verificación de verdad se prueban a mano contra el proyecto.
+const flush = () => new Promise(r => setTimeout(r, 0));
+
+(async () => {
+
+/* ---------- 35. puerta de acceso (rutas protegidas) ---------- */
+console.log('\n35. Puerta de acceso');
+try {
+  const w = bootAuth(null, null);
+
+  // Firebase todavía no contestó: ni la app ni el login, pantalla de espera.
+  ok('antes de saber si hay sesión, no se filtra la app', !w.html().includes('data-act="tab"'));
+  ok('muestra la pantalla de espera',                     w.html().includes('Abriendo tu Daily'));
+
+  // Sin sesión → login, y nada de la app.
+  w.fb.signal(null);
+  ok('sin sesión cae en login',        w.html().includes('data-act="auth-login"'));
+  ok('login no dibuja las pestañas',   !w.html().includes('data-act="tab"'));
+  ok('login no dibuja el botón +',     !w.html().includes('data-act="quick-add"'));
+  ok('ofrece recuperar contraseña',    w.html().includes('data-s="reset"'));
+
+  // Navegación entre los tres formularios sin sesión.
+  w.tap('[data-s="registro"]');
+  ok('va a registro',                  w.ev('AUTH').screen === 'registro' && w.html().includes('data-act="auth-registro"'));
+  ok('registro pide confirmación',     w.html().includes('id="au-pass2"'));
+  w.tap('[data-s="login"]');
+  ok('vuelve a login',                 w.ev('AUTH').screen === 'login');
+  w.tap('[data-s="reset"]');
+  ok('va a recuperar contraseña',      w.html().includes('data-act="auth-reset"'));
+
+  // Con sesión pero sin verificar → pantalla bloqueante.
+  w.fb.signal(w.fb.fakeUser('lulo@ejemplo.com', false));
+  ok('sin verificar muestra la traba',      w.html().includes('Verificá tu email'));
+  ok('la traba dice el email',              w.html().includes('lulo@ejemplo.com'));
+  ok('sin verificar tampoco entra la app',  !w.html().includes('data-act="tab"'));
+  ok('ofrece reenviar el email',            w.html().includes('data-act="auth-resend"'));
+  ok('ofrece cerrar sesión',                w.html().includes('data-act="auth-logout"'));
+
+  // Con sesión y verificado → la app entera.
+  w.fb.signal(w.fb.fakeUser('lulo@ejemplo.com', true));
+  ok('verificado entra a la app',      (w.html().match(/data-act="tab"/g) || []).length === 5);
+  ok('arranca en Hoy',                 w.ev('ui').tab === 'hoy');
+  ok('ya no hay formularios de sesión', !w.html().includes('data-act="auth-login"'));
+
+  // Y si se cierra la sesión, se vuelve a la puerta.
+  w.fb.signal(null);
+  ok('al cerrar sesión vuelve al login', w.html().includes('data-act="auth-login"'));
+} catch (e) { ok('puerta de acceso', false, e.message); }
+
+/* ---------- 36. sin SDK ---------- */
+console.log('\n36. Sin SDK cargado');
+try {
+  const w = bootAuth(null, { noSdk: true });
+  ok('avisa que no se pudo cargar', w.html().includes('No se pudo cargar'));
+  ok('no deja entrar a la app',     !w.html().includes('data-act="tab"'));
+} catch (e) { ok('sin SDK', false, e.message); }
+
+/* ---------- 37. validaciones de los formularios ---------- */
+console.log('\n37. Validaciones de los formularios');
+try {
+  const w = bootAuth(null, null);
+  w.fb.signal(null);
+
+  // Login vacío: marca los dos campos y no llama a Firebase.
+  w.tap('[data-act="auth-login"]');
+  ok('login vacío no llama a Firebase', w.fb.called('signIn').length === 0);
+  ok('login vacío marca los campos',    w.document.querySelectorAll('#au-email.bad, #au-pass.bad').length === 2);
+  ok('login vacío explica qué falta',   w.html().includes('Poné tu email.'));
+
+  // Email con formato inválido.
+  w.set('#au-email', 'esto-no-es-un-email'); w.set('#au-pass', 'secreta1');
+  w.tap('[data-act="auth-login"]');
+  ok('email inválido no llama a Firebase', w.fb.called('signIn').length === 0);
+  ok('email inválido lo dice',             w.html().includes('formato válido'));
+
+  // Válido: recién ahí sale el pedido, con lo tipeado.
+  w.set('#au-email', 'lulo@ejemplo.com');
+  w.tap('[data-act="auth-login"]');
+  const si = w.fb.called('signIn');
+  ok('login válido llama a Firebase',   si.length === 1);
+  ok('login válido manda email y pass', si[0] && si[0].args[0] === 'lulo@ejemplo.com' && si[0].args[1] === 'secreta1');
+  ok('mientras espera, bloquea el botón', w.html().includes('abtn primary busy') || w.ev('AUTH').busy === true);
+
+  // Registro: contraseña corta y confirmación que no coincide.
+  const r = bootAuth(null, null);
+  r.fb.signal(null);
+  r.tap('[data-s="registro"]');
+  r.set('#au-email', 'lulo@ejemplo.com'); r.set('#au-pass', '123'); r.set('#au-pass2', '123');
+  r.tap('[data-act="auth-registro"]');
+  ok('contraseña corta no crea la cuenta', r.fb.called('createUser').length === 0);
+  ok('contraseña corta lo explica',        r.html().includes('al menos 6 caracteres'));
+
+  r.set('#au-pass', 'secreta1'); r.set('#au-pass2', 'secreta2');
+  r.tap('[data-act="auth-registro"]');
+  ok('contraseñas distintas no crean cuenta', r.fb.called('createUser').length === 0);
+  ok('contraseñas distintas lo explican',     r.html().includes('no coinciden'));
+
+  // Registro válido: crea la cuenta y dispara solo el mail de verificación.
+  r.set('#au-pass2', 'secreta1');
+  r.tap('[data-act="auth-registro"]');
+  await flush();
+  const cu = r.fb.called('createUser');
+  ok('registro válido crea la cuenta',        cu.length === 1 && cu[0].args[0] === 'lulo@ejemplo.com');
+  ok('registro dispara el mail de verificación', r.fb.called('sendEmailVerification').length === 1);
+
+  // Recuperar contraseña.
+  const p = bootAuth(null, null);
+  p.fb.signal(null);
+  p.tap('[data-s="reset"]');
+  p.set('#au-email', 'no-va');
+  p.tap('[data-act="auth-reset"]');
+  ok('reset con email inválido no manda nada', p.fb.called('sendPasswordResetEmail').length === 0);
+  p.set('#au-email', 'lulo@ejemplo.com');
+  p.tap('[data-act="auth-reset"]');
+  await flush();
+  const pr = p.fb.called('sendPasswordResetEmail');
+  ok('reset válido pide el email',   pr.length === 1 && pr[0].args[0] === 'lulo@ejemplo.com');
+  ok('reset avisa que salió el mail', p.html().includes('link para cambiar la contraseña'));
+} catch (e) { ok('validaciones', false, e.message); }
+
+/* ---------- 38. errores de Firebase ---------- */
+console.log('\n38. Errores de Firebase');
+try {
+  const w = bootAuth(null, { failCode: 'auth/invalid-credential' });
+  w.fb.signal(null);
+  w.set('#au-email', 'lulo@ejemplo.com'); w.set('#au-pass', 'secreta1');
+  w.tap('[data-act="auth-login"]');
+  await flush();
+  ok('traduce el error de Firebase', w.html().includes('El email o la contraseña no son correctos'));
+  ok('no se pierde lo tipeado',      w.document.querySelector('#au-email').value === 'lulo@ejemplo.com');
+  ok('el botón se destraba',         w.ev('AUTH').busy === false);
+
+  const n = bootAuth(null, { failCode: 'auth/network-request-failed' });
+  n.fb.signal(null);
+  n.set('#au-email', 'lulo@ejemplo.com'); n.set('#au-pass', 'secreta1');
+  n.tap('[data-act="auth-login"]');
+  await flush();
+  ok('el error de red se explica', n.html().includes('No hay conexión'));
+} catch (e) { ok('errores de Firebase', false, e.message); }
+
+/* ---------- 39. cerrar sesión desde Ajustes ---------- */
+console.log('\n39. Cerrar sesión desde Ajustes');
+try {
+  const w = bootAuth(null, null);
+  w.fb.signal(w.fb.fakeUser('lulo@ejemplo.com', true));
+  w.tap('[data-act="ajustes-open"]');
+  ok('Ajustes muestra la cuenta',        w.html().includes('Sesión iniciada como') && w.html().includes('lulo@ejemplo.com'));
+  ok('Ajustes ofrece cerrar sesión',     w.html().includes('data-act="auth-logout"'));
+
+  w.tap('[data-act="auth-logout"]');
+  ok('cerrar sesión pide confirmación',  w.document.querySelector('[data-act="confirm-yes"]') !== null);
+  ok('sin confirmar no cierra nada',     w.fb.called('signOut').length === 0);
+  w.tap('[data-act="confirm-yes"]');
+  await flush();
+  ok('al confirmar cierra la sesión',    w.fb.called('signOut').length === 1);
+
+  w.fb.signal(null);
+  ok('y vuelve al login',                w.html().includes('data-act="auth-login"'));
+  ok('vuelve a Hoy, no a Ajustes',       w.ev('ui').hoySub === null);
+} catch (e) { ok('cerrar sesión', false, e.message); }
+
+/* ---------- 40. los datos no se tocaron (siguen locales) ---------- */
+console.log('\n40. Los datos siguen siendo locales');
+try {
+  const w = bootAuth(null, null);
+  w.fb.signal(w.fb.fakeUser('lulo@ejemplo.com', true));
+  ok('la app sigue escribiendo en daily.v2', w.localStorage.getItem('daily.v2') !== null);
+  const antes = w.localStorage.getItem('daily.v2');
+  w.fb.signal(null);
+  ok('cerrar sesión no borra los datos',     w.localStorage.getItem('daily.v2') === antes);
+  w.fb.signal(w.fb.fakeUser('otro@ejemplo.com', true));
+  ok('los datos siguen ahí con otra cuenta', w.localStorage.getItem('daily.v2') === antes);
+} catch (e) { ok('datos locales', false, e.message); }
+
+})().then(done, e => { ok('tests de sesión', false, e.message); done(); });

@@ -1,12 +1,16 @@
 // Daily — service worker.
 // HTML shell: network-first (los cambios aparecen apenas hay internet).
 // Assets estáticos (íconos, manifest): cache-first con refresco en segundo plano.
-const CACHE = 'daily-v11';
+const CACHE = 'daily-v12';
 const ASSETS = [
   './',
   './index.html',
   './manifest.json',
   './css/styles.css',
+  './js/vendor/firebase-app-compat.js',
+  './js/vendor/firebase-auth-compat.js',
+  './js/firebase-config.js',
+  './js/auth.js',
   './js/utils.js',
   './js/hoy.js',
   './js/agenda.js',
@@ -36,6 +40,11 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const { request } = e;
   if (request.method !== 'GET') return;
+
+  // Todo lo que no sea de esta misma app pasa derecho a la red, sin que el SW lo toque.
+  // Firebase Auth habla con identitytoolkit y securetoken de Google: nunca hay que
+  // servirle una respuesta cacheada ni guardarle uno de sus GET.
+  if (new URL(request.url).origin !== self.location.origin) return;
 
   // La página en sí: red primero, caché como respaldo sin conexión.
   const isDoc = request.mode === 'navigate' || request.destination === 'document';

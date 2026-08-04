@@ -298,6 +298,19 @@ textarea.inp{min-height:88px;line-height:1.5;resize:vertical}
 .stepbtn{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;cursor:pointer;flex-shrink:0}
 .delbtn{margin-top:2px;display:flex;align-items:center;justify-content:center;gap:8px;height:50px;border-radius:18px;border:1.5px solid rgba(255,138,128,.3);color:var(--danger);font-weight:600;font-size:14.5px;cursor:pointer}
 /* confirm / notice */
+/* ---- pantallas de sesión (v3, etapa 1) ----
+   Mismo lenguaje que el resto: fondo y tarjetas de la app, display para los títulos,
+   el acento tiñe la marca y el botón principal. Sin navbar, así que sin su reserva abajo. */
+.view.auth{padding-bottom:calc(var(--safe-bottom) + 34px)}
+.authmark{width:54px;height:54px;border-radius:19px;display:grid;place-items:center;margin-bottom:17px;
+  font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:27px;letter-spacing:-1px;color:#0A0C11}
+.abtn{height:54px;border-radius:18px;display:grid;place-items:center;cursor:pointer;font-size:15.5px;font-weight:600;letter-spacing:-.2px;user-select:none}
+.abtn.primary{background:var(--accent);color:#0A0C11}
+.abtn.ghost{background:rgba(255,255,255,.05);border:1.5px solid var(--line);color:var(--ink);font-weight:500}
+.abtn.busy{opacity:.5;pointer-events:none}
+.alink{text-align:center;font-size:13.5px;color:rgba(242,244,248,.5);cursor:pointer}
+.alink b{color:var(--accent);font-weight:600}
+
 .confirm{border-radius:28px;background:var(--surf3);border:1px solid rgba(255,255,255,.1);padding:24px 22px 20px;display:flex;flex-direction:column;gap:14px;box-shadow:0 24px 60px rgba(0,0,0,.6);animation:alertIn .24s cubic-bezier(.2,.9,.3,1) both}
 @keyframes alertIn{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}
 .confirm .ct{font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:19px;letter-spacing:-.4px;text-align:center}
