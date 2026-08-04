@@ -1,9 +1,18 @@
 "use strict";
 /* ============================ constants ============================ */
-const C = { coral:'#FF6B6B', blue:'#4D96FF', green:'#06D6A0', yellow:'#FFD166', purple:'#C77DFF', cyan:'#22C3E6' };
+// Paleta del rediseño (Claude Design): cinco acentos de la misma luminosidad + violeta y
+// peligro. Los datos van siempre en la fuente display. Fondo azul-negro, superficies apenas
+// más claras. Los hex viejos guardados en datos siguen siendo válidos, solo cambia lo nuevo.
+const C = {
+  amber:'#EAC06A', coral:'#FFA877', rose:'#FF9B93', green:'#86D9A0', teal:'#6FD2D2', violet:'#B49BE8',
+  danger:'#FF8A80',
+  ink:'#F2F4F8', bg:'#0B0E14', surf:'#13161D', surf2:'#12151C', surf3:'#161A22',
+};
+// Acento de cada sección: tiñe la nav, el botón +, el glow superior y los detalles.
+const SECT = { hoy:C.amber, calendario:C.coral, gym:C.rose, habitos:C.green, progreso:C.teal };
 const REST = 'Descanso';
 // Training types are all user-editable now (pre-seeded via defaultTypes()); only REST is fixed.
-const PALETTE = [C.coral,C.blue,C.green,C.yellow,C.purple,C.cyan];
+const PALETTE = [C.green,C.teal,C.violet,C.coral,C.amber,C.rose];
 const ICONS = {
   agua:    'M12 3c3 4 6 7 6 11a6 6 0 0 1-12 0c0-4 3-7 6-11z',
   libro:   'M3 4h8v16H5a2 2 0 0 1-2-2zm18 0h-8v16h6a2 2 0 0 0 2-2z',
@@ -43,7 +52,7 @@ let state = load();
 // gymSub/rutId/rutDayId: nivel abierto en la sub-pantalla de Rutinas (null = Gimnasio normal).
 const ui = { tab:'hoy', daySel:todayISO(), calY:todayD().getFullYear(), calM:todayD().getMonth(), calSel:todayISO(),
              gymOffset:0, constEnd:0, habitDate:todayISO(), gymSub:null, rutId:null, rutDayId:null,
-             progPeriod:'mes', hoySub:null };
+             progPeriod:'mes', hoySub:null, habMenu:null };
 
 function load(){
   try{ const s=JSON.parse(localStorage.getItem(KEY)); if(s) return normalize(s); }catch(e){}
@@ -78,6 +87,11 @@ function migrateV1(o){
 
 function normalize(s){
   s.v=2; s.items ||= []; s.habits ||= []; s.habitLog ||= {};
+  // Multi-check: cada hábito puede marcarse varias veces por día. timesPerDay default 1, y las
+  // marcas de habitLog pasan de boolean a entero (legacy true -> 1). Determinista, aditivo.
+  s.habits.forEach(h=>{ if(!(h.timesPerDay>=1)) h.timesPerDay=1; });
+  Object.keys(s.habitLog).forEach(d=>{ const day=s.habitLog[d]; if(day&&typeof day==='object')
+    Object.keys(day).forEach(id=>{ const v=day[id]; day[id]= v===true?1:(Number(v)||0); if(!day[id]) delete day[id]; }); });
   s.gym ||= {}; s.gym.customTypes ||= []; s.gym.weekPlans ||= {}; s.gym.lifts ||= [];
   // Etapa 2. Nada que migrar: quien ya tenía datos arranca con estas dos colecciones vacías.
   // routines: biblioteca de consulta, independiente del plan semanal y del historial.
@@ -106,19 +120,19 @@ function defaultPlanDays(){ return ['Pecho','Espalda','Cuádriceps','Isquio y gl
 function defaultLifts(){
   const t=todayISO();
   return [
-    { id:uid(), name:'Sentadilla',  unit:'kg', color:C.coral, history:[{date:t,weight:60}] },
-    { id:uid(), name:'Press banca', unit:'kg', color:C.blue,  history:[{date:t,weight:40}] },
-    { id:uid(), name:'Peso muerto', unit:'kg', color:C.green, history:[{date:t,weight:80}] },
+    { id:uid(), name:'Sentadilla',  unit:'kg', color:C.rose,  history:[{date:t,weight:60}] },
+    { id:uid(), name:'Press banca', unit:'kg', color:C.teal,  history:[{date:t,weight:40}] },
+    { id:uid(), name:'Peso muerto', unit:'kg', color:C.amber, history:[{date:t,weight:80}] },
   ];
 }
 function defaultTypes(){
   return [
-    { id:uid(), name:'Cuádriceps',      color:C.coral  },
-    { id:uid(), name:'Isquio y glúteo', color:C.yellow },
-    { id:uid(), name:'Espalda',         color:C.green  },
-    { id:uid(), name:'Pecho',           color:C.blue   },
-    { id:uid(), name:'Brazo',           color:C.purple },
-    { id:uid(), name:'Cardio',          color:C.cyan   },
+    { id:uid(), name:'Cuádriceps',      color:C.amber  },
+    { id:uid(), name:'Isquio y glúteo', color:C.coral  },
+    { id:uid(), name:'Espalda',         color:C.teal   },
+    { id:uid(), name:'Pecho',           color:C.rose   },
+    { id:uid(), name:'Brazo',           color:C.violet },
+    { id:uid(), name:'Cardio',          color:C.green  },
   ];
 }
 function seed(){
@@ -143,7 +157,7 @@ function commit(){ save(); render(); }
 function tint(c,a){ return c && c[0]==='#' ? c+a : 'rgba(255,255,255,0.07)'; }
 function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
 function allTypes(){ return state.gym.customTypes.map(t=>({name:t.name,color:t.color,id:t.id,custom:true})).concat([{name:REST,color:'rgba(244,244,251,0.4)',rest:true}]); }
-function typeColor(name){ const t=allTypes().find(x=>x.name===name); return t?t.color:C.yellow; }
+function typeColor(name){ const t=allTypes().find(x=>x.name===name); return t?t.color:C.rose; }
 function fmtNum(n){ return n%1===0?String(n):n.toFixed(1); }
 
 /* ============================ agenda items ============================ */
@@ -151,7 +165,7 @@ function fmtNum(n){ return n%1===0?String(n):n.toFixed(1); }
    tarea → title, desc?, date (null = sin fecha), time?, done
    cita  → title, desc?, date, time?            (no tiene estado: ocurre, no se completa)
    anual → title, desc?, date, time?            (se repite por mes+día cada año) */
-const ITEM_COLOR = { tarea:C.coral, cita:C.green, anual:C.yellow };
+const ITEM_COLOR = { tarea:C.amber, cita:C.coral, anual:C.violet };
 const ITEM_LABEL = { tarea:'Tarea', cita:'Cita', anual:'Anual' };
 
 function itemById(id){ return state.items.find(x=>x.id===id); }
@@ -179,80 +193,103 @@ function entrenoDe(dISO){
   return day && day.type!==REST ? day : null;
 }
 
+// Check redondeado del rediseño: cuadrado 24px, se rellena con el acento y tick oscuro.
+function checkBox(on,color,dataAct,id){
+  return `<div class="chk ${on?'on':''}" style="${on?`background:${color};border-color:${color}`:''}" data-act="${dataAct}" data-id="${id}" data-stop="1">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#0A0C11" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5 9 17l10.5-11"/></svg></div>`;
+}
 function taskRow(t,color,showDate){
   const on=t.done;
-  const pill = showDate && t.date ? shortDate(t.date)+(t.time?' · '+t.time:'') : (t.time||'');
+  const pill = showDate && t.date ? shortDate(t.date)+(t.time?' '+t.time:'') : (t.time||'');
   return `<div class="trow" data-act="task-open" data-id="${t.id}">
-    <div class="check ${on?'on':''}" style="border-color:${on?color:'rgba(244,244,251,0.28)'};background:${on?color:'transparent'}" data-act="task-toggle" data-id="${t.id}" data-stop="1">${CHECK_SVG}</div>
-    <div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:8px">
-      <span class="ttext ${on?'done':''}">${esc(t.title)}</span>
-      ${pill?`<span class="timepill" style="color:${color};background:${tint(color,'26')}">${pill}</span>`:''}
-    </div>${t.desc?`<div class="tdesc">${esc(t.desc)}</div>`:''}</div>
+    ${checkBox(on,color,'task-toggle',t.id)}
+    <div style="flex:1;min-width:0"><span class="ttext ${on?'done':''}">${esc(t.title)}</span>
+      ${t.desc?`<div class="tdesc">${esc(t.desc)}</div>`:''}</div>
+    ${pill?`<span class="tpill">${pill}</span>`:''}
   </div>`;
 }
 
-// Fila de cita/anual: sin check, porque no se completan.
+// Fila de cita/anual: sin check, porque no se completan. Barra de color a la izquierda.
 function eventRow(e){
   const col=ITEM_COLOR[e.kind], annual=e.kind==='anual';
   const sub=e.time?e.time+' hs':(annual?'Se repite cada año':'Todo el día');
   const icon=annual
     ? 'M20 12v9H4v-9M2 7h20v5H2zM12 22V7M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z'
-    : 'M12 21s-6-5.7-6-10a6 6 0 0 1 12 0c0 4.3-6 10-6 10z';
-  return `<div class="softcard evt" data-act="event-open" data-id="${e.id}">
-    <div style="width:38px;height:38px;border-radius:12px;background:${tint(col,'24')};display:flex;align-items:center;justify-content:center;flex-shrink:0">
-      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="${col}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${icon}"/></svg></div>
-    <div style="flex:1;min-width:0"><div style="font-size:14.5px;font-weight:700">${esc(e.title)}</div>
-      <span class="fr" style="font-weight:600;font-size:12.5px;color:rgba(244,244,251,0.5)">${sub}</span></div>
-    <span class="badge" style="color:${col};background:${tint(col,'24')}">${ITEM_LABEL[e.kind]}</span>
+    : 'M7.5 3v4M16.5 3v4M3.4 10.5h17.2M6.5 5h11a3.5 3.5 0 0 1 3.5 3.5v9A3.5 3.5 0 0 1 17.5 21h-11A3.5 3.5 0 0 1 3 17.5v-9A3.5 3.5 0 0 1 6.5 5Z';
+  return `<div class="evrow" style="border-left:3px solid ${col}" data-act="event-open" data-id="${e.id}">
+    <div class="evic" style="background:${tint(col,'24')};color:${col}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${icon}"/></svg></div>
+    <div style="flex:1;min-width:0"><div class="evname">${esc(e.title)}</div>
+      <div class="evsub">${esc(ITEM_LABEL[e.kind])}${annual?' · se repite cada año':''}</div></div>
+    <span style="font-size:12.5px;font-weight:600;color:${col}">${e.time||''}</span>
   </div>`;
 }
 
-/* ---- gráfico de línea de tendencia ----
-   Lo comparten el seguimiento de cargas por ejercicio y el peso corporal, para que
-   las dos métricas se lean igual. `data` son los valores ya ordenados por fecha. */
+/* ---- curva suave (Catmull-Rom -> Bezier), como el diseño ---- */
+function smoothPath(cpts){
+  if(!cpts.length) return '';
+  if(cpts.length===1) return 'M'+cpts[0][0].toFixed(1)+','+cpts[0][1].toFixed(1);
+  let d='M'+cpts[0][0].toFixed(1)+','+cpts[0][1].toFixed(1);
+  for(let i=0;i<cpts.length-1;i++){
+    const p0=cpts[i-1]||cpts[i], p1=cpts[i], p2=cpts[i+1], p3=cpts[i+2]||p2;
+    const c1x=p1[0]+(p2[0]-p0[0])/6, c1y=p1[1]+(p2[1]-p0[1])/6;
+    const c2x=p2[0]-(p3[0]-p1[0])/6, c2y=p2[1]-(p3[1]-p1[1])/6;
+    d+='C'+c1x.toFixed(1)+','+c1y.toFixed(1)+' '+c2x.toFixed(1)+','+c2y.toFixed(1)+' '+p2[0].toFixed(1)+','+p2[1].toFixed(1);
+  }
+  return d;
+}
+let _gid=0;
+function nextGid(){ return 'g'+(++_gid); }
+
+/* ---- gráfico de línea de tendencia (compacto, no interactivo) ----
+   Lo usa la mini-ficha de cargas. `data` son los valores ya ordenados por fecha. */
 function sparkline(data,color,W,H,opt){
   const o=opt||{}, padX=o.padX!=null?o.padX:4, padY=o.padY!=null?o.padY:7, n=data.length;
   if(!n) return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"></svg>`;
   const min=Math.min(...data), max=Math.max(...data), range=(max-min)||1;
   const X=i=>n>1?padX+(i/(n-1))*(W-padX*2):W/2;
   const Y=v=>padY+(1-(v-min)/range)*(H-padY*2);
-  const pts=data.map((v,i)=>X(i).toFixed(1)+','+Y(v).toFixed(1));
+  const cpts=data.map((v,i)=>[X(i),Y(v)]);
+  const line=smoothPath(cpts);
   const lastX=X(n-1).toFixed(1), lastY=Y(data[n-1]).toFixed(1);
-  const area='M'+pts.join(' L')+' L'+lastX+','+(H-padY)+' L'+X(0).toFixed(1)+','+(H-padY)+' Z';
+  const area=line+' L'+lastX+','+(H-padY)+' L'+X(0).toFixed(1)+','+(H-padY)+' Z';
+  const gid=nextGid();
   return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" ${o.style?`style="${o.style}"`:''}>
-    <path d="${area}" fill="${tint(color,'22')}"/>
-    <polyline points="${pts.join(' ')}" fill="none" stroke="${color}" stroke-width="${o.sw||2.5}" stroke-linecap="round" stroke-linejoin="round"/>
+    <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${color}" stop-opacity=".3"/><stop offset="100%" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>
+    <path d="${area}" fill="url(#${gid})"/>
+    <path d="${line}" fill="none" stroke="${color}" stroke-width="${o.sw||2.5}" stroke-linecap="round" stroke-linejoin="round"/>
     <circle cx="${lastX}" cy="${lastY}" r="${o.r||3.2}" fill="${color}"/>
   </svg>`;
 }
 
 /* ---- gráfico de línea interactivo ----
-   Como sparkline pero con un punto por registro y tooltip al tocarlo (fecha + valor), y
-   líneas guía tenues en el mín y el máx para leer la escala. `pts` = [{date, v}] ordenados.
-   La interacción la maneja el handler global (data-act="chart-pt"), sin re-render. */
+   Curva suave con relleno degradé que se dibuja sola, un punto por registro y tooltip al
+   tocarlo (fecha + valor). `pts` = [{date, v}] ordenados. La interacción la maneja el handler
+   global (data-act="chart-pt"), sin re-render. */
 function lineChart(pts,color,W,H,opt){
-  const o=opt||{}, padX=o.padX!=null?o.padX:8, padY=o.padY!=null?o.padY:12, n=pts.length;
+  const o=opt||{}, padX=o.padX!=null?o.padX:8, padY=o.padY!=null?o.padY:14, n=pts.length;
   const wrap=inner=>`<div class="chartwrap" style="${o.wrapStyle||''}">${inner}<div class="charttip"></div></div>`;
   if(!n) return wrap(`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"></svg>`);
   const vals=pts.map(p=>p.v), min=Math.min(...vals), max=Math.max(...vals), range=(max-min)||1;
   const X=i=>n>1?padX+(i/(n-1))*(W-padX*2):W/2;
   const Y=v=>padY+(1-(v-min)/range)*(H-padY*2);
   const co=pts.map((p,i)=>({x:X(i),y:Y(p.v),p,i}));
-  const poly=co.map(c=>c.x.toFixed(1)+','+c.y.toFixed(1)).join(' ');
-  const area='M'+poly.split(' ').join(' L')+' L'+co[n-1].x.toFixed(1)+','+(H-padY)+' L'+co[0].x.toFixed(1)+','+(H-padY)+' Z';
+  const line=smoothPath(co.map(c=>[c.x,c.y]));
+  const area=line+' L'+co[n-1].x.toFixed(1)+','+(H-padY)+' L'+co[0].x.toFixed(1)+','+(H-padY)+' Z';
   const unit=o.unit?(' '+o.unit):'';
-  const guide=(v,y)=>`<line x1="${padX}" y1="${y.toFixed(1)}" x2="${W-padX}" y2="${y.toFixed(1)}" stroke="${tint(color,'26')}" stroke-width="1" stroke-dasharray="3 3"/>`;
-  const guides = n>1 ? guide(max,Y(max))+guide(min,Y(min)) : '';
+  const gid=nextGid();
+  const lx=co[n-1].x.toFixed(1), ly=co[n-1].y.toFixed(1);
   const dots=co.map(c=>{
-    const lbl=shortDate(c.p.date)+' · '+fmtNum(c.p.v)+unit;
+    const lbl=shortDate(c.p.date)+'  '+fmtNum(c.p.v)+unit;
     const xp=(c.x/W*100).toFixed(2), yp=(c.y/H*100).toFixed(2);
-    return `<circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="${o.r||3}" fill="${color}"/>`+
-      `<circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="11" fill="transparent" style="cursor:pointer" data-act="chart-pt" data-stop="1" data-i="${c.i}" data-lbl="${esc(lbl)}" data-xp="${xp}" data-yp="${yp}"/>`;
+    return `<circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="11" fill="transparent" style="cursor:pointer" data-act="chart-pt" data-stop="1" data-i="${c.i}" data-lbl="${esc(lbl)}" data-xp="${xp}" data-yp="${yp}"/>`;
   }).join('');
   return wrap(`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" ${o.style?`style="${o.style}"`:''} preserveAspectRatio="none">
-    ${guides}
-    <path d="${area}" fill="${tint(color,'22')}"/>
-    <polyline points="${poly}" fill="none" stroke="${color}" stroke-width="${o.sw||2.5}" stroke-linecap="round" stroke-linejoin="round"/>
+    <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${color}" stop-opacity=".32"/><stop offset="100%" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>
+    <path d="${area}" fill="url(#${gid})" class="sparkArea"/>
+    <path d="${line}" fill="none" stroke="${color}" stroke-width="${o.sw||2.6}" stroke-linecap="round" stroke-linejoin="round" class="spark"/>
+    <circle cx="${lx}" cy="${ly}" r="9" fill="${color}" opacity=".2" class="sparkArea"/>
+    <circle cx="${lx}" cy="${ly}" r="4" fill="${color}" stroke="${C.surf2}" stroke-width="2.2" class="sparkArea"/>
     ${dots}
   </svg>`);
 }
@@ -290,9 +327,10 @@ function openModal(title,bodyHTML,saveColor,onSave,saveLabel){
   clearModalHandlers();
   modalSave=onSave;
   overlay.innerHTML=`<div class="scrim" data-act="modal-cancel"></div><div class="sheet">
-    <div class="mhead"><span class="cancel" data-act="modal-cancel">Cancelar</span>
+    <div class="mhead"><div class="grab"></div><div class="mhrow">
+      <span class="cancel" data-act="modal-cancel">Cancelar</span>
       <span class="title">${esc(title)}</span>
-      ${onSave?`<span class="save" style="background:${saveColor}" data-act="modal-save">${saveLabel||'Guardar'}</span>`:`<span style="width:44px"></span>`}</div>
+      ${onSave?`<span class="save" style="color:${saveColor||C.amber}" data-act="modal-save">${saveLabel||'Guardar'}</span>`:`<span style="width:56px"></span>`}</div></div>
     <div class="mbody">${bodyHTML}</div></div>`;
   overlay.classList.add('show');
   // Al corregir un campo marcado, su aviso desaparece.
@@ -461,7 +499,7 @@ function noticeLayer(bodyHTML){
 function confirmAction(titleQ,desc,okLabel,onYes){
   const body=`<div class="confirm"><div class="ct">${esc(titleQ)}</div><div class="cd">${esc(desc)}</div>
     <div class="row"><div class="b" style="background:rgba(255,255,255,0.07);color:rgba(244,244,251,0.7)" data-act="confirm-no">Cancelar</div>
-    <div class="b" style="background:${C.coral};color:#fff;box-shadow:0 6px 16px rgba(255,107,107,0.4)" data-act="confirm-yes">${esc(okLabel)}</div></div></div>`;
+    <div class="b" style="background:${C.danger};color:#0A0C11;font-weight:600" data-act="confirm-yes">${esc(okLabel)}</div></div></div>`;
   const layer=noticeLayer(body);
   layer.addEventListener('click',e=>{
     if(e.target.closest('[data-act="confirm-no"]')||e.target===layer){ layer.remove(); }
@@ -472,7 +510,7 @@ function confirmDelete(titleQ,desc,onYes){ confirmAction(titleQ,desc,'Eliminar',
 // Aviso de un solo botón: algo salió mal y no hay nada que confirmar.
 function notice(title,desc){
   const body=`<div class="confirm"><div class="ct">${esc(title)}</div><div class="cd">${esc(desc)}</div>
-    <div class="row"><div class="b" style="background:${C.blue};color:#fff" data-act="notice-ok">Entendido</div></div></div>`;
+    <div class="row"><div class="b" style="background:${C.teal};color:#0A0C11;font-weight:600" data-act="notice-ok">Entendido</div></div></div>`;
   const layer=noticeLayer(body);
   layer.addEventListener('click',e=>{ if(e.target.closest('[data-act="notice-ok"]')||e.target===layer) layer.remove(); });
 }

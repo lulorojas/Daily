@@ -51,14 +51,14 @@ function bkWarnText(){
 /* ---- banner del aviso (se dibuja en Hoy) ---- */
 function bkBanner(){
   if(!bkShouldWarn()) return '';
-  const col=C.yellow;
-  return `<div class="card" style="padding:13px 14px;display:flex;align-items:center;gap:12px;border:1px solid ${tint(col,'3D')}">
-    <div style="width:34px;height:34px;border-radius:11px;background:${tint(col,'24')};display:flex;align-items:center;justify-content:center;flex-shrink:0">
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="${col}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg></div>
-    <div style="flex:1;min-width:0"><div class="fr" style="font-weight:600;font-size:13.5px">${bkWarnText()}</div>
-      <div style="font-size:11.5px;color:rgba(244,244,251,0.5);margin-top:1px">Guardá una copia por las dudas.</div></div>
-    <div class="fr" style="font-size:12.5px;font-weight:700;color:#0E0F22;background:${col};padding:7px 12px;border-radius:99px;cursor:pointer;flex-shrink:0" data-act="bk-export">Exportar</div>
-    <div class="iconcirc" data-act="bk-snooze" title="Recordarme en una semana"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(244,244,251,0.5)" stroke-width="2.8" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></div>
+  const col=C.amber;
+  return `<div style="padding:14px 16px;border-radius:22px;background:linear-gradient(135deg,${tint(col,'2E')},${tint(col,'0A')});border:1px solid ${tint(col,'40')};display:flex;align-items:center;gap:12px">
+    <div style="width:36px;height:36px;border-radius:12px;background:rgba(10,12,17,.3);color:${col};display:grid;place-items:center;flex:none">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5a8.5 8.5 0 1 1 0 17 8.5 8.5 0 0 1 0-17ZM12 8v5M12 16.2v.3"/></svg></div>
+    <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:13.5px">${bkWarnText()}</div>
+      <div style="font-size:11.5px;color:rgba(242,244,248,.55);margin-top:1px">Guardá una copia por las dudas.</div></div>
+    <div style="font-size:12.5px;font-weight:600;color:#0A0C11;background:${col};padding:8px 13px;border-radius:99px;cursor:pointer;flex:none" data-act="bk-export">Exportar</div>
+    <div class="iconcirc" data-act="bk-snooze" title="Recordarme en una semana"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></div>
   </div>`;
 }
 
@@ -143,37 +143,36 @@ function viewAjustes(){
   const ultimo=m.lastExport
     ? fmtDateLong(iso(new Date(m.lastExport)))+' · hace '+bkDaysSince(m.lastExport)+' días'
     : 'Todavía no exportaste nunca';
-  const row=(act,col,title,sub,icon)=>`<div class="softcard evt" data-act="${act}">
-    <div style="width:38px;height:38px;border-radius:12px;background:${tint(col,'24')};display:flex;align-items:center;justify-content:center;flex-shrink:0">
-      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="${col}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${icon}"/></svg></div>
-    <div style="flex:1;min-width:0"><div class="fr" style="font-weight:600;font-size:15px">${title}</div>
-      <div style="font-size:12.5px;color:rgba(244,244,251,0.5);margin-top:1px">${sub}</div></div>
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(244,244,251,0.35)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
-  </div>`;
+  const row=(act,col,title,sub,icon)=>`<div class="evrow" style="background:var(--surf);border:1px solid var(--line)" data-act="${act}">
+    <div class="evic" style="width:40px;height:40px;background:${tint(col,'24')};color:${col}">
+      <svg viewBox="0 0 24 24" style="width:20px;height:20px" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="${icon}"/></svg></div>
+    <div style="flex:1;min-width:0"><div class="evname" style="font-size:15.5px">${title}</div>
+      <div class="evsub">${sub}</div></div>
+    <span style="font-size:15px;color:rgba(242,244,248,.35)">&#8250;</span></div>`;
+  const info=(name,val,sep)=>`<div style="display:flex;align-items:center;gap:12px;padding:14px 12px;${sep?'border-bottom:1px solid var(--line)':''}">
+    <span style="flex:1;font-size:14.5px;font-weight:500">${name}</span><span style="font-size:13px;color:rgba(242,244,248,.4)">${val}</span></div>`;
 
-  let h=`<div class="view"><div class="head">
-    <div class="rut-back" data-act="ajustes-back">
-      <svg width="9" height="15" viewBox="0 0 12 20" fill="none" stroke="rgba(244,244,251,0.7)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2L2 10l8 8"/></svg>
-      <span>Atrás</span></div>
-    <h1>Ajustes</h1><div class="sub">Tus datos y tus copias de seguridad.</div></div><div class="body">`;
+  let h=`<div class="view"><div class="head">${backPillAjustes()}
+    <h1 style="margin-top:10px">Ajustes</h1><div class="sub">Tus datos viven en este teléfono.</div></div><div class="body">`;
 
-  h+=`<div><div class="sectlabel">COPIA DE SEGURIDAD</div>
-    <div style="display:flex;flex-direction:column;gap:10px">
-      ${row('bk-export',C.green,'Exportar','Descarga '+BACKUP_FILE,'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3')}
-      ${row('bk-import',C.blue,'Importar','Restaurar desde un backup','M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 8l5-5 5 5M12 3v12')}
+  h+=bkBanner();
+
+  h+=`<div class="sect"><div class="sectlabel">Backup</div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      ${row('bk-export',C.teal,'Exportar backup','Un archivo .json con todo','M12 15.5V4M8 11.5l4 4 4-4M4.5 19.5h15')}
+      ${row('bk-import',C.violet,'Importar backup','Reemplaza los datos actuales','M12 4v11.5M8 8l4-4 4 4M4.5 19.5h15')}
     </div>
-    <div style="font-size:12px;font-weight:600;color:rgba(244,244,251,0.4);margin:12px 4px 0;line-height:1.5">
-      Último backup: ${esc(ultimo)}</div>
-    <div style="font-size:12px;font-weight:600;color:rgba(244,244,251,0.3);margin:6px 4px 0;line-height:1.5">
-      El archivo siempre se llama igual, así reemplaza al anterior en Drive o Archivos.
-      Importar reemplaza todo lo que tengas ahora: no mezcla.</div>
-  </div>`;
+    <div style="font-size:12px;color:rgba(242,244,248,.4);margin:12px 4px 0;line-height:1.5">Último backup: ${esc(ultimo)}. El archivo siempre se llama igual, así reemplaza al anterior en Drive o Archivos.</div></div>`;
 
-  h+=`<div><div class="sectlabel">QUÉ SE GUARDA</div>
-    <div class="card" style="padding:14px 16px">
-      <div style="font-size:12.5px;color:rgba(244,244,251,0.5);line-height:1.7">
-        Tareas, citas y fechas anuales · Hábitos y sus marcas · Plan del gimnasio e historial ·
-        Ejercicios y sus cargas · Peso corporal · Rutinas</div></div></div>`;
+  h+=`<div class="sect"><div class="sectlabel">General</div>
+    <div class="card" style="padding:4px 6px">
+      ${info('Recordatorio de backup','Cada 7 días',true)}
+      ${info('Primer día de la semana','Lunes',true)}
+      ${info('Unidad de peso','Kilogramos',false)}</div></div>`;
 
+  h+=`<div style="text-align:center;font-size:11.5px;color:rgba(242,244,248,.25);margin-top:4px">Daily · versión 2.0</div>`;
   return h+`</div></div>`;
+}
+function backPillAjustes(){
+  return `<div class="rut-back" data-act="ajustes-back"><svg width="8" height="13" viewBox="0 0 12 20" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2L2 10l8 8"/></svg><span>Hoy</span></div>`;
 }

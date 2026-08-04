@@ -10,29 +10,32 @@ function render(){
   else if(ui.tab==='gym') html=(ui.gymSub==='rutinas'?viewRutinas():viewGym());
   else if(ui.tab==='habitos') html=viewHabitos();
   else if(ui.tab==='progreso') html=viewProgreso();
-  app.innerHTML = html + quickAddBtn() + tabbar();
+  // El acento de la sección tiñe la nav, el botón + y el glow superior (vars CSS en #app).
+  const acc=SECT[ui.tab]||C.amber;
+  app.style.setProperty('--accent', acc);
+  app.style.setProperty('--glow', tint(acc,'1F'));
+  app.innerHTML = html + navbar(acc);
 }
 
-// Botón + central de carga rápida (flota sobre la barra).
-function quickAddBtn(){
-  return `<div class="fab fab-center" style="background:${C.coral};box-shadow:0 14px 30px rgba(255,107,107,0.45)" data-act="quick-add">
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>`;
-}
-
-function tabbar(){
-  const items=[['hoy','Hoy',C.coral,'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'],
-    ['calendario','Calendario',C.green,'<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/>'],
-    ['gym','Gimnasio',C.yellow,'<path d="M6.5 6.5v11M3.5 9v5M17.5 6.5v11M20.5 9v5M6.5 12h11"/>'],
-    ['habitos','Hábitos',C.purple,'<path d="M12 3c.6 3.2 3 4.4 3 7.6a3 3 0 0 1-6 0c0-1 .4-1.9 1-2.6-1.3.4-3.2 1.7-3.2 4.7a5.2 5.2 0 0 0 10.4 0C17.2 8.2 14.2 5.6 12 3z"/>'],
-    ['progreso','Progreso',C.cyan,'<path d="M3 20h18M6 20v-6M11 20V8M16 20v-9M21 20V5"/>']];
-  return '<div class="tabbar">'+items.map(([k,lb,col,ic])=>{
+// Barra: píldora de 5 pestañas (activa con label, resto solo ícono) + botón "+" pegado a la
+// derecha, del color de la sección. Reemplaza la tabbar + FAB central.
+const NAV_ICONS = {
+  hoy:'M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0M12 2.6v2M12 19.4v2M4.6 4.6 6 6M18 18l1.4 1.4M2.6 12h2M19.4 12h2M4.6 19.4 6 18M18 6l1.4-1.4',
+  calendario:'M7.5 3v4M16.5 3v4M3.4 10.5h17.2M6.5 5h11a3.5 3.5 0 0 1 3.5 3.5v9A3.5 3.5 0 0 1 17.5 21h-11A3.5 3.5 0 0 1 3 17.5v-9A3.5 3.5 0 0 1 6.5 5Z',
+  gym:'M6.5 8.5v7M3.8 10.5v3M17.5 8.5v7M20.2 10.5v3M6.5 12h11',
+  habitos:'M13 2.8c.4 3-1.2 4.4-2.6 5.8C8.8 10.2 7 11.7 7 14.4a5 5 0 0 0 10 0c0-2.3-1.2-3.7-2-4.7-.3 1.2-1.1 1.9-1.8 2.1.6-3-1.5-5.3-.2-9Z',
+  progreso:'M4 20h16M7 20v-5.5M12 20V8.5M17 20v-9'
+};
+function navbar(acc){
+  const items=[['hoy','Hoy'],['calendario','Cal'],['gym','Gym'],['habitos','Hábitos'],['progreso','Progreso']];
+  const pill=items.map(([k,lb])=>{
     const on=ui.tab===k;
-    const c=on?col:'rgba(244,244,251,0.42)';
-    const bg=on?tint(col,'24'):'transparent';
-    return `<div class="tab" data-act="tab" data-tab="${k}">
-      <div class="ic" style="color:${c};background:${bg}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ic}</svg></div>
-      <span class="lb" style="color:${c}">${lb}</span></div>`;
-  }).join('')+'</div>';
+    return `<div class="navitem ${on?'on':''}" style="${on?`background:${tint(acc,'2B')};color:${acc}`:''}" data-act="tab" data-tab="${k}">
+      <svg viewBox="0 0 24 24" style="width:21px;height:21px;flex:none" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="${NAV_ICONS[k]}"/></svg>
+      ${on?`<span class="nlb">${lb}</span>`:''}</div>`;
+  }).join('');
+  return `<div class="nav"><div class="navpill">${pill}</div>
+    <div class="navadd" style="background:${acc}" data-act="quick-add">+</div></div>`;
 }
 
 /* ============================ events ============================ */
@@ -43,7 +46,7 @@ document.addEventListener('click',e=>{
   if(a.dataset.stop) e.stopPropagation();
 
   switch(act){
-    case 'tab': ui.tab=a.dataset.tab; ui.gymExpand=null; render(); break;
+    case 'tab': ui.tab=a.dataset.tab; ui.gymExpand=null; ui.habMenu=null; render(); break;
 
     // ---- Hoy: tira semanal ----
     case 'day-sel': ui.daySel=a.dataset.d; render(); break;
@@ -178,12 +181,20 @@ document.addEventListener('click',e=>{
     case 'type-edit': { const t=state.gym.customTypes.find(x=>x.id===id); if(t) typeCreateModal(t); break; }
     case 'type-delete': { const t=state.gym.customTypes.find(x=>x.id===id); if(t) confirmDelete('¿Eliminar "'+t.name+'"?','Se quitará del selector del plan semanal. Los días ya marcados no se modifican.',()=>{ state.gym.customTypes=state.gym.customTypes.filter(x=>x.id!==id); save(); manageTypesModal(); }); break; }
 
-    case 'habit-toggle': { const d=a.dataset.date; state.habitLog[d] ||= {}; if(state.habitLog[d][id]) delete state.habitLog[d][id]; else state.habitLog[d][id]=true; commit(); break; }
-    case 'habit-open': { const hb=state.habits.find(x=>x.id===id); if(hb) habitModal(hb); break; }
-    case 'habit-new': habitModal(null); break;
+    // Multi-check: tocar el slot i lo llena hasta i (si estaba lleno, lo baja a i).
+    case 'habit-toggle': { const d=a.dataset.date, hb=state.habits.find(x=>x.id===id); if(!hb) break;
+      const tpd=hb.timesPerDay||1, slot=a.dataset.slot!=null?+a.dataset.slot:0, cur=habitMarks(id,d);
+      const next = slot<cur ? slot : slot+1;
+      state.habitLog[d] ||= {};
+      if(next<=0) delete state.habitLog[d][id]; else state.habitLog[d][id]=Math.min(next,tpd);
+      commit(); break; }
+    case 'habit-open': { ui.habMenu=null; const hb=state.habits.find(x=>x.id===id); if(hb) habitModal(hb); break; }
+    case 'habit-menu': { const hid=a.dataset.id; ui.habMenu = ui.habMenu===hid?null:hid; render(); break; }
+    case 'habit-new': ui.habMenu=null; habitModal(null); break;
     case 'habit-delete': confirmDelete('¿Eliminar este hábito?','Se borra el hábito y su historial de marcas.',()=>{ const hid=a.dataset.id; state.habits=state.habits.filter(x=>x.id!==hid); Object.values(state.habitLog).forEach(day=>delete day[hid]); closeModal(); commit(); }); break;
-    case 'habit-prev': ui.habitDate=iso(addDays(parseISO(ui.habitDate),-1)); render(); break;
-    case 'habit-next': if(ui.habitDate<todayISO()){ ui.habitDate=iso(addDays(parseISO(ui.habitDate),1)); render(); } break;
+    case 'habit-day': ui.habitDate=a.dataset.d; ui.habMenu=null; render(); break;
+    case 'habit-wk-prev': ui.habitDate=iso(addDays(parseISO(ui.habitDate),-7)); ui.habMenu=null; render(); break;
+    case 'habit-wk-next': ui.habitDate=iso(addDays(parseISO(ui.habitDate),7)); ui.habMenu=null; render(); break;
 
     case 'modal-cancel': closeModal(); break;
     case 'modal-save': if(modalSave) modalSave(); break;
@@ -194,6 +205,8 @@ document.addEventListener('click',e=>{
 // se cierra aunque el click no dispare ninguna acción).
 document.addEventListener('click',e=>{
   if(!e.target.closest('.chartwrap')) document.querySelectorAll('.charttip.show').forEach(t=>t.classList.remove('show'));
+  // Cerrar el menú de un hábito al tocar fuera de él (y que no sea su propio botón).
+  if(ui.habMenu && !e.target.closest('.hmenu') && !e.target.closest('[data-act="habit-menu"]')){ ui.habMenu=null; render(); }
 },true);
 
 /* ============================ boot ============================ */

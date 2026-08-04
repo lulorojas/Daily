@@ -1,82 +1,72 @@
 "use strict";
-/* ----------------------------- CALENDARIO ----------------------------- */
-// Mensual con fechas reales. Muestra tareas con fecha + citas + anuales recurrentes,
-// diferenciados por color e ícono. Tocar un día abre su detalle y permite agregar ahí.
+/* ----------------------------- CALENDARIO -----------------------------
+   Mensual con fechas reales. Tareas con fecha + citas + anuales, con su tag de color.
+   Tocar un día abre el detalle y permite agregar ahí. Acento: coral. */
 
 function viewCalendario(){
-  const y=ui.calY, m=ui.calM;
-  const first=new Date(y,m,1);
-  const lead=dow(first);
-  const days=new Date(y,m+1,0).getDate();
-  const tISO=todayISO();
+  const y=ui.calY, m=ui.calM, first=new Date(y,m,1), lead=dow(first), days=new Date(y,m+1,0).getDate(), tISO=todayISO();
 
   let cells='';
-  for(let i=0;i<lead;i++) cells+=`<div class="cell"></div>`;
+  for(let i=0;i<lead;i++) cells+=`<div class="cell" style="background:none;cursor:default"></div>`;
   for(let d=1;d<=days;d++){
-    const dISO=iso(new Date(y,m,d));
-    const items=itemsDe(dISO);
-    const isSel=dISO===ui.calSel, isToday=dISO===tISO;
-    let style='color:#F4F4FB;font-weight:500';
-    if(isSel) style=`background:${C.green};color:#0E0F22;font-weight:700`;
-    else if(isToday) style=`border:1.6px solid ${C.green};color:${C.green};font-weight:700`;
-    // Un punto por tipo presente ese día (no uno por ítem): indicador limpio.
-    const kinds=['tarea','cita','anual'].filter(k=>items.some(x=>x.kind===k));
-    const dots=kinds.map(k=>{
-      const col=isSel?'rgba(14,15,34,0.6)':ITEM_COLOR[k];
-      return k==='anual'
-        ? `<div style="width:6px;height:6px;border-radius:50%;background:transparent;border:1.5px solid ${col};box-sizing:border-box"></div>`
-        : `<div style="width:5px;height:5px;border-radius:50%;background:${col}"></div>`;
-    }).join('');
-    cells+=`<div class="cell"><div class="daynum" style="${style}" data-act="cal-day" data-d="${dISO}">${d}</div><div class="dots">${dots}</div></div>`;
+    const dISO=iso(new Date(y,m,d)), items=itemsDe(dISO), isSel=dISO===ui.calSel, isToday=dISO===tISO;
+    const bg=isSel?tint(C.coral,'1F'):'transparent', bd=isSel?tint(C.coral,'66'):'rgba(255,255,255,.04)';
+    const numBg=isToday?C.coral:'transparent', numFg=isToday?'#0A0C11':C.ink;
+    const tags=items.slice(0,2).map(e=>{ const col=ITEM_COLOR[e.kind];
+      return `<div class="ctag" style="background:${tint(col,'2B')};color:${col}">${esc(e.title)}</div>`; }).join('');
+    const more=items.length>2?`<span class="cmore">+${items.length-2}</span>`:'';
+    cells+=`<div class="cell" style="background:${bg};border-color:${bd}" data-act="cal-day" data-d="${dISO}">
+      <div class="cnum" style="background:${numBg};color:${numFg}">${d}</div>${tags}${more}</div>`;
   }
 
   let h=`<div class="view"><div class="cal-head">
-    <div class="fr" style="font-size:31px;font-weight:600;line-height:1.05">${MONTHS[m]} <span style="color:rgba(244,244,251,0.4);font-weight:500">${y}</span></div>
+    <div><div class="kicker" style="color:rgba(242,244,248,.38)">${y}</div>
+      <h1 style="margin-top:4px">${MONTHS[m]}</h1></div>
     <div style="display:flex;gap:8px">
-      <div class="navbtn" data-act="cal-prev"><svg width="9" height="15" viewBox="0 0 12 20" fill="none" stroke="rgba(244,244,251,0.7)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2L2 10l8 8"/></svg></div>
-      <div class="navbtn" data-act="cal-next"><svg width="9" height="15" viewBox="0 0 12 20" fill="none" stroke="rgba(244,244,251,0.7)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2l8 8-8 8"/></svg></div>
+      <div class="navbtn" data-act="cal-prev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5 8 12l6.5 7"/></svg></div>
+      <div class="navbtn" data-act="cal-next"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 5 16 12l-6.5 7"/></svg></div>
     </div></div>
-    <div class="body" style="gap:18px">
-    <div class="card" style="padding:14px 12px 16px">
-      <div class="cal-grid" style="margin-bottom:6px">${DOW_MINI.map(d=>`<div class="dow">${d}</div>`).join('')}</div>
-      <div class="cal-grid">${cells}</div>
-    </div>
-    <div class="legend" style="margin-top:-4px">
-      <div class="li"><span style="width:9px;height:9px;border-radius:50%;background:${C.coral}"></span>Tarea</div>
-      <div class="li"><span style="width:9px;height:9px;border-radius:50%;background:${C.green}"></span>Cita</div>
-      <div class="li"><span style="width:9px;height:9px;border-radius:50%;background:transparent;border:2px solid ${C.yellow};box-sizing:border-box"></span>Anual</div>
-    </div>`;
+    <div class="body">
+    <div class="legend">
+      <div class="li"><span style="background:${C.amber}"></span>Tareas</div>
+      <div class="li"><span style="background:${C.coral}"></span>Citas</div>
+      <div class="li"><span style="background:${C.violet}"></span>Anuales</div></div>
+    <div class="card" style="padding:12px 8px 10px">
+      <div class="cal-grid" style="margin-bottom:6px">${DOW_MINI.map(x=>`<div class="dow">${x}</div>`).join('')}</div>
+      <div class="cal-grid" style="gap:2px">${cells}</div></div>`;
 
   // ---- detalle del día seleccionado ----
-  const sel=parseISO(ui.calSel);
-  const selLabel=(DOW_FULL[dow(sel)]+' '+sel.getDate()+' DE '+MONTHS[sel.getMonth()]).toUpperCase();
-  const tareas=tareasDe(ui.calSel), eventos=agendaDe(ui.calSel);
-  h+=`<div><div style="display:flex;align-items:baseline;gap:8px;margin:0 2px 11px">
-    <span class="fr" style="font-size:13.5px;font-weight:600;color:rgba(244,244,251,0.5);letter-spacing:0.3px">ESTE DÍA</span>
-    <span style="font-size:12px;font-weight:700;color:rgba(244,244,251,0.35)">${selLabel}</span></div>`;
-
-  if(tareas.length) h+=`<div class="card pad" style="margin-bottom:10px">`+tareas.map(t=>taskRow(t,C.coral)).join('')+`</div>`;
-  if(eventos.length) h+=`<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:10px">`+eventos.map(eventRow).join('')+`</div>`;
-  if(!tareas.length && !eventos.length) h+=`<div class="empty">Sin nada agendado para este día.</div>`;
-
-  h+=`<div class="dashed" style="margin-top:4px;border:1.5px dashed ${tint(C.green,'80')};background:${tint(C.green,'14')};color:${C.green}" data-act="cal-add" data-d="${ui.calSel}">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${C.green}" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Agregar a este día</div>`;
-  h+=`</div></div></div>`;
-  return h;
+  const sel=parseISO(ui.calSel), tareas=tareasDe(ui.calSel), eventos=agendaDe(ui.calSel);
+  const nItems=tareas.length+eventos.length;
+  const selTitle=DOW_FULL[dow(sel)]+' '+sel.getDate();
+  h+=`<div class="softcard" style="padding:18px 18px 16px;display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:baseline;justify-content:space-between">
+      <div><div class="fr" style="font-weight:700;font-size:19px;letter-spacing:-.4px">${selTitle}</div>
+        <div style="font-size:12.5px;color:rgba(242,244,248,.42);margin-top:2px">${nItems?nItems+' '+(nItems===1?'entrada':'entradas')+' · '+MONTHS[sel.getMonth()].toLowerCase():'Sin entradas este día'}</div></div>
+      <span style="font-size:12.5px;font-weight:600;color:${C.coral};cursor:pointer" data-act="cal-add" data-d="${ui.calSel}">Agregar</span>
+    </div>`;
+  if(nItems){
+    h+=`<div style="display:flex;flex-direction:column;gap:9px">`;
+    h+=tareas.map(t=>taskRow(t,C.amber)).join('');
+    h+=eventos.map(eventRow).join('');
+    h+=`</div>`;
+  } else {
+    h+=`<div class="dashed" data-act="cal-add" data-d="${ui.calSel}">+ Agregar a este día</div>`;
+  }
+  h+=`</div>`;
+  return h+`</div></div>`;
 }
 
-/* ---- menú para agregar a un día concreto del calendario ---- */
+/* ---- menú para agregar a un día concreto ---- */
 function calAddMenu(dISO){
   const opts=[
-    ['task','Nueva tarea','Con la fecha de este día',C.coral,'M9 6h11M9 12h11M9 18h11M4.5 6l1 1 1.8-2M4.5 12l1 1 1.8-2M4.5 18l1 1 1.8-2'],
-    ['event','Nueva cita','Cita o fecha anual',C.green,'M3 5h18v16H3zM3 10h18M8 3v4M16 3v4'],
+    ['task','Nueva tarea','Con la fecha de este día',C.amber,'M4.5 12.5 9 17l10.5-11'],
+    ['event','Nueva cita','Cita o fecha anual',C.coral,'M7.5 3v4M16.5 3v4M3.4 10.5h17.2M6.5 5h11a3.5 3.5 0 0 1 3.5 3.5v9A3.5 3.5 0 0 1 17.5 21h-11A3.5 3.5 0 0 1 3 17.5v-9A3.5 3.5 0 0 1 6.5 5Z'],
   ];
   const body=`<div style="display:flex;flex-direction:column;gap:10px">`+opts.map(([k,lb,sub,col,ic])=>
-    `<div class="softcard evt" data-act="cal-add-${k}" data-d="${dISO}">
-      <div style="width:40px;height:40px;border-radius:13px;background:${tint(col,'24')};display:flex;align-items:center;justify-content:center;flex-shrink:0">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${col}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="${ic}"/></svg></div>
-      <div style="flex:1;min-width:0"><div class="fr" style="font-weight:600;font-size:15.5px">${lb}</div>
-        <div style="font-size:12.5px;color:rgba(244,244,251,0.5)">${sub}</div></div>
+    `<div class="evrow" style="border-left:3px solid ${col}" data-act="cal-add-${k}" data-d="${dISO}">
+      <div class="evic" style="width:40px;height:40px;background:${tint(col,'24')};color:${col}"><svg viewBox="0 0 24 24" style="width:20px;height:20px" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${ic}"/></svg></div>
+      <div style="flex:1;min-width:0"><div class="evname" style="font-size:15.5px">${lb}</div><div class="evsub">${sub}</div></div>
     </div>`).join('')+`</div>`;
   openModal(fmtDateLong(dISO),body,null,null);
 }
