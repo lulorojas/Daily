@@ -66,14 +66,16 @@ function viewHoy(){
   else h+=`<div class="card" style="padding:20px 16px"><div class="empty">El día está limpio por ahora.</div></div>`;
   h+=`</div>`;
 
-  // Entreno del día (solo lectura)
+  // Entreno del día: acá no se edita, se toca y lleva al plan semanal de Gimnasio
+  // (a la semana del día que se está mirando, no siempre a la actual).
   if(entreno){
     const col=typeColor(entreno.type);
     h+=`<div class="sect"><div class="sectlabel">Entreno</div>
-      <div class="evrow" style="border-left:3px solid ${col}">
+      <div class="evrow" style="border-left:3px solid ${col}" data-act="gym-plan-open" data-d="${dISO}">
         <div class="evic" style="background:${tint(col,'24')};color:${col}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6.5 8.5v7M3.8 10.5v3M17.5 8.5v7M20.2 10.5v3M6.5 12h11"/></svg></div>
         <div style="flex:1;min-width:0"><div class="evname">${esc(entreno.type)}</div><div class="evsub">${entreno.done?'Entrenado':'Planificado'}</div></div>
-        <span style="font-size:12.5px;font-weight:600;color:${col}">Gym</span></div></div>`;
+        <span style="font-size:12.5px;font-weight:600;color:${col}">Gym</span>
+        <span style="font-size:16px;color:${tint(col,'B3')};flex:none">&#8250;</span></div></div>`;
   }
 
   // Hábitos del día (marcables; a futuro solo lectura)

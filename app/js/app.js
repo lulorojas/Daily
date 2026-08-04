@@ -1,7 +1,18 @@
 "use strict";
 /* ============================ render ============================ */
 const app=document.getElementById('app');
+
+// Qué pantalla se está mirando. Mientras no cambie, un re-render (marcar una tarea, un
+// hábito, guardar algo) mantiene el scroll donde estaba y no repite la animación de
+// entrada: solo al cambiar de pantalla se vuelve arriba de todo.
+function screenKey(){ return [ui.tab,ui.hoySub,ui.gymSub,ui.rutId,ui.rutDayId].join('|'); }
+let lastScreen=null;
+
 function render(){
+  const prev=app.querySelector('.view'), key=screenKey();
+  const same = !!prev && key===lastScreen;
+  const keepScroll = same ? prev.scrollTop : 0;
+  lastScreen=key;
   let html='';
   // Ajustes es una sub-pantalla de Hoy: se abre con el engranaje, sin ocupar una pestaña.
   if(ui.tab==='hoy') html=(ui.hoySub==='ajustes'?viewAjustes():viewHoy());
@@ -15,6 +26,10 @@ function render(){
   app.style.setProperty('--accent', acc);
   app.style.setProperty('--glow', tint(acc,'1F'));
   app.innerHTML = html + navbar(acc);
+  if(same){
+    const view=app.querySelector('.view');
+    if(view){ view.classList.add('nofx'); view.scrollTop=keepScroll; }
+  }
 }
 
 // Barra: píldora de 5 pestañas (activa con label, resto solo ícono) + botón "+" pegado a la
@@ -94,6 +109,13 @@ document.addEventListener('click',e=>{
     case 'cal-add': calAddMenu(a.dataset.d); break;
     case 'cal-add-task': { const d=a.dataset.d; closeModal(); taskModal(null,d); break; }
     case 'cal-add-event': { const d=a.dataset.d; closeModal(); eventModal(null,d); break; }
+
+    // Atajo desde la barra de entreno de Hoy: abre Gimnasio en la semana de ese día.
+    case 'gym-plan-open': {
+      const d=a.dataset.d||ui.daySel;
+      ui.gymOffset=Math.round((mondayOf(parseISO(d))-mondayOf(todayD()))/6048e5);
+      ui.tab='gym'; ui.gymSub=null; ui.gymExpand=null; render(); break;
+    }
 
     case 'gym-prev': ui.gymOffset--; ui.gymExpand=null; render(); break;
     case 'gym-next': ui.gymOffset++; ui.gymExpand=null; render(); break;

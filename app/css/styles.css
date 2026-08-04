@@ -46,6 +46,9 @@ button{font-family:inherit;color:inherit;border:none;background:none;cursor:poin
 .body>*:nth-child(4){animation-delay:.15s}.body>*:nth-child(5){animation-delay:.2s}
 .body>*:nth-child(6){animation-delay:.25s}.body>*:nth-child(7){animation-delay:.3s}
 .body>*:nth-child(8){animation-delay:.35s}.body>*:nth-child(9){animation-delay:.4s}
+/* Re-render dentro de la misma pantalla: sin animación de entrada, para que marcar algo
+   no vuelva a barajar toda la vista (el scroll lo conserva render()). */
+.view.nofx .body>*{animation:none}
 
 .sect{display:flex;flex-direction:column;gap:11px}
 .sectlabel{font-size:11px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:rgba(242,244,248,.35);margin:0 2px}
