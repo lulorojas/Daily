@@ -11,6 +11,8 @@ const APP = path.resolve(__dirname, '..');
 const FILES = ['utils.js','hoy.js','agenda.js','calendario.js','gimnasio.js','rutinas.js','habitos.js','progreso.js','ajustes.js','app.js'];
 // Con la capa de sesión encima, en el mismo orden que index.html.
 const FILES_AUTH = ['firebase-config.js'].concat(FILES.slice(0,-1)).concat(['auth.js','app.js']);
+// Con la capa de datos (Firestore) también, en el mismo orden que index.html.
+const FILES_FS = ['firebase-config.js'].concat(FILES.slice(0,-1)).concat(['firestore.js','auth.js','app.js']);
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra) => {
@@ -71,7 +73,7 @@ function fakeFirebase(win, opts) {
 
   function fakeUser(email, verified) {
     return {
-      email, emailVerified: !!verified,
+      email, emailVerified: !!verified, uid: 'uid_' + email,
       sendEmailVerification() { return rec('sendEmailVerification', [email], o.failCode ? boom() : Promise.resolve()); },
       reload() { return rec('reload', [email], o.failCode ? boom() : Promise.resolve()); },
     };
@@ -84,12 +86,48 @@ function fakeFirebase(win, opts) {
     sendPasswordResetEmail(...a) { return rec('sendPasswordResetEmail', a, o.failCode ? boom() : Promise.resolve()); },
     signOut() { return rec('signOut', [], Promise.resolve()); },
   };
-  if (!o.noSdk) win.firebase = { apps: [], initializeApp() { this.apps.push({}); return {}; }, auth: () => auth };
+
+  /* ---- Firestore de mentira (solo si opts.fs) ----
+     Documentos por uid en memoria. onSnapshot/set disparan de forma SÍNCRONA para que los tests
+     sean deterministas (Firestore real es async, pero acá probamos la lógica del puente). */
+  const store = { docs: (o.fs && o.fs.docs) || {}, sets: [], persistCalled: 0 };
+  function snap(uid) { const dt = store.docs[uid]; return { exists: dt !== undefined, data: () => dt && JSON.parse(JSON.stringify(dt)) }; }
+  function docRef(uid) {
+    return {
+      onSnapshot(onNext, onErr) {
+        (store.subs[uid] = store.subs[uid] || []).push(onNext);
+        if (o.fs && o.fs.failSnapshot) { if (onErr) onErr({ code: 'permission-denied' }); }
+        else if (!(o.fs && o.fs.deferSnapshot)) onNext(snap(uid));   // deferSnapshot: no dispara hasta emit()
+        return () => { store.subs[uid] = (store.subs[uid] || []).filter(f => f !== onNext); };
+      },
+      set(data) {
+        store.sets.push({ uid, data: JSON.parse(JSON.stringify(data)) });
+        store.docs[uid] = JSON.parse(JSON.stringify(data));
+        (store.subs[uid] || []).forEach(fn => fn(snap(uid)));
+        return Promise.resolve();
+      },
+      get() { return Promise.resolve(snap(uid)); },
+    };
+  }
+  store.subs = {};
+  const firestore = {
+    enablePersistence() { store.persistCalled++; return (o.fs && o.fs.persistFail) ? Promise.reject({ code: 'failed-precondition' }) : Promise.resolve(); },
+    collection() { return { doc: uid => docRef(uid) }; },
+  };
+
+  if (!o.noSdk) {
+    win.firebase = { apps: [], initializeApp() { this.apps.push({}); return {}; }, auth: () => auth };
+    if (o.fs) win.firebase.firestore = () => firestore;
+  }
   return {
-    auth, calls, fakeUser,
+    auth, calls, fakeUser, store,
     called: n => calls.filter(c => c.name === n),
     // Simula que Firebase avisa el estado de sesión: null, o un usuario (verificado o no).
     signal(u) { auth.currentUser = u || null; if (onChange) onChange(u || null); },
+    // Dispara a mano el snapshot pendiente (para deferSnapshot).
+    emit(uid) { (store.subs[uid] || []).forEach(fn => fn(snap(uid))); },
+    docOf(uid) { return store.docs[uid]; },
+    setsOf(uid) { return store.sets.filter(s => s.uid === uid); },
   };
 }
 
@@ -110,8 +148,27 @@ function bootAuth(seedV2, opts) {
   return w;
 }
 
+// Bootea la app CON sesión Y capa de datos Firestore (mock). opts: {docs, failSnapshot,
+// persistFail, seedV2}. Los `docs` son documentos users/{uid} preexistentes en la nube.
+function bootFs(opts) {
+  const o = opts || {};
+  const dom = new JSDOM('<!doctype html><html><body><div id="app"></div><div class="overlay" id="overlay"></div></body></html>',
+    { url:'http://localhost/', pretendToBeVisual:true, runScripts:'outside-only' });
+  const w = dom.window;
+  if (o.seedV2) w.localStorage.setItem('daily.v2', o.seedV2);
+  const fb = fakeFirebase(w, { fs: { docs: o.docs || {}, failSnapshot: o.failSnapshot, persistFail: o.persistFail, deferSnapshot: o.deferSnapshot } });
+  const ctx = dom.getInternalVMContext();
+  for (const f of FILES_FS) vm.runInContext(fs.readFileSync(path.join(APP, 'js', f), 'utf8'), ctx, { filename:f });
+  w.ev = code => vm.runInContext(code, ctx);
+  w.fb = fb;
+  w.html = () => w.document.getElementById('app').innerHTML;
+  w.set = (sel, val) => { w.document.querySelector(sel).value = val; };
+  w.tap = sel => { const el = w.document.querySelector(sel); if (!el) throw new Error('no existe ' + sel); el.click(); };
+  return w;
+}
+
 module.exports = {
-  boot, bootAuth, ok,
+  boot, bootAuth, bootFs, ok,
   done: () => { console.log('\n' + '='.repeat(46)); console.log(pass + ' ok, ' + fail + ' fail'); process.exit(fail ? 1 : 0); },
   d, iso, TODAY, TOMORROW, ANUAL_DATE, ago, V1_RAW,
 };

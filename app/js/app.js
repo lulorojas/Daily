@@ -12,16 +12,23 @@ function render(){
   // Puerta de sesión: sin cuenta iniciada, o con el email sin verificar, no se dibuja nada
   // de la app. authGate() devuelve null cuando hay vía libre. Si auth.js no está cargado
   // (los tests de datos no lo cargan) la app se dibuja como siempre.
-  const gate = (typeof authGate==='function') ? authGate() : null;
+  const authg = (typeof authGate==='function') ? authGate() : null;
+  // Con sesión verificada pero los datos de Firestore todavía en camino (o con error de carga),
+  // se muestra una pantalla intermedia y no la app. Sin capa de datos (tests) esto no aplica.
+  const datag = (!authg && typeof DATA!=='undefined' && DATA.uid && !DATA.ready)
+    ? (DATA.error ? 'data-error' : 'data-loading') : null;
+  const gate = authg || datag;
 
-  const prev=app.querySelector('.view'), key=gate?('auth:'+gate):screenKey();
+  const prev=app.querySelector('.view'), key=gate?('gate:'+gate):screenKey();
   const same = !!prev && key===lastScreen;
   const keepScroll = same ? prev.scrollTop : 0;
   lastScreen=key;
 
   let html='', acc;
-  if(gate){
-    html=authView(gate); acc=C.amber;
+  if(authg){
+    html=authView(authg); acc=C.amber;
+  } else if(datag){
+    html = datag==='data-error' ? viewDataError() : viewAuthCargando(); acc=C.amber;
   } else {
     // Ajustes es una sub-pantalla de Hoy: se abre con el engranaje, sin ocupar una pestaña.
     if(ui.tab==='hoy') html=(ui.hoySub==='ajustes'?viewAjustes():viewHoy());
@@ -73,6 +80,8 @@ document.addEventListener('click',e=>{
 
   // Todo lo de la capa de sesión se resuelve en auth.js.
   if(act.indexOf('auth-')===0){ if(typeof authAction==='function') authAction(act,a); return; }
+  // Reintentar la carga de datos tras un error de Firestore.
+  if(act==='data-retry'){ if(typeof AUTH!=='undefined' && AUTH.user && typeof dataStart==='function'){ dataStop(); dataStart(AUTH.user.uid); } return; }
 
   switch(act){
     case 'tab': ui.tab=a.dataset.tab; ui.gymExpand=null; ui.habMenu=null; render(); break;

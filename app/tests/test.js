@@ -1,4 +1,4 @@
-const { boot, bootAuth, ok, done, d, iso, TODAY, TOMORROW, ANUAL_DATE, ago, V1_RAW } = require('./harness');
+const { boot, bootAuth, bootFs, ok, done, d, iso, TODAY, TOMORROW, ANUAL_DATE, ago, V1_RAW } = require('./harness');
 
 /* =================== REGRESIÓN etapas 1–3.5 =================== */
 console.log('\nR. Regresión de las etapas anteriores');
@@ -642,5 +642,100 @@ try {
   w.fb.signal(w.fb.fakeUser('otro@ejemplo.com', true));
   ok('los datos siguen ahí con otra cuenta', w.localStorage.getItem('daily.v2') === antes);
 } catch (e) { ok('datos locales', false, e.message); }
+
+
+/* ---------- 41. datos desde Firestore (hidratacion + gate + migracion) ---------- */
+console.log('\n41. Datos desde Firestore');
+try {
+  // (a) documento existente en la nube -> hidrata el state
+  const cloud = { v:2, items:[{ id:'X1', kind:'tarea', title:'Tarea en la nube', date:TODAY, time:null, done:false }], habits:[], habitLog:{}, gym:{} };
+  const w = bootFs({ docs: { 'uid_lulo@x.com': cloud } });
+  const u = w.fb.fakeUser('lulo@x.com', true);
+  w.fb.signal(u);
+  ok('con doc existente entra a la app',   (w.html().match(/data-act="tab"/g) || []).length === 5);
+  ok('hidrata el state desde la nube',     w.ev('state') && w.ev('state').items.some(x => x.id === 'X1'));
+  ok('la tarea de la nube se ve en Hoy',   w.html().includes('Tarea en la nube'));
+  ok('DATA quedo listo con el uid',        w.ev('DATA').ready === true && w.ev('DATA').uid === u.uid);
+
+  // (b) usuario nuevo sin doc -> siembra por defecto + crea el doc (migracion)
+  const w2 = bootFs({});
+  const u2 = w2.fb.fakeUser('nuevo@x.com', true);
+  w2.fb.signal(u2);
+  ok('usuario nuevo entra a la app',       (w2.html().match(/data-act="tab"/g) || []).length === 5);
+  ok('se creo el doc en la nube',          w2.fb.setsOf(u2.uid).length >= 1 && w2.fb.docOf(u2.uid) != null);
+  ok('sembro un estado por defecto',       w2.ev('state').items.length === 1 && w2.ev('state').items[0].kind === 'tarea');
+
+  // (c) migracion desde daily.v2 local: el doc nuevo se siembra con lo local
+  const localV2 = JSON.stringify({ v:2, items:[{ id:'L1', kind:'tarea', title:'Tarea local', date:TODAY, time:null, done:false }], habits:[], habitLog:{}, gym:{} });
+  const w3 = bootFs({ seedV2: localV2 });
+  const u3 = w3.fb.fakeUser('mig@x.com', true);
+  w3.fb.signal(u3);
+  ok('migra el daily.v2 local a la nube',  w3.fb.docOf(u3.uid) && w3.fb.docOf(u3.uid).items.some(x => x.id === 'L1'));
+  ok('y lo muestra en la app',             w3.html().includes('Tarea local'));
+
+  // (d) gate de carga: hasta el primer snapshot, pantalla de carga y nada de la app
+  const w4 = bootFs({ deferSnapshot:true, docs: { 'uid_wait@x.com': cloud } });
+  const u4 = w4.fb.fakeUser('wait@x.com', true);
+  w4.fb.signal(u4);
+  ok('mientras cargan los datos no se filtra la app', !w4.html().includes('data-act="tab"'));
+  ok('muestra la pantalla de carga',       w4.html().includes('Abriendo tu Daily') && w4.ev('DATA').ready === false);
+  w4.fb.emit(u4.uid);
+  ok('llegado el snapshot entra la app',   (w4.html().match(/data-act="tab"/g) || []).length === 5);
+} catch (e) { ok('datos desde Firestore', false, e.message); }
+
+/* ---------- 42. guardar va a Firestore, no a localStorage ---------- */
+console.log('\n42. Guardar va a Firestore');
+try {
+  const w = bootFs({});
+  const u = w.fb.fakeUser('save@x.com', true);
+  w.fb.signal(u);
+  const before = w.fb.setsOf(u.uid).length;
+  w.ev('commit()');                                  // una accion de la app
+  ok('commit escribe en Firestore',        w.fb.setsOf(u.uid).length > before);
+  ok('no escribe daily.v2 en localStorage', w.localStorage.getItem('daily.v2') === null);
+  ok('no escribe daily.v1',                w.localStorage.getItem('daily.v1') === null);
+} catch (e) { ok('guardar a Firestore', false, e.message); }
+
+/* ---------- 43. importar backup escribe a Firestore ---------- */
+console.log('\n43. Importar escribe a Firestore');
+try {
+  const w = bootFs({});
+  const u = w.fb.fakeUser('imp@x.com', true);
+  w.fb.signal(u);
+  const payload = JSON.stringify({ app:'daily', format:2, exportedAt:'2026-01-01T00:00:00.000Z',
+    data:{ v:2, items:[{ id:'IMP', kind:'tarea', title:'Tarea importada', date:TODAY, time:null, done:false }], habits:[], habitLog:{}, gym:{} } });
+  w.ev('importFromText(' + JSON.stringify(payload) + ')');
+  w.tap('[data-act="confirm-yes"]');
+  ok('import reemplaza el state',          w.ev('state').items.some(x => x.id === 'IMP'));
+  ok('import escribe a Firestore',         w.fb.docOf(u.uid) && (w.fb.docOf(u.uid).items || []).some(x => x.id === 'IMP'));
+  ok('import no escribe localStorage',     w.localStorage.getItem('daily.v2') === null);
+} catch (e) { ok('import a Firestore', false, e.message); }
+
+/* ---------- 44. cerrar sesion corta el sync ---------- */
+console.log('\n44. Cerrar sesion corta el sync');
+try {
+  const w = bootFs({ docs: { 'uid_out@x.com': { v:2, items:[], habits:[], habitLog:{}, gym:{} } } });
+  const u = w.fb.fakeUser('out@x.com', true);
+  w.fb.signal(u);
+  ok('con sesion, DATA activo',            w.ev('DATA').uid === u.uid && w.ev('state') !== null);
+  w.fb.signal(null);
+  ok('logout corta el sync',               w.ev('DATA').uid === null && w.ev('DATA').ready === false);
+  ok('logout vacia el state',              w.ev('state') === null);
+  ok('logout vuelve al login',             w.html().includes('data-act="auth-login"'));
+} catch (e) { ok('logout corta sync', false, e.message); }
+
+/* ---------- 45. daily.v1 / daily.v2 intactos (solo lectura) ---------- */
+console.log('\n45. Legado intacto');
+try {
+  const localV2 = JSON.stringify({ v:2, items:[], habits:[], habitLog:{}, gym:{} });
+  const w = bootFs({ seedV2: localV2 });
+  w.localStorage.setItem('daily.v1', V1_RAW);
+  const v1before = w.localStorage.getItem('daily.v1'), v2before = w.localStorage.getItem('daily.v2');
+  const u = w.fb.fakeUser('leg@x.com', true);
+  w.fb.signal(u);
+  w.ev('commit()'); w.ev('commit()');
+  ok('daily.v1 sigue intacto',             w.localStorage.getItem('daily.v1') === v1before);
+  ok('daily.v2 local no se modifica',      w.localStorage.getItem('daily.v2') === v2before);
+} catch (e) { ok('legado intacto', false, e.message); }
 
 })().then(done, e => { ok('tests de sesión', false, e.message); done(); });

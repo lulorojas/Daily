@@ -47,7 +47,11 @@ function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(
 // como backup automático para poder volver atrás.
 const KEY='daily.v2';
 const KEY_V1='daily.v1';
-let state = load();
+// v3: si está el SDK de Firestore (producción), los datos vienen de la nube y `state` arranca
+// vacío hasta el primer snapshot (lo hidrata firestore.js). Sin SDK (tests de datos / entorno
+// degradado) se cae al viejo localStorage. daily.v1/daily.v2 nunca se escriben con Firestore.
+const HAS_FS = (typeof firebase!=='undefined' && firebase.firestore);
+let state = HAS_FS ? null : load();
 // habitDate lo sigue usando la pestaña Hábitos, que en esta etapa queda como está.
 // gymSub/rutId/rutDayId: nivel abierto en la sub-pantalla de Rutinas (null = Gimnasio normal).
 const ui = { tab:'hoy', daySel:todayISO(), calY:todayD().getFullYear(), calM:todayD().getMonth(), calSel:todayISO(),
@@ -62,7 +66,7 @@ function load(){
   }catch(e){}
   return normalize(seed());
 }
-function persist(s){ try{ localStorage.setItem(KEY, JSON.stringify(s)); }catch(e){} }
+function persist(s){ if(HAS_FS) return; try{ localStorage.setItem(KEY, JSON.stringify(s)); }catch(e){} }
 
 /* ---- migración v1 → v2 (determinista, no descarta nada) ----
    tarea vieja sin fecha       → item tarea con date:null
@@ -150,7 +154,12 @@ function seed(){
     habitLog:{},
   };
 }
-function save(){ localStorage.setItem(KEY, JSON.stringify(state)); }
+function save(){
+  // Con sesión + datos en la nube, escribe a Firestore (offline se encola). Sin esa capa
+  // (tests de datos), respaldo en localStorage como antes.
+  if(typeof dataSave==='function' && typeof DATA!=='undefined' && DATA.uid){ dataSave(); return; }
+  try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){}
+}
 function commit(){ save(); render(); }
 
 /* ============================ helpers ============================ */

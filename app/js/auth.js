@@ -51,12 +51,21 @@ function authInit(){
     // Al cerrarse una sesión (de tener usuario a no tener), la puerta vuelve al login y no
     // al último formulario que se hubiera visto (registro/reset).
     if(!u && wasUser) AUTH.screen='login';
+    authSyncData();
     render();
   });
   // Al volver a la app después de abrir el mail, se re-chequea la verificación en silencio.
   document.addEventListener('visibilitychange',()=>{
     if(document.visibilityState==='visible') authRecheckSilent();
   });
+}
+
+// Conecta la sesión con sus datos: con usuario verificado arranca el sync de Firestore para su
+// uid; sin sesión o sin verificar, lo corta. firestore.js hace el trabajo; acá solo se decide.
+function authSyncData(){
+  if(typeof dataStart!=='function' || typeof dataStop!=='function') return;
+  const u=AUTH.user;
+  if(u && u.emailVerified) dataStart(u.uid); else dataStop();
 }
 
 /* ---- mensajes de error de Firebase, en criollo ---- */
@@ -260,7 +269,7 @@ function authDoRecheck(){
   u.reload()
     .then(()=>{
       AUTH.user=a.currentUser; authBusy(false);
-      if(AUTH.user && AUTH.user.emailVerified) render();
+      if(AUTH.user && AUTH.user.emailVerified){ authSyncData(); render(); }
       else authFlash('err','Todavía figura sin verificar. Abrí el link del email y volvé a probar.');
     })
     .catch(e=>{ authBusy(false); authFlash('err',authErrMsg(e)); });
@@ -272,7 +281,7 @@ function authRecheckSilent(){
   if(!a || !u || u.emailVerified || AUTH.busy) return;
   u.reload().then(()=>{
     const f=a.currentUser;
-    if(f && f.emailVerified){ AUTH.user=f; render(); }
+    if(f && f.emailVerified){ AUTH.user=f; authSyncData(); render(); }
   }).catch(()=>{});
 }
 
