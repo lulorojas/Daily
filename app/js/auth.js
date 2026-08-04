@@ -24,6 +24,9 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const PASS_MIN = 6;               // el mínimo que exige Firebase
 
 function fbAuth(){ return (typeof firebase!=='undefined' && firebase.auth) ? firebase.auth() : null; }
+// De dónde llega el mail de Firebase (remitente por defecto: noreply@<authDomain>). Se muestra
+// en las pantallas para que la persona lo reconozca y no lo tome por spam peligroso.
+function authSender(){ return 'noreply@'+((typeof firebaseConfig!=='undefined' && firebaseConfig.authDomain)||'firebaseapp.com'); }
 function authRoot(){ return document.getElementById('app'); }
 function authUser(){ return AUTH.user; }
 function av(sel){ const el=authRoot().querySelector(sel); return el?el.value.trim():''; }
@@ -135,7 +138,9 @@ function viewAuthRegistro(){
     ${authField('au-pass','Contraseña','password','Mínimo '+PASS_MIN+' caracteres',` <span class="opt">· mínimo ${PASS_MIN}</span>`)}
     ${authField('au-pass2','Repetir contraseña','password','La misma de arriba')}
     ${authBtn('auth-registro','Crear cuenta')}
-    <div style="font-size:12px;color:rgba(242,244,248,.4);text-align:center;line-height:1.5;margin:-4px 8px 0">Te vamos a mandar un email para verificar que la casilla es tuya.</div>
+    <div style="font-size:12px;color:rgba(242,244,248,.42);text-align:center;line-height:1.55;margin:-4px 8px 0">
+      Te va a llegar un mail de <b style="color:rgba(242,244,248,.7)">${esc(authSender())}</b> para confirmar tu casilla.
+      Puede caer en <b style="color:rgba(242,244,248,.7)">Spam</b> o Correo no deseado: es nuestro, podés abrirlo tranquilo.</div>
     <div class="alink" data-act="auth-screen" data-s="login">¿Ya tenés cuenta? <b>Entrá</b></div>` });
 }
 
@@ -154,7 +159,9 @@ function viewAuthVerificar(){
       <div style="width:54px;height:54px;border-radius:19px;background:${tint(C.coral,'24')};color:${C.coral};display:grid;place-items:center">
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="3.5"/><path d="m3.5 7 8.5 6 8.5-6"/></svg></div>
       <div style="font-size:14px;line-height:1.55;color:rgba(242,244,248,.65)">Revisá tu casilla en<br><b style="color:${C.coral};font-weight:600">${esc(mail)}</b><br>y abrí el link para continuar.</div>
-      <div style="font-size:12px;color:rgba(242,244,248,.35);line-height:1.5">Si no lo ves, fijate en el correo no deseado.</div>
+      <div style="font-size:12px;line-height:1.55;color:rgba(242,244,248,.42);padding-top:2px;border-top:1px solid rgba(255,255,255,.06);width:100%">
+        El mail viene de <b style="color:rgba(242,244,248,.7)">${esc(authSender())}</b>. Puede tardar un par de minutos o caer en
+        <b style="color:rgba(242,244,248,.7)">Spam / No deseado</b> — es un correo nuestro, es seguro abrir el link.</div>
     </div>
     ${authBtn('auth-recheck','Ya lo verifiqué')}
     ${authBtn('auth-resend','Reenviar email','ghost')}
