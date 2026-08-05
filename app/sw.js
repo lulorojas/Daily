@@ -1,7 +1,7 @@
 // Daily — service worker.
 // HTML shell: network-first (los cambios aparecen apenas hay internet).
 // Assets estáticos (íconos, manifest): cache-first con refresco en segundo plano.
-const CACHE = 'daily-v16';
+const CACHE = 'daily-v17';
 const ASSETS = [
   './',
   './index.html',
@@ -9,8 +9,11 @@ const ASSETS = [
   './css/styles.css',
   './js/vendor/firebase-app-compat.js',
   './js/vendor/firebase-auth-compat.js',
+  './js/vendor/firebase-firestore-compat.js',
   './js/firebase-config.js',
   './js/auth.js',
+  './js/firestore.js',
+  './js/onboarding.js',
   './js/utils.js',
   './js/hoy.js',
   './js/agenda.js',

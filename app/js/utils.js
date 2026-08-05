@@ -11,7 +11,7 @@ const C = {
 // Acento de cada sección: tiñe la nav, el botón +, el glow superior y los detalles.
 const SECT = { hoy:C.amber, calendario:C.coral, gym:C.rose, habitos:C.green, progreso:C.teal };
 const REST = 'Descanso';
-// Training types are all user-editable now (pre-seeded via defaultTypes()); only REST is fixed.
+// Los tipos de entrenamiento los crea el usuario (una cuenta nueva arranca sin ninguno); solo REST es fijo.
 const PALETTE = [C.green,C.teal,C.violet,C.coral,C.amber,C.rose];
 const ICONS = {
   agua:    'M12 3c3 4 6 7 6 11a6 6 0 0 1-12 0c0-4 3-7 6-11z',
@@ -56,7 +56,7 @@ let state = HAS_FS ? null : load();
 // gymSub/rutId/rutDayId: nivel abierto en la sub-pantalla de Rutinas (null = Gimnasio normal).
 const ui = { tab:'hoy', daySel:todayISO(), calY:todayD().getFullYear(), calM:todayD().getMonth(), calSel:todayISO(),
              gymOffset:0, constEnd:0, habitDate:todayISO(), gymSub:null, rutId:null, rutDayId:null,
-             progPeriod:'mes', hoySub:null, habMenu:null };
+             progPeriod:'mes', hoySub:null, habMenu:null, onbSlide:0 };
 
 function load(){
   try{ const s=JSON.parse(localStorage.getItem(KEY)); if(s) return normalize(s); }catch(e){}
@@ -101,57 +101,26 @@ function normalize(s){
   // routines: biblioteca de consulta, independiente del plan semanal y del historial.
   // bodyWeights: peso corporal, métrica aparte del peso que se levanta por ejercicio.
   s.gym.routines ||= []; s.gym.bodyWeights ||= [];
-  let changed=false;
-  // One-time: seed the default training types as editable/removable custom types.
-  if(!s.gym.typesSeeded){
-    const have=new Set(s.gym.customTypes.map(t=>t.name));
-    defaultTypes().forEach(t=>{ if(!have.has(t.name)) s.gym.customTypes.push(t); });
-    s.gym.typesSeeded = true; changed=true;
+  // Onboarding (etapa 4): estado del tutorial, atado al usuario (viaja en el doc de Firestore).
+  // Cuenta nueva -> ve la bienvenida; una cuenta que YA tenía datos no la ve.
+  if(!s.onboarding || typeof s.onboarding!=='object'){
+    const hasData = s.items.length || s.habits.length || s.gym.lifts.length ||
+      s.gym.routines.length || s.gym.bodyWeights.length || s.gym.customTypes.length || Object.keys(s.habitLog).length;
+    s.onboarding = { welcomeSeen: !!hasData, tips:{} };
   }
-  // One-time: give the gym some predetermined content so it isn't blank.
-  if(!s.gym.seeded){
-    if(!s.gym.lifts.length) s.gym.lifts = defaultLifts();
-    const wk=iso(mondayOf(todayD())), cur=s.gym.weekPlans[wk];
-    if(!cur || cur.every(d=>d.type===REST)) s.gym.weekPlans[wk] = defaultPlanDays();
-    s.gym.seeded = true; changed=true;
-  }
-  if(changed) persist(s);
+  if(!s.onboarding.tips || typeof s.onboarding.tips!=='object') s.onboarding.tips = {};
   return s;
 }
-// Predetermined gym content (editable/removable by the user afterwards).
-// Inlined (not a module const) so it's safe to call during the initial load().
-function defaultPlanDays(){ return ['Pecho','Espalda','Cuádriceps','Isquio y glúteo','Brazo','Cardio',REST].map(type=>({type,done:false})); }
-function defaultLifts(){
-  const t=todayISO();
-  return [
-    { id:uid(), name:'Sentadilla',  unit:'kg', color:C.rose,  history:[{date:t,weight:60}] },
-    { id:uid(), name:'Press banca', unit:'kg', color:C.teal,  history:[{date:t,weight:40}] },
-    { id:uid(), name:'Peso muerto', unit:'kg', color:C.amber, history:[{date:t,weight:80}] },
-  ];
-}
-function defaultTypes(){
-  return [
-    { id:uid(), name:'Cuádriceps',      color:C.amber  },
-    { id:uid(), name:'Isquio y glúteo', color:C.coral  },
-    { id:uid(), name:'Espalda',         color:C.teal   },
-    { id:uid(), name:'Pecho',           color:C.rose   },
-    { id:uid(), name:'Brazo',           color:C.violet },
-    { id:uid(), name:'Cardio',          color:C.green  },
-  ];
-}
+// Etapa 4: una cuenta nueva arranca 100% vacía. Ya no se siembra contenido de ejemplo
+// (tareas, hábitos, tipos de gimnasio, ejercicios ni plan semanal).
 function seed(){
-  // First run: pre-loaded with a starter week plan + sample exercises so nothing is blank.
   return {
     v:2,
-    items:[
-      { id:uid(), kind:'tarea', title:'Probar mi nueva app', desc:'Tocá el check para completar', date:todayISO(), time:null, done:false },
-    ],
-    // routines y bodyWeights arrancan vacías a propósito: sin datos de arranque inventados.
-    gym:{ customTypes:defaultTypes(), weekPlans:{ [iso(mondayOf(todayD()))]: defaultPlanDays() }, lifts:defaultLifts(), routines:[], bodyWeights:[], seeded:true, typesSeeded:true },
-    habits:[
-      { id:uid(), name:'Tomar agua', detail:'8 vasos al día', color:C.green, icon:'agua' },
-    ],
+    items:[],
+    gym:{ customTypes:[], weekPlans:{}, lifts:[], routines:[], bodyWeights:[] },
+    habits:[],
     habitLog:{},
+    onboarding:{ welcomeSeen:false, tips:{} },
   };
 }
 function save(){

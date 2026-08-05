@@ -60,7 +60,7 @@ function viewProgreso(){
   const per=ui.progPeriod, start=progStart(per);
   let h=`<div class="view"><div class="head"><h1>Progreso</h1>
     <div class="sub">Tu evolución, en un solo lugar.</div>
-    <div style="margin-top:16px">${progSelector(per)}</div></div><div class="body">`;
+    <div style="margin-top:16px">${progSelector(per)}</div></div><div class="body prog2">`;
   h+=progResumen(per,start);
   h+=progBodyWeight(per,start);
   h+=progRanking(per,start);

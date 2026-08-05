@@ -10,9 +10,9 @@ const { JSDOM } = require('jsdom');
 const APP = path.resolve(__dirname, '..');
 const FILES = ['utils.js','hoy.js','agenda.js','calendario.js','gimnasio.js','rutinas.js','habitos.js','progreso.js','ajustes.js','app.js'];
 // Con la capa de sesión encima, en el mismo orden que index.html.
-const FILES_AUTH = ['firebase-config.js'].concat(FILES.slice(0,-1)).concat(['auth.js','app.js']);
+const FILES_AUTH = ['firebase-config.js'].concat(FILES.slice(0,-1)).concat(['auth.js','onboarding.js','app.js']);
 // Con la capa de datos (Firestore) también, en el mismo orden que index.html.
-const FILES_FS = ['firebase-config.js'].concat(FILES.slice(0,-1)).concat(['firestore.js','auth.js','app.js']);
+const FILES_FS = ['firebase-config.js'].concat(FILES.slice(0,-1)).concat(['firestore.js','auth.js','onboarding.js','app.js']);
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra) => {

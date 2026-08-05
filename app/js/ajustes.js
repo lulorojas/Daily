@@ -170,6 +170,9 @@ function viewAjustes(){
       ${info('Primer día de la semana','Lunes',true)}
       ${info('Unidad de peso','Kilogramos',false)}</div></div>`;
 
+  h+=`<div class="sect"><div class="sectlabel">Ayuda</div>
+    ${row('onb-reset',C.amber,'Ver el tutorial de nuevo','Vuelve a mostrar la bienvenida','M20 12a8 8 0 1 1-2.35-5.65M20 3.5V8h-4.5')}</div>`;
+
   // Cuenta: solo si la capa de sesión está cargada y hay alguien logueado.
   const usr = (typeof authUser==='function') ? authUser() : null;
   if(usr){

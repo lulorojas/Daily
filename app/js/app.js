@@ -17,7 +17,9 @@ function render(){
   // se muestra una pantalla intermedia y no la app. Sin capa de datos (tests) esto no aplica.
   const datag = (!authg && typeof DATA!=='undefined' && DATA.uid && !DATA.ready)
     ? (DATA.error ? 'data-error' : 'data-loading') : null;
-  const gate = authg || datag;
+  // Bienvenida: con sesión y datos listos, pero la primera vez, antes de entrar a la app.
+  const onbg = (!authg && !datag && typeof welcomeDue==='function' && welcomeDue()) ? 'welcome' : null;
+  const gate = authg || datag || onbg;
 
   const prev=app.querySelector('.view'), key=gate?('gate:'+gate):screenKey();
   const same = !!prev && key===lastScreen;
@@ -29,6 +31,8 @@ function render(){
     html=authView(authg); acc=C.amber;
   } else if(datag){
     html = datag==='data-error' ? viewDataError() : viewAuthCargando(); acc=C.amber;
+  } else if(onbg){
+    html=viewWelcome(); acc=C.amber;
   } else {
     // Ajustes es una sub-pantalla de Hoy: se abre con el engranaje, sin ocupar una pestaña.
     if(ui.tab==='hoy') html=(ui.hoySub==='ajustes'?viewAjustes():viewHoy());
@@ -40,6 +44,8 @@ function render(){
     // El acento de la sección tiñe la nav, el botón + y el glow superior (vars CSS en #app).
     acc=SECT[ui.tab]||C.amber;
     html+=navbar(acc);
+    // Tip contextual la primera vez que se visita esta pestaña.
+    if(typeof tipDue==='function' && tipDue()) html+=tipCallout();
   }
   app.style.setProperty('--accent', acc);
   app.style.setProperty('--glow', tint(acc,'1F'));
@@ -65,7 +71,7 @@ function navbar(acc){
     const on=ui.tab===k;
     return `<div class="navitem ${on?'on':''}" style="${on?`background:${tint(acc,'2B')};color:${acc}`:''}" data-act="tab" data-tab="${k}">
       <svg viewBox="0 0 24 24" style="width:21px;height:21px;flex:none" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="${NAV_ICONS[k]}"/></svg>
-      ${on?`<span class="nlb">${lb}</span>`:''}</div>`;
+      <span class="nlb">${lb}</span></div>`;
   }).join('');
   return `<div class="nav"><div class="navpill">${pill}</div>
     <div class="navadd" style="background:${acc}" data-act="quick-add">+</div></div>`;
@@ -82,6 +88,8 @@ document.addEventListener('click',e=>{
   if(act.indexOf('auth-')===0){ if(typeof authAction==='function') authAction(act,a); return; }
   // Reintentar la carga de datos tras un error de Firestore.
   if(act==='data-retry'){ if(typeof AUTH!=='undefined' && AUTH.user && typeof dataStart==='function'){ dataStop(); dataStart(AUTH.user.uid); } return; }
+  // Onboarding (bienvenida + tips).
+  if(act.indexOf('onb-')===0){ if(typeof onbAction==='function') onbAction(act,a); return; }
 
   switch(act){
     case 'tab': ui.tab=a.dataset.tab; ui.gymExpand=null; ui.habMenu=null; render(); break;

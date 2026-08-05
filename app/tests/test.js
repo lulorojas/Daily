@@ -212,18 +212,21 @@ try {
 /* ---------- 28. aviso de backup ---------- */
 console.log('\n28. Aviso de backup semanal');
 const hace = n => new Date(d.getTime() - n*86400000).toISOString();
+// Con el sembrado eliminado, una cuenta arranca vacía y el aviso de backup no aplica (no hay
+// nada que perder). Estos tests son sobre el *tiempo* del aviso, así que le damos un dato.
+const V2D = JSON.stringify({ v:2, items:[{ id:'bkd', kind:'tarea', title:'algo', desc:'', date:null, time:null, done:false }], habits:[], habitLog:{}, gym:{} });
 try {
-  const w1 = bootBk(null, null, JSON.stringify({ firstSeen:hace(60), lastExport:hace(2) }));
+  const w1 = bootBk(null, V2D, JSON.stringify({ firstSeen:hace(60), lastExport:hace(2) }));
   ok('hace 2 días: no avisa', w1.bkShouldWarn() === false);
-  const w2 = bootBk(null, null, JSON.stringify({ firstSeen:hace(60), lastExport:hace(6) }));
+  const w2 = bootBk(null, V2D, JSON.stringify({ firstSeen:hace(60), lastExport:hace(6) }));
   ok('hace 6 días: no avisa', w2.bkShouldWarn() === false);
-  const w3 = bootBk(null, null, JSON.stringify({ firstSeen:hace(60), lastExport:hace(7) }));
+  const w3 = bootBk(null, V2D, JSON.stringify({ firstSeen:hace(60), lastExport:hace(7) }));
   ok('hace 7 días: avisa', w3.bkShouldWarn() === true);
-  const w4 = bootBk(null, null, JSON.stringify({ firstSeen:hace(60), lastExport:hace(30) }));
+  const w4 = bootBk(null, V2D, JSON.stringify({ firstSeen:hace(60), lastExport:hace(30) }));
   ok('hace 30 días: avisa', w4.bkShouldWarn() === true);
-  const w5 = bootBk(null, null, JSON.stringify({ firstSeen:new Date().toISOString() }));
+  const w5 = bootBk(null, V2D, JSON.stringify({ firstSeen:new Date().toISOString() }));
   ok('nunca exportó pero recién instalada: no molesta', w5.bkShouldWarn() === false);
-  const w6 = bootBk(null, null, JSON.stringify({ firstSeen:hace(10) }));
+  const w6 = bootBk(null, V2D, JSON.stringify({ firstSeen:hace(10) }));
   ok('nunca exportó y hace 10 días: avisa', w6.bkShouldWarn() === true);
   ok('el texto lo dice', w6.bkWarnText().includes('Todavía no hiciste ningún backup'));
   ok('con lastExport dice hace cuánto', w4.bkWarnText().includes('30 días'));
@@ -240,7 +243,7 @@ try {
 } catch (e) { ok('aviso sin datos', false, e.message); }
 
 try {
-  const wb = bootBk(null, null, JSON.stringify({ firstSeen:hace(60), lastExport:hace(9) }));
+  const wb = bootBk(null, V2D, JSON.stringify({ firstSeen:hace(60), lastExport:hace(9) }));
   wb.ev('ui').tab = 'hoy'; wb.render();
   const h = wb.document.getElementById('app').innerHTML;
   ok('el banner sale en Hoy',            h.includes('data-act="bk-export"') && h.includes('9 días'));
@@ -253,7 +256,7 @@ try {
 } catch (e) { ok('banner en Hoy', false, e.message); }
 
 try {
-  const ws = bootBk(null, null, JSON.stringify({ firstSeen:hace(60), lastExport:hace(9) }));
+  const ws = bootBk(null, V2D, JSON.stringify({ firstSeen:hace(60), lastExport:hace(9) }));
   ws.ev('ui').tab = 'hoy'; ws.render();
   ws.document.querySelector('[data-act="bk-snooze"]').click();
   ok('posponer oculta el aviso',        ws.bkShouldWarn() === false);
@@ -657,13 +660,18 @@ try {
   ok('la tarea de la nube se ve en Hoy',   w.html().includes('Tarea en la nube'));
   ok('DATA quedo listo con el uid',        w.ev('DATA').ready === true && w.ev('DATA').uid === u.uid);
 
-  // (b) usuario nuevo sin doc -> siembra por defecto + crea el doc (migracion)
+  // (b) usuario nuevo sin doc -> arranca 100% vacío + crea el doc, y ve la bienvenida
   const w2 = bootFs({});
   const u2 = w2.fb.fakeUser('nuevo@x.com', true);
   w2.fb.signal(u2);
-  ok('usuario nuevo entra a la app',       (w2.html().match(/data-act="tab"/g) || []).length === 5);
+  ok('usuario nuevo ve la bienvenida',     w2.html().includes('Bienvenido a Daily') && !w2.html().includes('data-act="tab"'));
   ok('se creo el doc en la nube',          w2.fb.setsOf(u2.uid).length >= 1 && w2.fb.docOf(u2.uid) != null);
-  ok('sembro un estado por defecto',       w2.ev('state').items.length === 1 && w2.ev('state').items[0].kind === 'tarea');
+  const st2 = w2.ev('state');
+  ok('la cuenta nueva arranca vacía',      st2.items.length === 0 && st2.habits.length === 0 &&
+       st2.gym.lifts.length === 0 && st2.gym.customTypes.length === 0 && st2.gym.routines.length === 0 &&
+       st2.gym.bodyWeights.length === 0 && Object.keys(st2.habitLog).length === 0);
+  w2.tap('[data-act="onb-skip"]');
+  ok('saltear la bienvenida entra a la app', (w2.html().match(/data-act="tab"/g) || []).length === 5);
 
   // (c) migracion desde daily.v2 local: el doc nuevo se siembra con lo local
   const localV2 = JSON.stringify({ v:2, items:[{ id:'L1', kind:'tarea', title:'Tarea local', date:TODAY, time:null, done:false }], habits:[], habitLog:{}, gym:{} });
@@ -737,5 +745,39 @@ try {
   ok('daily.v1 sigue intacto',             w.localStorage.getItem('daily.v1') === v1before);
   ok('daily.v2 local no se modifica',      w.localStorage.getItem('daily.v2') === v2before);
 } catch (e) { ok('legado intacto', false, e.message); }
+
+/* ---------- 46. onboarding: estado en Firestore (bienvenida + tips) ---------- */
+console.log('\n46. Onboarding persistido en Firestore');
+try {
+  // Cuenta nueva: ve la bienvenida; terminarla marca welcomeSeen en el doc de la nube.
+  const w = bootFs({});
+  const u = w.fb.fakeUser('onb@x.com', true);
+  w.fb.signal(u);
+  ok('la cuenta nueva ve la bienvenida',   w.html().includes('Bienvenido a Daily'));
+  ok('avanza entre slides',               (w.tap('[data-act="onb-next"]'), w.html().includes('Cinco secciones')));
+  w.tap('[data-act="onb-next"]');          // hasta el último slide (el botón +)
+  ok('el último slide ofrece Empezar',     w.html().includes('data-act="onb-finish"'));
+  w.tap('[data-act="onb-finish"]');
+  ok('terminar guarda welcomeSeen en la nube', w.fb.docOf(u.uid).onboarding.welcomeSeen === true);
+  ok('y ya entra a la app',                (w.html().match(/data-act="tab"/g) || []).length === 5);
+
+  // Primera visita a una pestaña: sale el tip; "Entendido" lo marca visto en la nube.
+  ok('primera vez en Hoy muestra el tip',  w.html().includes('onbtip-card'));
+  w.tap('[data-act="onb-tip-ok"]');
+  ok('tip visto se guarda en la nube',     w.fb.docOf(u.uid).onboarding.tips.hoy === true);
+  ok('el tip ya no reaparece en Hoy',      !w.html().includes('onbtip-card'));
+
+  // Persistencia entre dispositivos: con el doc ya marcado, NO se vuelve a mostrar.
+  const w2 = bootFs({ docs: { [u.uid]: w.fb.docOf(u.uid) } });
+  w2.fb.signal(w2.fb.fakeUser('onb@x.com', true));
+  ok('otro dispositivo no repite la bienvenida', !w2.html().includes('Bienvenido a Daily') &&
+       (w2.html().match(/data-act="tab"/g) || []).length === 5);
+  ok('ni repite el tip ya visto',          !w2.html().includes('onbtip-card'));
+
+  // "Ver el tutorial de nuevo" (Ajustes) reinicia la bienvenida.
+  w2.ev("onbAction('onb-reset')");
+  ok('reset vuelve a mostrar la bienvenida', w2.html().includes('Bienvenido a Daily'));
+  ok('reset se persiste en la nube',       w2.fb.docOf('uid_onb@x.com').onboarding.welcomeSeen === false);
+} catch (e) { ok('onboarding persistido', false, e.message); }
 
 })().then(done, e => { ok('tests de sesión', false, e.message); done(); });
