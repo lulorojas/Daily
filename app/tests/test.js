@@ -469,6 +469,42 @@ try {
   ok('daily.v1 intacta', w.localStorage.getItem('daily.v1') === V1_RAW);
 } catch (e) { ok('regresión 3.6', false, e.message); }
 
+/* ---------- 34b. teclado: Enter guarda/confirma, Escape cancela ---------- */
+console.log('\n34b. Enter/Escape (teclado en la compu)');
+try {
+  const w = boot(null, null);
+  const key = (k, el) => (el || w.document).dispatchEvent(new w.KeyboardEvent('keydown', { key:k, bubbles:true }));
+
+  // Modal de agregar: Enter guarda.
+  w.taskModal(null, TODAY);
+  w.document.querySelector('#t-title').value = 'Tarea con Enter';
+  key('Enter');
+  ok('Enter en el modal guarda',           w.ev('state').items.some(x => x.title === 'Tarea con Enter'));
+  ok('y cierra el modal',                  !w.document.getElementById('overlay').classList.contains('show'));
+
+  // Enter dentro de un textarea NO guarda (deja escribir varias líneas).
+  w.taskModal(null, TODAY);
+  w.document.querySelector('#t-title').value = 'No guardar desde la desc';
+  key('Enter', w.document.querySelector('#t-desc'));
+  ok('Enter en textarea no guarda',        w.document.getElementById('overlay').classList.contains('show') &&
+       !w.ev('state').items.some(x => x.title === 'No guardar desde la desc'));
+
+  // Escape cancela el modal sin guardar.
+  key('Escape');
+  ok('Escape cierra el modal',             !w.document.getElementById('overlay').classList.contains('show'));
+
+  // Confirmación: Enter confirma, Escape cancela.
+  w.ev('window.__ok=false; confirmDelete("¿Borrar?","desc",()=>{window.__ok=true;});');
+  key('Enter');
+  ok('Enter confirma el diálogo',          w.ev('window.__ok') === true &&
+       w.document.querySelector('.notice-layer') === null);
+
+  w.ev('window.__ok2=false; confirmDelete("¿Borrar?","desc",()=>{window.__ok2=true;});');
+  key('Escape');
+  ok('Escape cancela el diálogo',          w.ev('window.__ok2') === false &&
+       w.document.querySelector('.notice-layer') === null);
+} catch (e) { ok('teclado Enter/Escape', false, e.message); }
+
 /* =================== v3 etapa 1: sesión =================== */
 // El SDK real habla con Google, así que acá corre el simulado (ver fakeFirebase en el
 // harness). Lo que se prueba es NUESTRA lógica: la puerta de acceso y las validaciones.

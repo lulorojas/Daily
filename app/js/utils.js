@@ -471,6 +471,7 @@ function wireDatePicker(pfx,color,st,onChange){
 // Capa suelta, por encima del modal abierto si lo hay. La comparten el confirm y el aviso.
 function noticeLayer(bodyHTML){
   const layer=document.createElement('div');
+  layer.className='notice-layer';   // para que el Enter/Escape global la encuentre
   layer.style.cssText='position:fixed;inset:0;z-index:200;display:flex;align-items:center;padding:20px;background:rgba(0,0,0,0.55)';
   layer.innerHTML=`<div style="width:100%;max-width:480px;margin:0 auto">${bodyHTML}</div>`;
   const sheet=overlay.querySelector('.sheet');

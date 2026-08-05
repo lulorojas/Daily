@@ -254,6 +254,36 @@ document.addEventListener('click',e=>{
   }
 });
 
+// Teclado (sobre todo en la compu): Enter confirma/guarda, Escape cancela.
+// - Confirmación abierta (Eliminar, etc.): Enter = confirmar, Escape = cancelar.
+// - Modal de agregar/editar: Enter = Guardar, Escape = Cancelar.
+// No se roba el Enter de un textarea (descripciones multilínea) ni con modificadores.
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Enter' && e.key!=='Escape') return;
+  const layers=document.querySelectorAll('.notice-layer');
+  if(e.key==='Enter'){
+    if(e.shiftKey||e.altKey||e.ctrlKey||e.metaKey||e.isComposing) return;
+    const t=e.target;
+    if(t && (t.tagName==='TEXTAREA' || t.isContentEditable)) return;
+    if(layers.length){
+      const top=layers[layers.length-1];
+      const btn=top.querySelector('[data-act="confirm-yes"]')||top.querySelector('[data-act="notice-ok"]');
+      if(btn){ e.preventDefault(); btn.click(); }
+      return;
+    }
+    if(overlay.classList.contains('show') && modalSave){ e.preventDefault(); modalSave(); }
+    return;
+  }
+  // Escape
+  if(layers.length){
+    const top=layers[layers.length-1];
+    const btn=top.querySelector('[data-act="confirm-no"]')||top.querySelector('[data-act="notice-ok"]');
+    if(btn){ e.preventDefault(); btn.click(); }
+    return;
+  }
+  if(overlay.classList.contains('show')){ e.preventDefault(); closeModal(); }
+});
+
 // Cierra el tooltip de un gráfico al tocar fuera de cualquier gráfico (en captura, así
 // se cierra aunque el click no dispare ninguna acción).
 document.addEventListener('click',e=>{
