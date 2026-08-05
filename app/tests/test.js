@@ -696,18 +696,19 @@ try {
   ok('la tarea de la nube se ve en Hoy',   w.html().includes('Tarea en la nube'));
   ok('DATA quedo listo con el uid',        w.ev('DATA').ready === true && w.ev('DATA').uid === u.uid);
 
-  // (b) usuario nuevo sin doc -> arranca 100% vacío + crea el doc, y ve la bienvenida
+  // (b) usuario nuevo sin doc -> arranca 100% vacío + crea el doc, y ve el modal de "primera vez"
   const w2 = bootFs({});
   const u2 = w2.fb.fakeUser('nuevo@x.com', true);
   w2.fb.signal(u2);
-  ok('usuario nuevo ve la bienvenida',     w2.html().includes('Bienvenido a Daily') && !w2.html().includes('data-act="tab"'));
+  ok('usuario nuevo ve el modal de primera vez', w2.html().includes('primera vez en Daily'));
   ok('se creo el doc en la nube',          w2.fb.setsOf(u2.uid).length >= 1 && w2.fb.docOf(u2.uid) != null);
   const st2 = w2.ev('state');
   ok('la cuenta nueva arranca vacía',      st2.items.length === 0 && st2.habits.length === 0 &&
        st2.gym.lifts.length === 0 && st2.gym.customTypes.length === 0 && st2.gym.routines.length === 0 &&
        st2.gym.bodyWeights.length === 0 && Object.keys(st2.habitLog).length === 0);
-  w2.tap('[data-act="onb-skip"]');
-  ok('saltear la bienvenida entra a la app', (w2.html().match(/data-act="tab"/g) || []).length === 5);
+  w2.tap('[data-act="onb-no"]');           // "Ya la conozco" -> entra directo
+  ok('"Ya la conozco" entra directo a la app', !w2.html().includes('primera vez en Daily') &&
+       (w2.html().match(/data-act="tab"/g) || []).length === 5);
 
   // (c) migracion desde daily.v2 local: el doc nuevo se siembra con lo local
   const localV2 = JSON.stringify({ v:2, items:[{ id:'L1', kind:'tarea', title:'Tarea local', date:TODAY, time:null, done:false }], habits:[], habitLog:{}, gym:{} });
@@ -782,38 +783,63 @@ try {
   ok('daily.v2 local no se modifica',      w.localStorage.getItem('daily.v2') === v2before);
 } catch (e) { ok('legado intacto', false, e.message); }
 
-/* ---------- 46. onboarding: estado en Firestore (bienvenida + tips) ---------- */
-console.log('\n46. Onboarding persistido en Firestore');
+/* ---------- 46. onboarding: modal de "primera vez" + tour guiado ---------- */
+console.log('\n46. Onboarding: modal + tour guiado');
 try {
-  // Cuenta nueva: ve la bienvenida; terminarla marca welcomeSeen en el doc de la nube.
+  // El modal aparece solo la primera vez; una cuenta con datos previos no lo ve.
+  const wd = bootFs({ docs: { 'uid_has@x.com': { v:2, items:[{ id:'A', kind:'tarea', title:'x', date:TODAY, time:null, done:false }], habits:[], habitLog:{}, gym:{} } } });
+  wd.fb.signal(wd.fb.fakeUser('has@x.com', true));
+  ok('una cuenta con datos no ve el modal', !wd.html().includes('primera vez en Daily') &&
+       (wd.html().match(/data-act="tab"/g) || []).length === 5);
+
+  // "Ya la conozco": entra directo, marca seen en la nube y no vuelve a preguntar.
+  const wn = bootFs({});
+  const un = wn.fb.fakeUser('conoce@x.com', true);
+  wn.fb.signal(un);
+  ok('primera vez: aparece el modal',      wn.html().includes('primera vez en Daily'));
+  wn.tap('[data-act="onb-no"]');
+  ok('"Ya la conozco" salta directo a la app', wn.ev('ui').tour === null &&
+       !wn.html().includes('primera vez en Daily') && (wn.html().match(/data-act="tab"/g) || []).length === 5);
+  ok('queda marcado seen en la nube',      wn.fb.docOf(un.uid).onboarding.seen === true);
+  const wn2 = bootFs({ docs: { [un.uid]: wn.fb.docOf(un.uid) } });
+  wn2.fb.signal(wn2.fb.fakeUser('conoce@x.com', true));
+  ok('otro dispositivo no vuelve a preguntar', !wn2.html().includes('primera vez en Daily') &&
+       (wn2.html().match(/data-act="tab"/g) || []).length === 5);
+  // "Ver el tutorial de nuevo" (Ajustes): relanza el tour sin volver a preguntar.
+  wn2.ev("onbAction('onb-reset')");
+  ok('"Ver el tutorial de nuevo" relanza el tour', wn2.ev('ui').tour !== null &&
+       wn2.html().includes('Bienvenido a Daily') && !wn2.html().includes('primera vez en Daily'));
+
+  // "Sí, mostrame": arranca el tour, que recorre las 5 secciones EN ORDEN y vuelve a Hoy.
   const w = bootFs({});
-  const u = w.fb.fakeUser('onb@x.com', true);
+  const u = w.fb.fakeUser('tour@x.com', true);
   w.fb.signal(u);
-  ok('la cuenta nueva ve la bienvenida',   w.html().includes('Bienvenido a Daily'));
-  ok('avanza entre slides',               (w.tap('[data-act="onb-next"]'), w.html().includes('Cinco secciones')));
-  w.tap('[data-act="onb-next"]');          // hasta el último slide (el botón +)
-  ok('el último slide ofrece Empezar',     w.html().includes('data-act="onb-finish"'));
-  w.tap('[data-act="onb-finish"]');
-  ok('terminar guarda welcomeSeen en la nube', w.fb.docOf(u.uid).onboarding.welcomeSeen === true);
-  ok('y ya entra a la app',                (w.html().match(/data-act="tab"/g) || []).length === 5);
+  w.tap('[data-act="onb-yes"]');
+  ok('elegir el tour lo arranca',          w.ev('ui').tour !== null && w.html().includes('Bienvenido a Daily'));
+  ok('la respuesta se guarda (seen) en la nube', w.fb.docOf(u.uid).onboarding.seen === true);
+  const visited = [];
+  for (let guard = 0; guard < 30 && w.ev('ui').tour !== null; guard++) {
+    if (w.html().includes('onbtip-card')) visited.push(w.ev('ui').tab);
+    if (w.document.querySelector('[data-act="onb-finish"]')) w.tap('[data-act="onb-finish"]');
+    else w.tap('[data-act="onb-next"]');
+  }
+  ok('el tour recorre las 5 secciones en orden',
+       JSON.stringify(visited) === JSON.stringify(['hoy','calendario','gym','habitos','progreso']));
+  ok('al terminar vuelve a Hoy y entra a la app', w.ev('ui').tour === null && w.ev('ui').tab === 'hoy' &&
+       (w.html().match(/data-act="tab"/g) || []).length === 5 &&
+       !w.html().includes('onbtip-card') && !w.html().includes('Bienvenido a Daily'));
 
-  // Primera visita a una pestaña: sale el tip; "Entendido" lo marca visto en la nube.
-  ok('primera vez en Hoy muestra el tip',  w.html().includes('onbtip-card'));
-  w.tap('[data-act="onb-tip-ok"]');
-  ok('tip visto se guarda en la nube',     w.fb.docOf(u.uid).onboarding.tips.hoy === true);
-  ok('el tip ya no reaparece en Hoy',      !w.html().includes('onbtip-card'));
-
-  // Persistencia entre dispositivos: con el doc ya marcado, NO se vuelve a mostrar.
-  const w2 = bootFs({ docs: { [u.uid]: w.fb.docOf(u.uid) } });
-  w2.fb.signal(w2.fb.fakeUser('onb@x.com', true));
-  ok('otro dispositivo no repite la bienvenida', !w2.html().includes('Bienvenido a Daily') &&
-       (w2.html().match(/data-act="tab"/g) || []).length === 5);
-  ok('ni repite el tip ya visto',          !w2.html().includes('onbtip-card'));
-
-  // "Ver el tutorial de nuevo" (Ajustes) reinicia la bienvenida.
-  w2.ev("onbAction('onb-reset')");
-  ok('reset vuelve a mostrar la bienvenida', w2.html().includes('Bienvenido a Daily'));
-  ok('reset se persiste en la nube',       w2.fb.docOf('uid_onb@x.com').onboarding.welcomeSeen === false);
-} catch (e) { ok('onboarding persistido', false, e.message); }
+  // "Omitir" corta el tour en cualquier paso (acá, ya metidos en una sección).
+  const wk = bootFs({});
+  const uk = wk.fb.fakeUser('skip@x.com', true);
+  wk.fb.signal(uk);
+  wk.tap('[data-act="onb-yes"]');
+  wk.tap('[data-act="onb-next"]');   // info instalar
+  wk.tap('[data-act="onb-next"]');   // sección Hoy
+  ok('el tour llegó a una sección',        wk.html().includes('onbtip-card') && wk.ev('ui').tab === 'hoy');
+  wk.tap('[data-act="onb-skip"]');
+  ok('"Omitir" corta el tour en cualquier paso', wk.ev('ui').tour === null &&
+       !wk.html().includes('onbtip-card') && (wk.html().match(/data-act="tab"/g) || []).length === 5);
+} catch (e) { ok('onboarding modal + tour', false, e.message); }
 
 })().then(done, e => { ok('tests de sesión', false, e.message); done(); });

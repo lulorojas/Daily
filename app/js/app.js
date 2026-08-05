@@ -17,9 +17,7 @@ function render(){
   // se muestra una pantalla intermedia y no la app. Sin capa de datos (tests) esto no aplica.
   const datag = (!authg && typeof DATA!=='undefined' && DATA.uid && !DATA.ready)
     ? (DATA.error ? 'data-error' : 'data-loading') : null;
-  // Bienvenida: con sesión y datos listos, pero la primera vez, antes de entrar a la app.
-  const onbg = (!authg && !datag && typeof welcomeDue==='function' && welcomeDue()) ? 'welcome' : null;
-  const gate = authg || datag || onbg;
+  const gate = authg || datag;
 
   const prev=app.querySelector('.view'), key=gate?('gate:'+gate):screenKey();
   const same = !!prev && key===lastScreen;
@@ -31,8 +29,6 @@ function render(){
     html=authView(authg); acc=C.amber;
   } else if(datag){
     html = datag==='data-error' ? viewDataError() : viewAuthCargando(); acc=C.amber;
-  } else if(onbg){
-    html=viewWelcome(); acc=C.amber;
   } else {
     // Ajustes es una sub-pantalla de Hoy: se abre con el engranaje, sin ocupar una pestaña.
     if(ui.tab==='hoy') html=(ui.hoySub==='ajustes'?viewAjustes():viewHoy());
@@ -44,8 +40,9 @@ function render(){
     // El acento de la sección tiñe la nav, el botón + y el glow superior (vars CSS en #app).
     acc=SECT[ui.tab]||C.amber;
     html+=navbar(acc);
-    // Tip contextual la primera vez que se visita esta pestaña.
-    if(typeof tipDue==='function' && tipDue()) html+=tipCallout();
+    // Onboarding, por encima de la app: el tour guiado en curso, o el modal de "primera vez".
+    if(typeof tourActive==='function' && tourActive()) html+=tourView();
+    else if(typeof onbAskDue==='function' && onbAskDue()) html+=onbAskView();
   }
   app.style.setProperty('--accent', acc);
   app.style.setProperty('--glow', tint(acc,'1F'));
@@ -88,8 +85,10 @@ document.addEventListener('click',e=>{
   if(act.indexOf('auth-')===0){ if(typeof authAction==='function') authAction(act,a); return; }
   // Reintentar la carga de datos tras un error de Firestore.
   if(act==='data-retry'){ if(typeof AUTH!=='undefined' && AUTH.user && typeof dataStart==='function'){ dataStop(); dataStart(AUTH.user.uid); } return; }
-  // Onboarding (bienvenida + tips).
+  // Onboarding (modal de "primera vez" + tour guiado).
   if(act.indexOf('onb-')===0){ if(typeof onbAction==='function') onbAction(act,a); return; }
+  // Durante el tour, la app de fondo no responde: al usuario lo lleva el propio tour.
+  if(typeof tourActive==='function' && tourActive()) return;
 
   switch(act){
     case 'tab': ui.tab=a.dataset.tab; ui.gymExpand=null; ui.habMenu=null; render(); break;

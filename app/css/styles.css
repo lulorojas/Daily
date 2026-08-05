@@ -319,11 +319,31 @@ textarea.inp{min-height:88px;line-height:1.5;resize:vertical}
 .confirm .row{display:flex;flex-direction:column;gap:9px;margin-top:6px}
 .confirm .b{height:50px;border-radius:17px;display:grid;place-items:center;cursor:pointer;font-size:15px;font-weight:500}
 
-/* ============================ ONBOARDING ============================ */
-.onbwrap{justify-content:center;min-height:64vh}
-.onbslide{animation:dIn .35s ease both}
-.onbtip{position:fixed;left:16px;right:16px;bottom:calc(var(--nav-h) + var(--safe-bottom) + 12px);z-index:45;display:flex;justify-content:center;pointer-events:none}
-.onbtip-card{pointer-events:auto;width:100%;max-width:400px;background:#1B1F29;border:1.5px solid rgba(255,255,255,.12);border-radius:20px;padding:15px 16px;box-shadow:0 16px 40px rgba(0,0,0,.5);animation:dIn .32s ease both}
+/* ============================ ONBOARDING (tour guiado) ============================ */
+@keyframes onbFade{from{opacity:0}to{opacity:1}}
+/* Pasos informativos: tarjeta centrada sobre fondo atenuado (tapa también la barra). */
+.onbscrim{position:fixed;inset:0;z-index:60;background:rgba(6,8,12,.82);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:24px;animation:onbFade .25s ease both}
+.onbcard{width:100%;max-width:400px;max-height:86vh;overflow-y:auto;background:var(--surf3);border:1px solid var(--line);border-radius:26px;padding:26px 22px;box-shadow:0 24px 60px rgba(0,0,0,.55);animation:dIn .35s cubic-bezier(.2,.8,.2,1) both}
+.onbcard h2{font-family:'Bricolage Grotesque',sans-serif;font-size:22px;font-weight:800;letter-spacing:-.6px;margin:0}
+.onbcard .sub{font-size:14px;color:rgba(242,244,248,.6);line-height:1.5}
+.onbicon{width:60px;height:60px;border-radius:20px;display:grid;place-items:center;margin:0 auto 12px}
+.onbicon svg{width:28px;height:28px}
+.onbghost{margin-top:10px;text-align:center;font-size:14.5px;font-weight:600;color:rgba(242,244,248,.62);padding:13px;border-radius:16px;cursor:pointer}
+/* Bloques de instalación (iPhone / Android). */
+.onbinst{background:var(--surf);border:1px solid var(--line);border-radius:16px;padding:12px 14px}
+.onbinst-t{font-weight:600;font-size:14px;margin-bottom:3px}
+.onbinst-s{font-size:12.5px;color:rgba(242,244,248,.6);line-height:1.5}
+/* Puntos de progreso. */
+.onbdots{display:flex;gap:6px;justify-content:center;margin:20px 0 6px}
+.onbdot{width:7px;height:7px;border-radius:99px;background:rgba(242,244,248,.2);transition:all .2s}
+.onbdot.on{width:18px;background:var(--amber)}
+/* "Omitir" siempre visible arriba a la derecha. */
+.onbtop{position:fixed;top:calc(var(--safe-top) + 14px);right:18px;z-index:62}
+.onbtop .cancel{cursor:pointer;font-size:14px;font-weight:600;color:rgba(242,244,248,.72);background:rgba(20,23,31,.9);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);padding:8px 15px;border-radius:14px;border:1px solid rgba(255,255,255,.1)}
+/* Pasos de sección: tip anclado abajo, sobre la sección real (por encima de la barra). */
+.onbtip{position:fixed;left:16px;right:16px;bottom:calc(var(--nav-h) + var(--safe-bottom) + 12px);z-index:60;display:flex;justify-content:center;pointer-events:none;animation:onbFade .25s ease both}
+.onbtip .onbdots{margin:0}
+.onbtip-card{pointer-events:auto;width:100%;max-width:400px;background:#1B1F29;border:1.5px solid rgba(255,255,255,.12);border-radius:20px;padding:15px 16px;box-shadow:0 16px 40px rgba(0,0,0,.55);animation:dIn .32s ease both}
 
 /* ============================ RESPONSIVE (tablet / escritorio) ============================
    Mismo diseño, distinto layout: barra lateral izquierda, contenido centrado en una columna

@@ -56,7 +56,7 @@ let state = HAS_FS ? null : load();
 // gymSub/rutId/rutDayId: nivel abierto en la sub-pantalla de Rutinas (null = Gimnasio normal).
 const ui = { tab:'hoy', daySel:todayISO(), calY:todayD().getFullYear(), calM:todayD().getMonth(), calSel:todayISO(),
              gymOffset:0, constEnd:0, habitDate:todayISO(), gymSub:null, rutId:null, rutDayId:null,
-             progPeriod:'mes', hoySub:null, habMenu:null, onbSlide:0 };
+             progPeriod:'mes', hoySub:null, habMenu:null, tour:null };
 
 function load(){
   try{ const s=JSON.parse(localStorage.getItem(KEY)); if(s) return normalize(s); }catch(e){}
@@ -101,14 +101,17 @@ function normalize(s){
   // routines: biblioteca de consulta, independiente del plan semanal y del historial.
   // bodyWeights: peso corporal, métrica aparte del peso que se levanta por ejercicio.
   s.gym.routines ||= []; s.gym.bodyWeights ||= [];
-  // Onboarding (etapa 4): estado del tutorial, atado al usuario (viaja en el doc de Firestore).
-  // Cuenta nueva -> ve la bienvenida; una cuenta que YA tenía datos no la ve.
-  if(!s.onboarding || typeof s.onboarding!=='object'){
-    const hasData = s.items.length || s.habits.length || s.gym.lifts.length ||
-      s.gym.routines.length || s.gym.bodyWeights.length || s.gym.customTypes.length || Object.keys(s.habitLog).length;
-    s.onboarding = { welcomeSeen: !!hasData, tips:{} };
-  }
-  if(!s.onboarding.tips || typeof s.onboarding.tips!=='object') s.onboarding.tips = {};
+  // Onboarding: estado del tutorial, atado al usuario (viaja en el doc de Firestore). Lo único
+  // que se persiste es `seen`: si ya se respondió el "¿primera vez?" (con tour o sin él). El
+  // recorrido del tour es efímero (ui.tour). Una cuenta que YA tenía datos no ve nada.
+  // Migra también el esquema viejo (welcomeSeen/tips de una implementación anterior) a { seen }.
+  const ob = (s.onboarding && typeof s.onboarding==='object') ? s.onboarding : null;
+  let onbSeen;
+  if(ob && typeof ob.seen==='boolean') onbSeen = ob.seen;
+  else if(ob && typeof ob.welcomeSeen==='boolean') onbSeen = ob.welcomeSeen;
+  else onbSeen = !!(s.items.length || s.habits.length || s.gym.lifts.length ||
+    s.gym.routines.length || s.gym.bodyWeights.length || s.gym.customTypes.length || Object.keys(s.habitLog).length);
+  s.onboarding = { seen: onbSeen };
   return s;
 }
 // Etapa 4: una cuenta nueva arranca 100% vacía. Ya no se siembra contenido de ejemplo
@@ -120,7 +123,7 @@ function seed(){
     gym:{ customTypes:[], weekPlans:{}, lifts:[], routines:[], bodyWeights:[] },
     habits:[],
     habitLog:{},
-    onboarding:{ welcomeSeen:false, tips:{} },
+    onboarding:{ seen:false },
   };
 }
 function save(){
