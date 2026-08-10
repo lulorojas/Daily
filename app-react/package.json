@@ -10,7 +10,8 @@
     "lint": "oxlint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "test:emulator": "VITEST_EMULATOR=1 vitest run src/compat/emulator.test.js"
   },
   "dependencies": {
     "firebase": "^12.17.1",

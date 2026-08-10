@@ -12,3 +12,15 @@ export const C = {
 export function tint(color, alpha) {
   return color && color[0] === '#' ? color + alpha : 'rgba(255,255,255,0.07)';
 }
+
+// Acento de cada sección.
+export const SECT = { hoy: C.amber, calendario: C.coral, gym: C.rose, habitos: C.green, progreso: C.teal };
+
+/* La paleta que se le ofrece al usuario para hábitos, tipos de entreno y ejercicios.
+   NO es solo estética: el color elegido se GUARDA en el documento, y el color por defecto
+   de algo nuevo sale de acá por posición (PALETTE[cantidad % PALETTE.length]).
+   Cambiar el orden cambiaría qué color recibe el próximo hábito que alguien cree. */
+export const PALETTE = [C.green, C.teal, C.violet, C.coral, C.amber, C.rose];
+
+// Colores de portada de las rutinas, por posición en la lista (no se guardan).
+export const RUT_COVERS = [C.rose, C.amber, C.teal, C.coral, C.violet, C.green];

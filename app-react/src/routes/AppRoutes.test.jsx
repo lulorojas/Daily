@@ -108,12 +108,12 @@ describe('con sesión verificada', () => {
 
   it('/login ya no es accesible: redirige a la app', () => {
     renderWithAuth(<AppRoutes />, { auth, route: '/login' });
-    expect(titulo()).toBe('Entraste');
+    expect(titulo()).toBe('Tus datos');
   });
 
   it('/verificar tampoco: ya está verificado', () => {
     renderWithAuth(<AppRoutes />, { auth, route: '/verificar' });
-    expect(titulo()).toBe('Entraste');
+    expect(titulo()).toBe('Tus datos');
   });
 
   it('no quedan formularios de sesión en pantalla', () => {

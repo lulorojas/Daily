@@ -26,11 +26,12 @@ export const firebaseConfig = {
 /* Si Firebase no arranca (config rota, entorno raro), no explota la app entera: se guarda
    el error y la puerta muestra la pantalla de "No se pudo cargar", igual que hacía
    authGate() con el estado 'sdk'. */
+let app = null;
 let auth = null;
 let initError = null;
 
 try {
-  const app = initializeApp(firebaseConfig);
+  app = initializeApp(firebaseConfig);
   auth = getAuth(app);
 } catch (e) {
   initError = e;
@@ -38,6 +39,11 @@ try {
 
 export function getAuthInstance() {
   return auth;
+}
+
+// La instancia de la app la necesita también Firestore (services/firestore.js).
+export function getAppInstance() {
+  return app;
 }
 
 export function getInitError() {
