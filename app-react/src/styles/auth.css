@@ -1,0 +1,83 @@
+/* ============================================================
+   Daily — estilos propios de las pantallas de sesión (React)
+
+   styles.css es el sistema visual, copiado tal cual de la app vanilla: no se toca.
+   Acá viven SOLO las reglas que en vanilla estaban escritas como `style="..."` dentro
+   de los template strings de auth.js. Mismos valores, mismo resultado en pantalla;
+   la diferencia es que ahora tienen nombre y se pueden leer.
+
+   Se quedan inline únicamente los estilos que dependen de un valor dinámico
+   (el degradé de la marca, que cambia de color según la pantalla).
+   ============================================================ */
+
+/* React monta dentro de #root, un nodo que en la app vanilla no existía. #app hereda el
+   alto de su padre, así que #root tiene que ocupar toda la pantalla o el layout se rompe. */
+#root { height: 100%; }
+
+/* Los botones ahora son <button> de verdad (antes eran <div>): el reset de styles.css
+   les saca el fondo y el borde, pero hay que devolverles el ancho completo. */
+button.abtn { width: 100%; font-family: inherit; }
+button.abtn:disabled { opacity: .5; pointer-events: none; }
+
+/* Los links de navegación entre pantallas son <a> de verdad (React Router), no divs con
+   un data-act: se pueden abrir en otra pestaña y el navegador los entiende. Solo hay que
+   sacarles el subrayado y el color de link por defecto. */
+a { color: inherit; text-decoration: none; }
+
+/* Volver, en la pantalla de recuperar contraseña. */
+.auth-back { margin-bottom: 18px; }
+
+/* "¿Ya tenés cuenta? Entrá": toda la línea es tocable, como en vanilla. */
+a.alink { display: block; }
+
+/* Marca grande de la pantalla de carga ("Abriendo tu Daily…"). */
+.authmark.big { width: 64px; height: 64px; border-radius: 22px; font-size: 32px; margin: 0; }
+
+/* "¿Olvidaste tu contraseña?" del login. */
+.auth-forgot {
+  text-align: right; font-size: 13px; font-weight: 500; color: var(--amber);
+  cursor: pointer; margin: -8px 2px 0; display: block;
+}
+
+/* Aclaración del remitente, abajo del formulario de registro. */
+.auth-note {
+  font-size: 12px; color: rgba(242,244,248,.42); text-align: center;
+  line-height: 1.55; margin: -4px 8px 0;
+}
+.auth-note b { color: rgba(242,244,248,.7); }
+
+/* Aviso arriba del formulario (verde = salió bien, rojo = error). */
+.auth-flash {
+  display: flex; align-items: flex-start; gap: 10px; padding: 13px 15px; border-radius: 16px;
+  font-size: 13px; font-weight: 500; line-height: 1.45;
+}
+.auth-flash svg { flex: none; margin-top: 1px; }
+.auth-flash.ok  { background: #86D9A01A; border: 1px solid #86D9A03D; color: var(--green); }
+.auth-flash.err { background: #FF8A801A; border: 1px solid #FF8A803D; color: var(--danger); }
+
+/* ---- pantalla de verificación ---- */
+.verify-card {
+  padding: 20px 18px; display: flex; flex-direction: column;
+  align-items: center; gap: 12px; text-align: center;
+}
+.verify-icon {
+  width: 54px; height: 54px; border-radius: 19px;
+  background: #FFA87724; color: var(--coral); display: grid; place-items: center;
+}
+.verify-text { font-size: 14px; line-height: 1.55; color: rgba(242,244,248,.65); }
+.verify-text b { color: var(--coral); font-weight: 600; }
+.verify-note {
+  font-size: 12px; line-height: 1.55; color: rgba(242,244,248,.42);
+  padding-top: 2px; border-top: 1px solid rgba(255,255,255,.06); width: 100%;
+}
+.verify-note b { color: rgba(242,244,248,.7); }
+
+/* ---- confirmación (¿Cerrar sesión?) ----
+   En vanilla esta capa se creaba a mano con cssText; acá es una clase. */
+.confirm-layer {
+  position: fixed; inset: 0; z-index: 200; display: flex; align-items: center;
+  padding: 20px; background: rgba(0,0,0,.55);
+}
+.confirm-layer > div { width: 100%; max-width: 480px; margin: 0 auto; }
+.confirm .b.cancel { background: rgba(255,255,255,.07); color: rgba(244,244,251,.7); }
+.confirm .b.danger { background: var(--danger); color: #0A0C11; font-weight: 600; }
