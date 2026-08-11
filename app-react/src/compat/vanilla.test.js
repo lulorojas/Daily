@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { clone, loadVanilla } from '../test/vanilla';
 import { emptyDoc, fullDoc, weirdDocs, TODAY, YESTERDAY, TOMORROW, ago, thisMonday } from '../test/fixtures';
 
@@ -9,6 +9,9 @@ import * as habits from '../lib/habits';
 import * as gym from '../lib/gym';
 import * as progress from '../lib/progress';
 import * as backup from '../lib/backup';
+import * as items from '../lib/items';
+import { monthCells } from '../lib/calendar';
+import { addDays, todayD } from '../lib/dates';
 
 /* ============================================================================
    TESTS DIFERENCIALES CONTRA LA APP VANILLA
@@ -377,6 +380,61 @@ describe('backup', () => {
     for (const doc of [emptyDoc(), fullDoc()]) {
       withVanillaState(doc);
       expect(backup.backupHasData(normalize(doc))).toBe(V.bkHasData());
+    }
+  });
+});
+
+/* ------------------------------------------------- pantallas de la etapa 3a */
+/* Hoy y Calendario dejaron de ser dos funciones que escupen HTML y pasaron a ser
+   componentes. En el camino, los textos y las cuentas que estaban ADENTRO de viewHoy() y
+   viewCalendario() salieron a lib/. Estos tests comprueban que esa mudanza no cambió nada:
+   se corre la función vieja (la que está en producción) y la nueva sobre lo mismo. */
+describe('cabecera de Hoy', () => {
+  const horas = [0, 5, 6, 12, 13, 19, 20, 23];
+
+  it.each(horas)('saludo() a las %i hs da lo mismo en las dos', (h) => {
+    /* Vanilla lee el reloj adentro de la función y no recibe parámetros, así que la única
+       forma de compararlas es congelar el reloj del sistema para las dos. */
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 7, 10, h, 30));
+    try {
+      expect(items.saludo()).toBe(V.saludo());
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  const dias = [0, 1, -1, 3, -10, 40];
+  it.each(dias)('dayTitle(hoy %+i)', (n) => {
+    const d = addDays(todayD(), n);
+    expect(items.dayTitle(d)).toBe(V.dayTitle(d));
+  });
+});
+
+describe('grilla del calendario', () => {
+  /* viewCalendario() calcula los huecos del principio y la cantidad de días con dos
+     líneas sueltas adentro de la vista, así que no hay una función vanilla que llamar.
+     Lo que se compara es el resultado contra esa misma cuenta hecha con las primitivas
+     de la app vanilla (su dow() y su iso()), que es de donde salía. */
+  const meses = [[2026, 7], [2026, 5], [2024, 1], [2026, 1], [2025, 11], [2027, 0]];
+
+  it.each(meses)('%i-%i: huecos y días', (y, m) => {
+    const lead = V.dow(new Date(y, m, 1));
+    const total = new Date(y, m + 1, 0).getDate();
+    const esperado = [
+      ...Array.from({ length: lead }, () => null),
+      ...Array.from({ length: total }, (_, i) => ({ day: i + 1, dISO: V.iso(new Date(y, m, i + 1)) })),
+    ];
+    expect(monthCells(y, m)).toEqual(esperado);
+  });
+
+  it.each(meses)('%i-%i: lo que muestra cada casillero sale de itemsDe()', (y, m) => {
+    const doc = fullDoc();
+    withVanillaState(doc);
+    const state = normalize(doc);
+    for (const cell of monthCells(y, m)) {
+      if (!cell) continue;
+      expect(agenda.itemsDe(state, cell.dISO)).toEqual(V.itemsDe(cell.dISO));
     }
   });
 });

@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "test:emulator": "VITEST_EMULATOR=1 vitest run src/compat/emulator.test.js"
+    "test:emulator": "VITEST_EMULATOR=1 vitest run src/compat/emulator.test.js",
+    "test:pixel": "VITEST_PIXEL=1 vitest run src/compat/pixel.test.jsx"
   },
   "dependencies": {
     "firebase": "^12.17.1",
@@ -29,6 +30,7 @@
     "@vitest/coverage-v8": "^4.1.10",
     "jsdom": "^29.1.1",
     "oxlint": "^1.75.0",
+    "playwright": "^1.62.1",
     "vite": "^8.2.0",
     "vitest": "^4.1.10"
   },

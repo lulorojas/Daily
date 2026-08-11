@@ -100,20 +100,54 @@ describe('con sesión sin verificar', () => {
 
 describe('con sesión verificada', () => {
   const auth = { user: fakeUser('lulo@ejemplo.com', true), ready: true };
+  // Hoy no tiene un título fijo (cambia con la hora y con el día que se mire), así que se
+  // la reconoce por la bandeja de pendientes, que está siempre.
+  const enHoy = () => screen.getByText('Sin fecha');
 
   it('la raíz muestra la app', () => {
     renderWithAuth(<AppRoutes />, { auth, route: '/' });
-    expect(screen.getByText(/Sesión iniciada como/)).toBeInTheDocument();
+    expect(enHoy()).toBeInTheDocument();
+    expect(screen.getByText('Progreso del día')).toBeInTheDocument();
   });
 
   it('/login ya no es accesible: redirige a la app', () => {
     renderWithAuth(<AppRoutes />, { auth, route: '/login' });
-    expect(titulo()).toBe('Tus datos');
+    expect(enHoy()).toBeInTheDocument();
   });
 
   it('/verificar tampoco: ya está verificado', () => {
     renderWithAuth(<AppRoutes />, { auth, route: '/verificar' });
-    expect(titulo()).toBe('Tus datos');
+    expect(enHoy()).toBeInTheDocument();
+  });
+
+  it('/calendario muestra el calendario', () => {
+    renderWithAuth(<AppRoutes />, { auth, route: '/calendario' });
+    expect(screen.getByText('Anuales')).toBeInTheDocument();
+  });
+
+  it('/ajustes muestra la cuenta y el cerrar sesión', () => {
+    renderWithAuth(<AppRoutes />, { auth, route: '/ajustes' });
+    expect(screen.getByText(/Sesión iniciada como/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cerrar sesión' })).toBeInTheDocument();
+  });
+
+  it('las secciones que faltan tienen su URL y avisan', () => {
+    renderWithAuth(<AppRoutes />, { auth, route: '/gym' });
+    expect(titulo()).toBe('Gimnasio');
+    expect(screen.getByText(/todavía no se migró/)).toBeInTheDocument();
+  });
+
+  it('una URL inventada cae en Hoy', () => {
+    renderWithAuth(<AppRoutes />, { auth, route: '/lo-que-sea' });
+    expect(enHoy()).toBeInTheDocument();
+  });
+
+  it('la barra de abajo tiene las cinco secciones', () => {
+    renderWithAuth(<AppRoutes />, { auth, route: '/' });
+    // El nombre accesible es el completo (aria-label), no la abreviatura que se ve.
+    for (const label of ['Hoy', 'Calendario', 'Gimnasio', 'Hábitos', 'Progreso']) {
+      expect(screen.getByRole('link', { name: label })).toBeInTheDocument();
+    }
   });
 
   it('no quedan formularios de sesión en pantalla', () => {

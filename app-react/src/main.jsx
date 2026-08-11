@@ -9,6 +9,7 @@ import { App } from './App';
 // pone un hash en el nombre para que el caché del navegador nunca sirva una versión vieja.
 import './styles/styles.css';
 import './styles/auth.css';
+import './styles/app.css';
 
 /* Punto de entrada. Las tres capas, de afuera hacia adentro:
      StrictMode   → solo en desarrollo: monta y desmonta todo dos veces para delatar

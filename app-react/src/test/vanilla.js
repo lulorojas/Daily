@@ -35,6 +35,8 @@ const EXPOSED = [
   'shortDate', 'fmtDateLong', 'fmtNum', 'sameMonthDay',
   // agenda
   'itemById', 'byTime', 'pendientes', 'pendVisible', 'tareasDe', 'agendaDe', 'itemsDe', 'entrenoDe',
+  // textos de la cabecera de Hoy (etapa 3a: salieron de adentro de viewHoy a lib/items.js)
+  'saludo', 'dayTitle',
   // hábitos
   'habitMarks', 'habitTPD', 'habitDone', 'habitDayMarks', 'habitDayPossible', 'habitDoneCount',
   'habitFirstISO', 'habitStreak', 'habitBestStreak',
@@ -49,7 +51,10 @@ const EXPOSED = [
      app vanilla, guardarlo, y comparar el ítem que quedó en `state` contra el que escribe
      la mutación de React. Es la comparación de escritura más honesta posible: sale del
      mismo código que usan los usuarios hoy. */
-  'ui', 'openModal', 'closeModal', 'mq', 'saveModal',
+  /* Las dos vistas enteras, para comparar lo que dibuja cada versión (src/compat/
+     screens.test.js). Devuelven el HTML como string; no tocan la pantalla. */
+  'viewHoy', 'viewCalendario',
+  'ui', 'openModal', 'closeModal', 'mq', 'saveModal', 'calAddMenu',
   'taskModal', 'eventModal', 'habitModal', 'bodyModal', 'liftModal',
   'typeCreateModal', 'rutModal', 'rutDayModal', 'rutExModal',
 ];
