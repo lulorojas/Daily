@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { ChevronLeftIcon } from '../components/ui/Icons';
+import { BackPill } from '../components/ui/BackPill';
 import { Section } from '../components/ui/Section';
 import { LogoutButton } from '../components/auth/LogoutButton';
 import { AuthFlash } from '../components/auth/AuthFlash';
@@ -26,10 +25,7 @@ export function AjustesPage() {
   return (
     <div className="view">
       <div className="head">
-        <Link className="rut-back" to={{ pathname: '/', search: `?d=${day}` }}>
-          <ChevronLeftIcon />
-          <span>Hoy</span>
-        </Link>
+        <BackPill to={{ pathname: '/', search: `?d=${day}` }} label="Hoy" />
         <h1 className="ajustes-h1">Ajustes</h1>
         <div className="sub">Tus datos viven en tu cuenta, en la nube.</div>
       </div>

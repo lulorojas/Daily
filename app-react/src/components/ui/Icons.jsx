@@ -194,9 +194,9 @@ export function TaskIcon({ size, strokeWidth = '2' }) {
   );
 }
 
-export function DumbbellIcon() {
+export function DumbbellIcon({ size } = {}) {
   return (
-    <svg viewBox="0 0 24 24" strokeWidth="2" fill="none" stroke="currentColor" strokeLinecap="round">
+    <svg width={size} height={size} viewBox="0 0 24 24" strokeWidth="2" fill="none" stroke="currentColor" strokeLinecap="round">
       <path d="M6.5 8.5v7M3.8 10.5v3M17.5 8.5v7M20.2 10.5v3M6.5 12h11" />
     </svg>
   );
@@ -235,6 +235,118 @@ export function SectionIcon({ section, size = '21px' }) {
   return (
     <svg viewBox="0 0 24 24" style={{ width: size, height: size, flex: 'none' }} strokeWidth="1.9" {...stroke}>
       <path d={SECTION_PATHS[section]} />
+    </svg>
+  );
+}
+
+/* ---------------------------------------------------- gimnasio / rutinas / hábitos / progreso */
+
+// Lápiz de editar. Aparece en tamaños y grosores distintos según la fila (managerow chica,
+// el botón "Administrar tipos"), así que los dos son props con el valor más común por default.
+export function PencilIcon({ size = 13, strokeWidth = '2' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" strokeWidth={strokeWidth} {...stroke}>
+      <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
+    </svg>
+  );
+}
+
+// La cruz de borrar (no confundir con el tacho de Eliminar hábito, que es TrashIcon).
+export function CrossIcon({ size = 12, strokeWidth = '2.4' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" strokeWidth={strokeWidth} {...stroke}>
+      <path d="M18 6L6 18M6 6l12 12" />
+    </svg>
+  );
+}
+
+// El tacho del botón "Eliminar hábito" del formulario. Los demás "eliminar" usan CrossIcon.
+export function TrashIcon({ color = 'currentColor', size = 16 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.4" strokeLinecap="round">
+      <path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14" />
+    </svg>
+  );
+}
+
+export function PlusIcon({ size = 16, strokeWidth = '2', color = 'currentColor' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round">
+      <path d="M12 5v14M5 12h14" />
+    </svg>
+  );
+}
+
+export function MinusIcon({ size = 16, strokeWidth = '2.8', color = 'currentColor' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round">
+      <path d="M5 12h14" />
+    </svg>
+  );
+}
+
+// El tilde del punto de color elegido (selector de color de tipos y de hábitos).
+export function SwatchCheckIcon() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#0A0C11" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 13l4 4 10-12" />
+    </svg>
+  );
+}
+
+// La flechita que indica que una fila abre algo (una rutina, un día). Sale del texto
+// apagado de siempre: no es un acento, es "acá hay más".
+export function DisclosureIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" strokeWidth="2.4" style={{ alignSelf: 'center' }} {...stroke} stroke="rgba(242,244,248,.3)">
+      <path d="M9 6l6 6-6 6" />
+    </svg>
+  );
+}
+
+/* El chevron del selector de tipo del plan semanal (gchip): a diferencia de ChevronDownIcon
+   (que fuerza un gris fijo, pensado para los selectores de fecha/hora), este toma el color
+   de lo que lo rodea, porque el chip cambia de color según el tipo. */
+export function ChipChevronIcon({ open }) {
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      strokeWidth="2.4"
+      style={{ transform: open ? 'rotate(180deg)' : undefined, transition: 'transform .2s' }}
+      {...stroke}
+    >
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+  );
+}
+
+// Reordenar (rutinas): sube o baja un lugar. `dir` es -1 o 1, igual que en las mutaciones.
+export function ReorderIcon({ dir }) {
+  return (
+    <svg width="9" height="9" viewBox="0 0 24 24" strokeWidth="3" {...stroke}>
+      <path d={dir < 0 ? 'M5 15l7-7 7 7' : 'M5 9l7 7 7-7'} />
+    </svg>
+  );
+}
+
+// El glifo de "hábitos" (mismo trazo que el ícono de la sección) pero suelto, para la
+// ficha de "Hábitos hoy" del resumen de Progreso — ahí va a 15px con stroke-width 2, no a
+// los 21px/1.9 de la barra de navegación.
+export function HabitGlyphIcon({ size = 15 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" strokeWidth="2" {...stroke}>
+      <path d="M13 2.8c.4 3-1.2 4.4-2.6 5.8C8.8 10.2 7 11.7 7 14.4a5 5 0 0 0 10 0c0-2.3-1.2-3.7-2-4.7-.3 1.2-1.1 1.9-1.8 2.1.6-3-1.5-5.3-.2-9Z" />
+    </svg>
+  );
+}
+
+// El librito de "Mis rutinas", en la entrada desde Gimnasio.
+export function BookIcon({ size = 22 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#0A0C11" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5zM9 7.5h7M9 11h5" />
     </svg>
   );
 }

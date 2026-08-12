@@ -51,12 +51,12 @@ const EXPOSED = [
      app vanilla, guardarlo, y comparar el ítem que quedó en `state` contra el que escribe
      la mutación de React. Es la comparación de escritura más honesta posible: sale del
      mismo código que usan los usuarios hoy. */
-  /* Las dos vistas enteras, para comparar lo que dibuja cada versión (src/compat/
-     screens.test.js). Devuelven el HTML como string; no tocan la pantalla. */
-  'viewHoy', 'viewCalendario',
+  /* Las vistas enteras, para comparar lo que dibuja cada versión (src/compat/
+     screens.test.jsx). Devuelven el HTML como string; no tocan la pantalla. */
+  'viewHoy', 'viewCalendario', 'viewGym', 'viewRutinas', 'viewHabitos', 'viewProgreso',
   'ui', 'openModal', 'closeModal', 'mq', 'saveModal', 'calAddMenu',
   'taskModal', 'eventModal', 'habitModal', 'bodyModal', 'liftModal',
-  'typeCreateModal', 'rutModal', 'rutDayModal', 'rutExModal',
+  'typeCreateModal', 'manageTypesModal', 'rutModal', 'rutDayModal', 'rutExModal',
 ];
 
 let cached = null;

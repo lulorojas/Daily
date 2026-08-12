@@ -4,6 +4,7 @@ import { vi } from 'vitest';
 import { AuthContext } from '../context/AuthContext';
 import { DataContext } from '../context/DataContext';
 import { ItemFormsProvider } from '../context/ItemFormsProvider';
+import { HabitFormsProvider } from '../context/HabitFormsProvider';
 import { authStatus } from '../lib/authStatus';
 import { createDataStore } from '../store/dataStore';
 import { createFakeFirestore } from './fakeFirestore';
@@ -63,9 +64,10 @@ export function renderWithAuth(ui, { auth = {}, route = '/', data = {} } = {}) {
   return { ...result, auth: value, store, firestore };
 }
 
-/* Montar una pantalla de la app (Hoy, Calendario) como se monta de verdad: adentro del
-   router, con una sesión verificada, con un documento en un Firestore de mentira y con el
-   proveedor de formularios, que es el que abre los modales de tarea y cita.
+/* Montar una pantalla de la app (Hoy, Calendario, Gimnasio…) como se monta de verdad:
+   adentro del router, con una sesión verificada, con un documento en un Firestore de
+   mentira y con los dos proveedores que abren formularios desde más de un lugar — el de
+   agenda (tarea/cita) y el de hábitos —, igual que hace AppLayout de verdad.
 
    Devuelve además `doc()`, que lee el documento tal como quedó en el store después de lo
    que haya hecho el test. Es la forma de comprobar QUÉ se guardó, no solo qué se ve. */
@@ -77,7 +79,9 @@ export function renderScreen(ui, { doc = emptyDoc(), route = '/', uid = 'uid-tes
     <MemoryRouter initialEntries={[route]}>
       <AuthContext.Provider value={auth}>
         <DataContext.Provider value={store}>
-          <ItemFormsProvider>{ui}</ItemFormsProvider>
+          <ItemFormsProvider>
+            <HabitFormsProvider>{ui}</HabitFormsProvider>
+          </ItemFormsProvider>
         </DataContext.Provider>
       </AuthContext.Provider>
     </MemoryRouter>,

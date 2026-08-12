@@ -17,7 +17,14 @@ import { tint } from './lib/theme';
    funcione sin cambiarle una línea. Las variables --accent y --glow se setean acá igual
    que las seteaba app.js en vanilla, pero el color ya no sale de una variable global
    (`SECT[ui.tab]`) sino de la URL: cada sección tiñe la barra, el botón + y el glow de
-   arriba con lo suyo. Fuera de las secciones (sesión, Ajustes) manda el ámbar. */
+   arriba con lo suyo. Fuera de las secciones (sesión, Ajustes) manda el ámbar.
+
+   --accent-47 es nueva en esta etapa: la tira semanal pinta los días pasados con una
+   versión translúcida del acento (mismo truco que --glow, otro alfa). Antes solo la usaba
+   Hoy y quedaba bien con el ámbar escrito a mano en app.css; con Hábitos reutilizando la
+   misma tira en verde, ese hardcode hubiera pintado los días pasados de Hábitos en ámbar
+   también. Con la variable calculada acá, cualquier página que use <WeekStrip> se tiñe
+   sola con SU acento, sin que app.css tenga que saber cuáles existen. */
 export function App() {
   const { status } = useAuth();
   const { pathname } = useLocation();
@@ -29,7 +36,7 @@ export function App() {
   else content = <AppRoutes />;
 
   return (
-    <div id="app" style={{ '--accent': accent, '--glow': tint(accent, '1F') }}>
+    <div id="app" style={{ '--accent': accent, '--glow': tint(accent, '1F'), '--accent-47': tint(accent, '47') }}>
       {content}
     </div>
   );

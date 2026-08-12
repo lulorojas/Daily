@@ -2,11 +2,18 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { render } from '@testing-library/react';
+import { Route, Routes } from 'react-router-dom';
 import { clone, loadVanilla } from '../test/vanilla';
 import { renderScreen } from '../test/utils';
 import { emptyDoc, fullDoc, TODAY, TOMORROW, ago, thisMonday } from '../test/fixtures';
 import { HoyPage } from '../pages/HoyPage';
 import { CalendarioPage } from '../pages/CalendarioPage';
+import { GymPage } from '../pages/GymPage';
+import { RutinasListPage } from '../pages/rutinas/RutinasListPage';
+import { RutinaDetailPage } from '../pages/rutinas/RutinaDetailPage';
+import { RutinaDayPage } from '../pages/rutinas/RutinaDayPage';
+import { HabitosPage } from '../pages/HabitosPage';
+import { ProgresoPage } from '../pages/ProgresoPage';
 import { monthOf } from '../lib/calendar';
 
 /* ============================================================================
@@ -130,6 +137,125 @@ describe('el Calendario dice exactamente lo mismo que la app vanilla', () => {
   });
 });
 
+/* ---------------------------------------------------------------- Gimnasio */
+function gymVanilla(doc) {
+  V.setState(V.normalize(clone(doc)));
+  V.ui.tab = 'gym'; V.ui.gymSub = null; V.ui.gymOffset = 0; V.ui.gymExpand = null;
+  return texto(vanillaHTML(V.viewGym()));
+}
+
+function gymReact(doc) {
+  const { container } = renderScreen(<GymPage />, { doc: clone(doc) });
+  return texto(container);
+}
+
+describe('Gimnasio dice exactamente lo mismo que la app vanilla', () => {
+  const casos = {
+    'cuenta nueva, sin nada': emptyDoc(),
+    'con plan, cargas y peso': fullDoc(),
+  };
+
+  it.each(Object.keys(casos))('%s', (nombre) => {
+    expect(gymReact(casos[nombre])).toBe(gymVanilla(casos[nombre]));
+  });
+});
+
+/* ---------------------------------------------------------------- Rutinas */
+function rutinasVanilla(doc, { rutId = null, dayId = null } = {}) {
+  V.setState(V.normalize(clone(doc)));
+  V.ui.tab = 'gym'; V.ui.gymSub = 'rutinas'; V.ui.rutId = rutId; V.ui.rutDayId = dayId;
+  return texto(vanillaHTML(V.viewRutinas()));
+}
+
+/* RutinaDetailPage y RutinaDayPage leen el id de la URL con useParams(), así que no
+   alcanza con montarlas sueltas (como Hoy o Calendario): necesitan una <Route> de verdad
+   que les inyecte `:rutId`/`:dayId`, o los parámetros llegan vacíos. */
+function rutinasReact(doc, ruta, patron, Componente) {
+  const { container } = renderScreen(
+    <Routes><Route path={patron} element={<Componente />} /></Routes>,
+    { doc: clone(doc), route: ruta },
+  );
+  return texto(container);
+}
+
+describe('Rutinas dice exactamente lo mismo que la app vanilla, en sus tres niveles', () => {
+  it('biblioteca, sin rutinas', () => {
+    expect(rutinasReact(emptyDoc(), '/gym/rutinas', '/gym/rutinas', RutinasListPage))
+      .toBe(rutinasVanilla(emptyDoc()));
+  });
+
+  it('biblioteca, con rutinas', () => {
+    expect(rutinasReact(fullDoc(), '/gym/rutinas', '/gym/rutinas', RutinasListPage))
+      .toBe(rutinasVanilla(fullDoc()));
+  });
+
+  it('los días de una rutina', () => {
+    expect(rutinasReact(fullDoc(), '/gym/rutinas/r1', '/gym/rutinas/:rutId', RutinaDetailPage))
+      .toBe(rutinasVanilla(fullDoc(), { rutId: 'r1' }));
+  });
+
+  it('una rutina sin días todavía', () => {
+    expect(rutinasReact(fullDoc(), '/gym/rutinas/r2', '/gym/rutinas/:rutId', RutinaDetailPage))
+      .toBe(rutinasVanilla(fullDoc(), { rutId: 'r2' }));
+  });
+
+  it('los ejercicios de un día', () => {
+    expect(rutinasReact(fullDoc(), '/gym/rutinas/r1/d1', '/gym/rutinas/:rutId/:dayId', RutinaDayPage))
+      .toBe(rutinasVanilla(fullDoc(), { rutId: 'r1', dayId: 'd1' }));
+  });
+
+  it('un día sin ejercicios todavía', () => {
+    expect(rutinasReact(fullDoc(), '/gym/rutinas/r1/d2', '/gym/rutinas/:rutId/:dayId', RutinaDayPage))
+      .toBe(rutinasVanilla(fullDoc(), { rutId: 'r1', dayId: 'd2' }));
+  });
+});
+
+/* ---------------------------------------------------------------- Hábitos */
+function habitosVanilla(doc, day) {
+  V.setState(V.normalize(clone(doc)));
+  V.ui.tab = 'habitos'; V.ui.habitDate = day; V.ui.habMenu = null;
+  return texto(vanillaHTML(V.viewHabitos()));
+}
+
+function habitosReact(doc) {
+  const { container } = renderScreen(<HabitosPage />, { doc: clone(doc) });
+  return texto(container);
+}
+
+describe('Hábitos dice exactamente lo mismo que la app vanilla', () => {
+  const casos = {
+    'sin hábitos todavía': emptyDoc(),
+    'con hábitos y racha': fullDoc(),
+  };
+
+  it.each(Object.keys(casos))('%s', (nombre) => {
+    expect(habitosReact(casos[nombre])).toBe(habitosVanilla(casos[nombre], TODAY));
+  });
+});
+
+/* ---------------------------------------------------------------- Progreso */
+function progresoVanilla(doc, per = 'mes') {
+  V.setState(V.normalize(clone(doc)));
+  V.ui.tab = 'progreso'; V.ui.progPeriod = per;
+  return texto(vanillaHTML(V.viewProgreso()));
+}
+
+function progresoReact(doc) {
+  const { container } = renderScreen(<ProgresoPage />, { doc: clone(doc) });
+  return texto(container);
+}
+
+describe('Progreso dice exactamente lo mismo que la app vanilla', () => {
+  const casos = {
+    'cuenta nueva, sin nada': emptyDoc(),
+    'con todo cargado (período: mes, el default)': fullDoc(),
+  };
+
+  it.each(Object.keys(casos))('%s', (nombre) => {
+    expect(progresoReact(casos[nombre])).toBe(progresoVanilla(casos[nombre]));
+  });
+});
+
 /* ---------------------------------------------------------------- clases */
 describe('todas las clases que usa React existen en el CSS', () => {
   const raiz = path.resolve(process.cwd(), 'src', 'styles');
@@ -152,6 +278,21 @@ describe('todas las clases que usa React existen en el CSS', () => {
     Hoy: () => renderScreen(<HoyPage />, { doc: fullDoc() }).container,
     'Hoy vacía': () => renderScreen(<HoyPage />, { doc: emptyDoc() }).container,
     Calendario: () => renderScreen(<CalendarioPage />, { doc: fullDoc(), route: `/calendario?d=${TODAY}` }).container,
+    Gimnasio: () => renderScreen(<GymPage />, { doc: fullDoc() }).container,
+    'Gimnasio vacío': () => renderScreen(<GymPage />, { doc: emptyDoc() }).container,
+    'Rutinas — biblioteca': () => renderScreen(<RutinasListPage />, { doc: fullDoc(), route: '/gym/rutinas' }).container,
+    'Rutinas — días': () => renderScreen(
+      <Routes><Route path="/gym/rutinas/:rutId" element={<RutinaDetailPage />} /></Routes>,
+      { doc: fullDoc(), route: '/gym/rutinas/r1' },
+    ).container,
+    'Rutinas — ejercicios': () => renderScreen(
+      <Routes><Route path="/gym/rutinas/:rutId/:dayId" element={<RutinaDayPage />} /></Routes>,
+      { doc: fullDoc(), route: '/gym/rutinas/r1/d1' },
+    ).container,
+    Hábitos: () => renderScreen(<HabitosPage />, { doc: fullDoc() }).container,
+    'Hábitos vacío': () => renderScreen(<HabitosPage />, { doc: emptyDoc() }).container,
+    Progreso: () => renderScreen(<ProgresoPage />, { doc: fullDoc() }).container,
+    'Progreso vacío': () => renderScreen(<ProgresoPage />, { doc: emptyDoc() }).container,
   };
 
   it.each(Object.keys(pantallas))('%s', (nombre) => {
@@ -159,7 +300,7 @@ describe('todas las clases que usa React existen en el CSS', () => {
     expect(sinDefinir).toEqual([]);
   });
 
-  it('los modales también (se dibujan fuera del contenedor, en el body)', async () => {
+  it('los modales de agenda también (se dibujan fuera del contenedor, en el body)', async () => {
     const { TaskFormModal } = await import('../components/items/TaskFormModal');
     const { EventFormModal } = await import('../components/items/EventFormModal');
     const { MemoryRouter } = await import('react-router-dom');
@@ -173,6 +314,41 @@ describe('todas las clases que usa React existen en el CSS', () => {
         <DataContext.Provider value={store}>
           <TaskFormModal onClose={vacio} />
           <EventFormModal onClose={vacio} />
+        </DataContext.Provider>
+      </MemoryRouter>,
+    );
+
+    const sinDefinir = usadas(document.body).filter((c) => !declaradas.has(c));
+    expect(sinDefinir).toEqual([]);
+  });
+
+  it('los modales de Gimnasio, Rutinas y Hábitos también', async () => {
+    const { LiftModal } = await import('../components/gym/LiftModal');
+    const { LiftDetailModal } = await import('../components/gym/LiftDetailModal');
+    const { BodyWeightModal } = await import('../components/gym/BodyWeightModal');
+    const { BodyManageModal } = await import('../components/gym/BodyManageModal');
+    const { TypesManager } = await import('../components/gym/TypesManager');
+    const { ExerciseFormModal } = await import('../components/rutinas/ExerciseFormModal');
+    const { SimpleNameModal } = await import('../components/rutinas/SimpleNameModal');
+    const { HabitFormModal } = await import('../components/habitos/HabitFormModal');
+    const { MemoryRouter } = await import('react-router-dom');
+    const { DataContext } = await import('../context/DataContext');
+    const { fakeDataStore } = await import('../test/utils');
+
+    const doc = fullDoc();
+    const { store } = fakeDataStore({ doc });
+    const vacio = () => {};
+    render(
+      <MemoryRouter>
+        <DataContext.Provider value={store}>
+          <LiftModal onClose={vacio} />
+          <LiftDetailModal lift={doc.gym.lifts[0]} onClose={vacio} onLogWeight={vacio} onEditRecord={vacio} />
+          <BodyWeightModal onClose={vacio} />
+          <BodyManageModal onClose={vacio} onNew={vacio} onEdit={vacio} />
+          <TypesManager onClose={vacio} />
+          <ExerciseFormModal onClose={vacio} onSave={vacio} />
+          <SimpleNameModal modalTitle="t" editTitle="t" fieldLabel="l" placeholder="p" errorMessage="e" onClose={vacio} onSave={vacio} />
+          <HabitFormModal onClose={vacio} />
         </DataContext.Provider>
       </MemoryRouter>,
     );

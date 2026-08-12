@@ -24,3 +24,14 @@ export const PALETTE = [C.green, C.teal, C.violet, C.coral, C.amber, C.rose];
 
 // Colores de portada de las rutinas, por posición en la lista (no se guardan).
 export const RUT_COVERS = [C.rose, C.amber, C.teal, C.coral, C.violet, C.green];
+
+/* El botón punteado "+ Agregar…" teñido del acento de la sección (Gimnasio, Rutinas).
+   Vanilla repetía esta misma fórmula de tres tintes —borde, fondo, texto— cada vez que
+   dibujaba uno de estos botones: `style="border-color:${tint(col,'73')};background:
+   ${tint(col,'12')};color:${col}"`. No puede vivir en una clase CSS porque el color no es
+   una constante del módulo: es el acento de CADA pantalla (rosa en Gimnasio y en Rutinas,
+   pero el de cada rutina cambia según RUT_COVERS). Así que en vez de repetir la fórmula
+   seis veces, queda acá una sola vez y cada botón la usa con su color. */
+export function accentedDashedStyle(color) {
+  return { borderColor: tint(color, '73'), background: tint(color, '12'), color };
+}

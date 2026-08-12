@@ -13,12 +13,13 @@ Esta carpeta se construye en paralelo, por etapas; al final se evalúa el reempl
 | 1 | Base del proyecto, rutas, Firebase y autenticación completa | ✅ |
 | 2 | Capa de datos: Firestore, modelo, lógica de negocio | ✅ |
 | 3a | Pantallas Hoy y Calendario, con sus formularios | ✅ |
-| 3b | Gimnasio, Hábitos y Progreso | pendiente |
+| 3b | Gimnasio (plan semanal, tipos, peso corporal, cargas) y Rutinas | ✅ |
+| 3c | Hábitos y Progreso | ✅ |
 | 4 | Ajustes completo, PWA y onboarding | pendiente |
 
-Gimnasio, Hábitos y Progreso ya tienen su lugar en la barra de abajo y su URL; al entrar
-avisan que todavía no se migraron. Ajustes está en su versión mínima (la cuenta y cerrar
-sesión); backup, importar/exportar y el tutorial llegan con su etapa.
+Las cinco secciones de la barra de abajo están migradas y andando. Ajustes sigue en su
+versión mínima (la cuenta y cerrar sesión); backup, importar/exportar y el tutorial llegan
+con la etapa 4, así como la PWA (instalación, banner de actualización) y el responsive fino.
 
 ## Correrlo
 
@@ -61,10 +62,14 @@ src/
   components/   piezas visuales reutilizables
     auth/         las propias de las pantallas de sesión
     calendario/   la grilla del mes y el detalle del día
+    gym/          plan semanal, tipos, peso corporal, cargas por ejercicio
+    habitos/      la fila de hábito (con menú) y su formulario
     hoy/          la tira semanal, el progreso, los hábitos, el entreno
     items/        lo que Hoy y Calendario comparten: filas y formularios de agenda
     nav/          la barra de abajo y el menú del botón +
-    ui/           genéricas (íconos, modal, campos, selectores de fecha y hora)
+    progreso/     las nueve secciones de solo lectura de Progreso
+    rutinas/      la fila compartida por los niveles "día" y "ejercicio"
+    ui/           genéricas (íconos, modal, campos, gráficos, selectores de fecha y hora)
   compat/       tests que corren la app vanilla y la React sobre los mismos datos
   context/      la sesión, el acceso al store y los formularios de agenda
   hooks/        lógica reutilizable con estado (useAuth, useData, useSelectedDay…)
@@ -104,7 +109,10 @@ poder ir y venir entre las dos versiones. Lo que garantiza eso son los tests de 
 |---|---|
 | `/` | Hoy |
 | `/calendario` | Calendario |
-| `/gym`, `/habitos`, `/progreso` | las secciones que faltan migrar |
+| `/gym` | Gimnasio: plan semanal, peso corporal, cargas por ejercicio |
+| `/gym/rutinas`, `/gym/rutinas/:rutId`, `/gym/rutinas/:rutId/:dayId` | la biblioteca de rutinas, sus tres niveles |
+| `/habitos` | Hábitos |
+| `/progreso` | Progreso (solo lectura) |
 | `/ajustes` | la cuenta y cerrar sesión (sub-pantalla de Hoy) |
 
 El día que se está mirando viaja en la URL: `/?d=2026-08-10`. Lo comparten Hoy y
@@ -117,7 +125,8 @@ Tres archivos, y el orden importa:
 
 - `styles.css` — el sistema visual, copia sin cambios de `app/css/styles.css`. No se toca.
 - `auth.css` — lo que en vanilla estaba inline en los template strings de `auth.js`.
-- `app.css` — lo mismo para `hoy.js`, `calendario.js`, `agenda.js` y `utils.js`.
+- `app.css` — lo mismo para `hoy.js`, `calendario.js`, `agenda.js`, `utils.js`, `gimnasio.js`,
+  `rutinas.js`, `habitos.js` y `progreso.js`.
 
 El corte es siempre el mismo: si el valor es una constante, va a una clase con nombre; si
 sale de un dato (el color de un ítem según su tipo, el que el usuario le eligió a un
@@ -134,7 +143,8 @@ Requisito no negociable: hay gente usando Daily hoy.
   entra acá con la misma contraseña.
 - Los mensajes de error y los textos de las pantallas son los mismos: `src/compat/
   screens.test.jsx` compara palabra por palabra lo que dibuja cada versión.
-- El CSS es una copia sin cambios de `app/css/styles.css`; las pantallas de sesión, Hoy,
-  Calendario y sus formularios se verificaron píxel a píxel contra la app actual.
+- El CSS es una copia sin cambios de `app/css/styles.css`; las nueve pantallas (sesión,
+  Hoy, Calendario, Gimnasio, los tres niveles de Rutinas, Hábitos, Progreso) y sus
+  formularios se verificaron píxel a píxel contra la app actual.
 - El documento de Firestore se lee y se escribe con la misma forma. `src/compat/` carga
   los `app/js/*.js` reales y compara las dos implementaciones sobre los mismos datos.

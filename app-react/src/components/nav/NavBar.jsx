@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { SectionIcon } from '../ui/Icons';
 import { QuickAddMenu } from './QuickAddMenu';
@@ -32,18 +32,30 @@ export function NavBar() {
   const day = isValidISO(raw) ? raw : todayISO();
   const search = `?d=${day}`;
 
+  /* Gimnasio es la única sección con sub-navegación (Rutinas, sus tres niveles). En la app
+     vanilla, "dónde estabas" era ui.gymSub/ui.rutId/ui.rutDayId: variables globales que no
+     se movían aunque cambiaras de pestaña, así que volver a Gimnasio te dejaba donde
+     habías dejado. Acá esa posición ES la URL, y la URL no la lleva nadie por su cuenta —
+     por eso la barra, que es lo único que sigue montado siempre, se acuerda de la última
+     ruta de Gimnasio que se visitó y apunta ahí en vez de a la fija '/gym'. */
+  const lastGymPath = useRef('/gym');
+  useEffect(() => {
+    if (pathname.startsWith('/gym')) lastGymPath.current = pathname;
+  }, [pathname]);
+
   return (
     <>
       <div className="nav">
         <div className="navpill">
           {SECTIONS.map((s) => {
             const on = current?.key === s.key;
+            const target = s.key === 'gym' ? lastGymPath.current : s.path;
             return (
               <Link
                 key={s.key}
                 className={`navitem${on ? ' on' : ''}`}
                 style={on ? { background: tint(accent, '2B'), color: accent } : undefined}
-                to={{ pathname: s.path, search }}
+                to={{ pathname: target, search }}
                 aria-current={on ? 'page' : undefined}
                 aria-label={s.title || s.label}
               >

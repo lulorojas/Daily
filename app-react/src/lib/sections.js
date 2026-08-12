@@ -16,13 +16,15 @@ import { C } from './theme';
    app sin ninguna ruta cae donde tiene que caer sin un redirect de por medio. */
 /* `label` es lo que se ve en la barra, abreviado para que entre; `title` es el nombre
    completo, que va como aria-label del link (un lector de pantalla dice "Calendario", no
-   "Cal") y como título de la pantalla en las que todavía no existen. */
+   "Cal"). Con la etapa 3c las cinco existen: las tres últimas (Gimnasio, Hábitos,
+   Progreso) llegaron en las etapas 3b y 3c, sobre las rutas que ya tenían reservadas
+   desde la 3a. */
 export const SECTIONS = [
-  { key: 'hoy',        path: '/',           label: 'Hoy',      title: 'Hoy',        accent: C.amber, ready: true },
-  { key: 'calendario', path: '/calendario', label: 'Cal',      title: 'Calendario', accent: C.coral, ready: true },
-  { key: 'gym',        path: '/gym',        label: 'Gym',      title: 'Gimnasio',   accent: C.rose,  ready: false },
-  { key: 'habitos',    path: '/habitos',    label: 'Hábitos',  title: 'Hábitos',    accent: C.green, ready: false },
-  { key: 'progreso',   path: '/progreso',   label: 'Progreso', title: 'Progreso',   accent: C.teal,  ready: false },
+  { key: 'hoy',        path: '/',           label: 'Hoy',      title: 'Hoy',        accent: C.amber },
+  { key: 'calendario', path: '/calendario', label: 'Cal',      title: 'Calendario', accent: C.coral },
+  { key: 'gym',        path: '/gym',        label: 'Gym',      title: 'Gimnasio',   accent: C.rose },
+  { key: 'habitos',    path: '/habitos',    label: 'Hábitos',  title: 'Hábitos',    accent: C.green },
+  { key: 'progreso',   path: '/progreso',   label: 'Progreso', title: 'Progreso',   accent: C.teal },
 ];
 
 /* Qué sección corresponde a una URL. Las pantallas de sesión no son ninguna y devuelven

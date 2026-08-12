@@ -185,11 +185,7 @@ describe('secciones', () => {
     expect(accentForPath('/login')).toBe(C.amber);
   });
 
-  it('son cinco, en el orden de la barra', () => {
+  it('son cinco, en el orden de la barra: todas listas desde la etapa 3c', () => {
     expect(SECTIONS.map((s) => s.key)).toEqual(['hoy', 'calendario', 'gym', 'habitos', 'progreso']);
-  });
-
-  it('en esta etapa hay dos listas y tres por migrar', () => {
-    expect(SECTIONS.filter((s) => s.ready).map((s) => s.key)).toEqual(['hoy', 'calendario']);
   });
 });

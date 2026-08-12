@@ -131,10 +131,25 @@ describe('con sesión verificada', () => {
     expect(screen.getByRole('button', { name: 'Cerrar sesión' })).toBeInTheDocument();
   });
 
-  it('las secciones que faltan tienen su URL y avisan', () => {
+  it('/gym muestra Gimnasio', () => {
     renderWithAuth(<AppRoutes />, { auth, route: '/gym' });
     expect(titulo()).toBe('Gimnasio');
-    expect(screen.getByText(/todavía no se migró/)).toBeInTheDocument();
+    expect(screen.getByText('Plan semanal')).toBeInTheDocument();
+  });
+
+  it('/habitos muestra Hábitos', () => {
+    renderWithAuth(<AppRoutes />, { auth, route: '/habitos' });
+    expect(titulo()).toBe('Hábitos');
+  });
+
+  it('/progreso muestra Progreso', () => {
+    renderWithAuth(<AppRoutes />, { auth, route: '/progreso' });
+    expect(titulo()).toBe('Progreso');
+  });
+
+  it('/gym/rutinas muestra la biblioteca de rutinas', () => {
+    renderWithAuth(<AppRoutes />, { auth, route: '/gym/rutinas' });
+    expect(titulo()).toBe('Mis rutinas');
   });
 
   it('una URL inventada cae en Hoy', () => {

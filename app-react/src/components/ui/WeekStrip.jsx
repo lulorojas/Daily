@@ -1,21 +1,24 @@
-import { ChevronLeftIcon, ChevronRightIcon } from '../ui/Icons';
+import { ChevronLeftIcon, ChevronRightIcon } from './Icons';
 import { DOW_SHORT, mondayOf, parseISO, todayISO } from '../../lib/dates';
-import { agendaDe, tareasDe } from '../../lib/agenda';
 import { weekDays } from '../../lib/items';
 
 /* ----------------------------- TIRA SEMANAL -----------------------------
-   Port de weekStrip(). Siete círculos de lunes a domingo y dos flechas para cambiar de
-   semana. El punto de abajo se enciende si ese día tiene algo.
+   Port de weekStrip() (Hoy) y habWeekStrip() (Hábitos), que en la app vanilla eran dos
+   funciones casi idénticas — mismo dibujo, mismo cálculo de anillos, y la única
+   diferencia de verdad era QUÉ hace que un día se marque con el punto de abajo (en Hoy,
+   que tenga algo agendado; en Hábitos, que se haya completado alguno). Acá es un solo
+   componente y esa diferencia entra por `hasMark`, una función que recibe la fecha ISO y
+   dice si el punto va encendido.
 
    No guarda nada: recibe el día elegido y avisa cuál se tocó. Todo lo que muestra sale de
-   ese día más el documento. Eso lo hace trivial de testear y significa que la tira no
-   puede "desincronizarse" del resto de la pantalla, que es un bug clásico cuando cada
-   pedazo se acuerda de su propia versión de la verdad.
+   ese día más lo que calcule `hasMark`. Eso lo hace trivial de testear y significa que la
+   tira no puede "desincronizarse" del resto de la pantalla, que es un bug clásico cuando
+   cada pedazo se acuerda de su propia versión de la verdad.
 
-   Los colores acá son fijos (el ámbar de Hoy), no dependen de ningún dato: por eso los
-   estados —elegido, pasado, con cosas— son clases y no estilos inline, al revés de lo que
-   pasa con las filas de ítems, donde el color sale del tipo. */
-export function WeekStrip({ data, selected, onSelect, onWeek }) {
+   El color es siempre el acento de la página (var(--accent), calculado en App.jsx), así
+   que Hoy la pinta de ámbar y Hábitos de verde sin que este componente sepa de ninguno de
+   los dos: son estados —elegido, pasado, con marca— y no un color hardcodeado. */
+export function WeekStrip({ selected, onSelect, onWeek, hasMark }) {
   const tISO = todayISO();
   const days = weekDays(mondayOf(parseISO(selected)));
 
@@ -30,7 +33,7 @@ export function WeekStrip({ data, selected, onSelect, onWeek }) {
           const isSel = dISO === selected;
           const isToday = dISO === tISO;
           const past = dISO < tISO;
-          const has = tareasDe(data, dISO).length || agendaDe(data, dISO).length;
+          const has = hasMark(dISO);
           const state = isSel ? ' sel' : past ? ' past' : '';
 
           return (

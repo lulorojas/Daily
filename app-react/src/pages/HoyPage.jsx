@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { WeekStrip } from '../components/hoy/WeekStrip';
+import { WeekStrip } from '../components/ui/WeekStrip';
 import { DayProgress } from '../components/hoy/DayProgress';
 import { HabitRow } from '../components/hoy/HabitRow';
 import { TrainingRow } from '../components/hoy/TrainingRow';
@@ -91,10 +91,10 @@ export function HoyPage() {
 
       <div className="body">
         <WeekStrip
-          data={data}
           selected={day}
           onSelect={setDay}
           onWeek={(weeks) => setDay(shiftWeek(day, weeks))}
+          hasMark={(dISO) => tareasDe(data, dISO).length > 0 || agendaDe(data, dISO).length > 0}
         />
 
         <DayProgress progress={view.progress} />
@@ -119,7 +119,7 @@ export function HoyPage() {
 
         {view.entreno && (
           <Section label="Entreno">
-            <TrainingRow training={view.entreno} color={typeColor(data, view.entreno.type)} />
+            <TrainingRow training={view.entreno} color={typeColor(data, view.entreno.type)} day={day} />
           </Section>
         )}
 
@@ -151,7 +151,7 @@ export function HoyPage() {
                 ))}
               </div>
             )
-            : <EmptyCard small>Nada suelto por acá.</EmptyCard>}
+            : <EmptyCard size="sm">Nada suelto por acá.</EmptyCard>}
         </Section>
       </div>
     </div>

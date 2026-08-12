@@ -3,15 +3,19 @@ import { RequireStatus } from './RequireStatus';
 import { RequireData } from './RequireData';
 import { AppLayout } from './AppLayout';
 import { AUTH_STATUS } from '../lib/authStatus';
-import { SECTIONS } from '../lib/sections';
 import { LoginPage } from '../pages/LoginPage';
 import { RegisterPage } from '../pages/RegisterPage';
 import { ResetPasswordPage } from '../pages/ResetPasswordPage';
 import { VerifyEmailPage } from '../pages/VerifyEmailPage';
 import { HoyPage } from '../pages/HoyPage';
 import { CalendarioPage } from '../pages/CalendarioPage';
+import { GymPage } from '../pages/GymPage';
+import { RutinasListPage } from '../pages/rutinas/RutinasListPage';
+import { RutinaDetailPage } from '../pages/rutinas/RutinaDetailPage';
+import { RutinaDayPage } from '../pages/rutinas/RutinaDayPage';
+import { HabitosPage } from '../pages/HabitosPage';
+import { ProgresoPage } from '../pages/ProgresoPage';
 import { AjustesPage } from '../pages/AjustesPage';
-import { SoonPage } from '../pages/SoonPage';
 
 /* ----------------------------- MAPA DE RUTAS -----------------------------
    Todas las pantallas y quién puede verlas, en un solo archivo que se lee de arriba abajo.
@@ -46,14 +50,21 @@ export function AppRoutes() {
           <Route element={<AppLayout />}>
             <Route path="/" element={<HoyPage />} />
             <Route path="/calendario" element={<CalendarioPage />} />
+            <Route path="/gym" element={<GymPage />} />
+            {/* Rutinas es una sub-pantalla de Gimnasio, con sus tres niveles como rutas
+                anidadas: en vanilla eran ui.rutId/ui.rutDayId, acá son parámetros de URL,
+                así que abrir una rutina o un día es navegar de verdad (botón Atrás,
+                link compartible). NavBar se acuerda de la última que se visitó (ver el
+                comentario de lastGymPath ahí) para que volver desde otra sección te deje
+                donde estabas. */}
+            <Route path="/gym/rutinas" element={<RutinasListPage />} />
+            <Route path="/gym/rutinas/:rutId" element={<RutinaDetailPage />} />
+            <Route path="/gym/rutinas/:rutId/:dayId" element={<RutinaDayPage />} />
+            <Route path="/habitos" element={<HabitosPage />} />
+            <Route path="/progreso" element={<ProgresoPage />} />
             {/* Ajustes no es una sección: es una sub-pantalla de Hoy, a la que se llega
                 por el engranaje. Igual que `ui.hoySub='ajustes'` en la app vanilla. */}
             <Route path="/ajustes" element={<AjustesPage />} />
-            {/* Las secciones que todavía no se migraron ya tienen su URL, así la barra de
-                abajo es la definitiva. Cuando cada una exista, se cambia esta línea. */}
-            {SECTIONS.filter((s) => !s.ready).map((s) => (
-              <Route key={s.key} path={s.path} element={<SoonPage section={s} />} />
-            ))}
           </Route>
         </Route>
       </Route>
