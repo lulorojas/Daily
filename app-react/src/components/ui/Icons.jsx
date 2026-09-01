@@ -350,3 +350,22 @@ export function BookIcon({ size = 22 }) {
     </svg>
   );
 }
+
+// El paso "Instalá Daily" del tour de onboarding: una flecha entrando a una bandeja.
+export function InstallIcon() {
+  return (
+    <svg viewBox="0 0 24 24" strokeWidth="1.9" {...stroke}>
+      <path d="M12 3v11M8 10l4 4 4-4M5 20h14" />
+    </svg>
+  );
+}
+
+// El tilde grande del paso de cierre del tour ("¡Listo!") — no confundir con
+// SwatchCheckIcon (ese es el del selector de color, mucho más chico y otro trazo).
+export function BigCheckIcon() {
+  return (
+    <svg viewBox="0 0 24 24" strokeWidth="2.2" {...stroke}>
+      <path d="M4.5 12.5 10 18l9.5-11" />
+    </svg>
+  );
+}

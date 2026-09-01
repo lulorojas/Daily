@@ -15,11 +15,13 @@ Esta carpeta se construye en paralelo, por etapas; al final se evalúa el reempl
 | 3a | Pantallas Hoy y Calendario, con sus formularios | ✅ |
 | 3b | Gimnasio (plan semanal, tipos, peso corporal, cargas) y Rutinas | ✅ |
 | 3c | Hábitos y Progreso | ✅ |
-| 4 | Ajustes completo, PWA y onboarding | pendiente |
+| 4 | Ajustes completo, PWA y onboarding | ✅ |
 
-Las cinco secciones de la barra de abajo están migradas y andando. Ajustes sigue en su
-versión mínima (la cuenta y cerrar sesión); backup, importar/exportar y el tutorial llegan
-con la etapa 4, así como la PWA (instalación, banner de actualización) y el responsive fino.
+Las cinco secciones de la barra de abajo están migradas y andando, con Ajustes completo
+(backup, importar/exportar, tutorial, cerrar sesión), PWA (instalable, offline, banner de
+actualización) y el onboarding guiado. Queda la etapa 5: el reemplazo de v3 por v4 en
+producción, con la migración del service worker de quien ya tiene la PWA instalada como
+paso más delicado — ver decisión 4 de `decisiones-tecnicas.md`.
 
 ## Correrlo
 
@@ -60,6 +62,7 @@ Ni este ni los del emulador corren en `npm test`: se saltean solos.
 ```
 src/
   components/   piezas visuales reutilizables
+    ajustes/      el aviso de backup y la sección de exportar/importar
     auth/         las propias de las pantallas de sesión
     calendario/   la grilla del mes y el detalle del día
     gym/          plan semanal, tipos, peso corporal, cargas por ejercicio
@@ -67,6 +70,7 @@ src/
     hoy/          la tira semanal, el progreso, los hábitos, el entreno
     items/        lo que Hoy y Calendario comparten: filas y formularios de agenda
     nav/          la barra de abajo y el menú del botón +
+    onboarding/   el modal de "primera vez" y el tour guiado
     progreso/     las nueve secciones de solo lectura de Progreso
     rutinas/      la fila compartida por los niveles "día" y "ejercicio"
     ui/           genéricas (íconos, modal, campos, gráficos, selectores de fecha y hora)
@@ -113,7 +117,7 @@ poder ir y venir entre las dos versiones. Lo que garantiza eso son los tests de 
 | `/gym/rutinas`, `/gym/rutinas/:rutId`, `/gym/rutinas/:rutId/:dayId` | la biblioteca de rutinas, sus tres niveles |
 | `/habitos` | Hábitos |
 | `/progreso` | Progreso (solo lectura) |
-| `/ajustes` | la cuenta y cerrar sesión (sub-pantalla de Hoy) |
+| `/ajustes` | backup, ayuda y la cuenta (sub-pantalla de Hoy) |
 
 El día que se está mirando viaja en la URL: `/?d=2026-08-10`. Lo comparten Hoy y
 Calendario, sobrevive a recargar la página y hace que un link a un día sea un link de
@@ -134,6 +138,38 @@ hábito, el ancho de la barra de progreso), se queda inline. `src/compat/styles.
 comprueba que cada clase nueva declare exactamente el mismo valor que tenía el estilo
 inline que reemplazó, buscándolo en los `.js` de la app vanilla.
 
+## PWA
+
+Instalable, con offline real y aviso de actualización — igual que la app actual, con la
+misma estrategia de caché (`src/sw.js`, casi calcado de `app/sw.js`: HTML network-first,
+assets cache-first con refresco en segundo plano) pero armada con
+[vite-plugin-pwa](https://vite-pwa-org.netlify.app/) en modo `injectManifest`: el plugin
+solo se encarga de inyectarle al service worker la lista real de archivos del build (con
+sus hashes), la lógica de caché es la nuestra. `vite.config.js` explica por qué ese modo y
+no el `generateSW` por defecto.
+
+El offline de los DATOS ya estaba resuelto desde la etapa 2 (persistencia de Firestore); lo
+que suma esta etapa es que la APP MISMA (HTML/JS/CSS) abra sin conexión.
+
+El banner de "Hay una actualización disponible" es nuevo: no existe en vanilla (se buscó y
+no hay rastro de él en `app/js/*.js`). Sin posponer, a diferencia del de backup: una
+versión en espera no es un recordatorio, es un hecho.
+
+## Onboarding
+
+Port de `app/js/onboarding.js`: el modal de "¿Es tu primera vez en Daily?" y el tour de 9
+pasos (qué es la app, cómo instalarla, las 5 secciones en orden, el botón +, cierre),
+guardado en Firestore (`onboarding.seen`, ya venía modelado desde la etapa 2). Vive en
+`OnboardingProvider`, adentro de `AppLayout`, para poder aparecer arriba de cualquier
+pantalla y para que "Ver el tutorial de nuevo" (Ajustes) lo pueda relanzar desde cualquier
+lado.
+
+Un detalle que costó encontrar: el modal y el tour NO usan `createPortal` (a diferencia de
+los demás modales de la app). En vanilla, `render()` los concatena adentro del mismo HTML
+que arma `#app` — nunca salen de ahí. El botón "Siguiente" del tour se pinta con
+`var(--accent)`, que cambia con cada sección que se visita; portarlo a `document.body` lo
+dejaría siempre ámbar, afuera del alcance de esa variable.
+
 ## Compatibilidad con la app actual
 
 Requisito no negociable: hay gente usando Daily hoy.
@@ -143,8 +179,9 @@ Requisito no negociable: hay gente usando Daily hoy.
   entra acá con la misma contraseña.
 - Los mensajes de error y los textos de las pantallas son los mismos: `src/compat/
   screens.test.jsx` compara palabra por palabra lo que dibuja cada versión.
-- El CSS es una copia sin cambios de `app/css/styles.css`; las nueve pantallas (sesión,
-  Hoy, Calendario, Gimnasio, los tres niveles de Rutinas, Hábitos, Progreso) y sus
-  formularios se verificaron píxel a píxel contra la app actual.
+- El CSS es una copia sin cambios de `app/css/styles.css`; las diez pantallas (sesión,
+  Hoy, Calendario, Gimnasio, los tres niveles de Rutinas, Hábitos, Progreso, Ajustes) y
+  sus formularios, más el modal y el tour de onboarding, se verificaron píxel a píxel
+  contra la app actual.
 - El documento de Firestore se lee y se escribe con la misma forma. `src/compat/` carga
   los `app/js/*.js` reales y compara las dos implementaciones sobre los mismos datos.

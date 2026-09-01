@@ -6,6 +6,15 @@
 <meta name="theme-color" content="#0B0E14">
 <title>Daily</title>
 
+<!-- PWA / iOS standalone: vite-plugin-pwa inyecta solo el <link rel="manifest">, a
+     partir del `manifest` de vite.config.js. Lo que sigue Safari NO lo lee del manifest
+     (iOS todavía no respeta display/icons del web manifest para "Agregar a inicio"), así
+     que se repite acá a mano, igual que en app/index.html. -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Daily">
+<link rel="apple-touch-icon" href="/icons/icon-180.png">
 <link rel="icon" type="image/png" href="/icons/icon-192.png">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">

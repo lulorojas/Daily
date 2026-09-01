@@ -5,6 +5,7 @@ import { AuthContext } from '../context/AuthContext';
 import { DataContext } from '../context/DataContext';
 import { ItemFormsProvider } from '../context/ItemFormsProvider';
 import { HabitFormsProvider } from '../context/HabitFormsProvider';
+import { OnboardingProvider } from '../context/OnboardingProvider';
 import { authStatus } from '../lib/authStatus';
 import { createDataStore } from '../store/dataStore';
 import { createFakeFirestore } from './fakeFirestore';
@@ -69,18 +70,29 @@ export function renderWithAuth(ui, { auth = {}, route = '/', data = {} } = {}) {
    mentira y con los dos proveedores que abren formularios desde más de un lugar — el de
    agenda (tarea/cita) y el de hábitos —, igual que hace AppLayout de verdad.
 
+   `withOnboarding` NO está prendido por default a propósito: casi todos los fixtures de
+   "cuenta nueva" traen `onboarding.seen:false` (emptyDoc()), y si el proveedor estuviera
+   siempre puesto, CUALQUIER test que use emptyDoc() se encontraría el modal de "¿Es tu
+   primera vez?" tapando la pantalla que en realidad quiere probar — algo real en la app
+   (una cuenta nueva ve las dos cosas a la vez), pero ajeno a lo que esos tests verifican.
+   Se prende solo donde hace falta: los tests de onboarding en sí, y AjustesPage (que
+   usa useOnboarding() para "Ver el tutorial de nuevo" y se rompe sin el proveedor).
+
    Devuelve además `doc()`, que lee el documento tal como quedó en el store después de lo
    que haya hecho el test. Es la forma de comprobar QUÉ se guardó, no solo qué se ve. */
-export function renderScreen(ui, { doc = emptyDoc(), route = '/', uid = 'uid-test' } = {}) {
+export function renderScreen(ui, { doc = emptyDoc(), route = '/', uid = 'uid-test', withOnboarding = false } = {}) {
   const { store, firestore } = fakeDataStore({ doc, uid });
   const auth = fakeAuth({ user: fakeUser() });
+  const wrapOnboarding = (children) => (withOnboarding ? <OnboardingProvider>{children}</OnboardingProvider> : children);
 
   const result = render(
     <MemoryRouter initialEntries={[route]}>
       <AuthContext.Provider value={auth}>
         <DataContext.Provider value={store}>
           <ItemFormsProvider>
-            <HabitFormsProvider>{ui}</HabitFormsProvider>
+            <HabitFormsProvider>
+              {wrapOnboarding(ui)}
+            </HabitFormsProvider>
           </ItemFormsProvider>
         </DataContext.Provider>
       </AuthContext.Provider>

@@ -53,3 +53,21 @@ export function backupDaysSince(ts, today = new Date()) {
   t.setHours(0, 0, 0, 0);
   return Math.round((t - new Date(d.getFullYear(), d.getMonth(), d.getDate())) / 86400000);
 }
+
+/* ---- el aviso de "hace tiempo que no hacés backup" (etapa 4) ----
+   `meta` son los metadatos de ESTE DISPOSITIVO (KEY_BACKUP_META), no datos de la cuenta:
+   lastExport, firstSeen, snoozeUntil. Por eso viven en localStorage y no viajan en el
+   documento de Firestore — igual que en la app vanilla (bkMeta() en ajustes.js). */
+
+// El aviso sale si hay datos y hace BACKUP_DAYS o más que no se exporta. A quien nunca
+// exportó se le cuenta desde firstSeen: estrenar la app no es motivo para pedirle un backup.
+export function backupShouldWarn(state, meta, todayISOStr) {
+  if (!backupHasData(state)) return false;
+  if (meta.snoozeUntil && todayISOStr < meta.snoozeUntil) return false;
+  return backupDaysSince(meta.lastExport || meta.firstSeen, new Date(todayISOStr)) >= BACKUP_DAYS;
+}
+
+export function backupWarnText(meta, todayISOStr) {
+  if (!meta.lastExport) return 'Todavía no hiciste ningún backup de tus datos.';
+  return `Hace ${backupDaysSince(meta.lastExport, new Date(todayISOStr))} días que no hacés backup.`;
+}

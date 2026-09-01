@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { render } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { MemoryRouter, Outlet, Route, Routes } from 'react-router-dom';
 import { clone, loadVanilla } from '../test/vanilla';
 import { renderScreen } from '../test/utils';
 import { emptyDoc, fullDoc, TODAY } from '../test/fixtures';
@@ -14,6 +14,8 @@ import { RutinaDetailPage } from '../pages/rutinas/RutinaDetailPage';
 import { RutinaDayPage } from '../pages/rutinas/RutinaDayPage';
 import { HabitosPage } from '../pages/HabitosPage';
 import { ProgresoPage } from '../pages/ProgresoPage';
+import { AjustesPage } from '../pages/AjustesPage';
+import { OnboardingProvider } from '../context/OnboardingProvider';
 import { TaskFormModal } from '../components/items/TaskFormModal';
 import { EventFormModal } from '../components/items/EventFormModal';
 import { DayAddMenu } from '../components/calendario/DayAddMenu';
@@ -255,6 +257,101 @@ function progreso(doc, per = 'mes') {
   return { vanilla: V.viewProgreso(), react: container.innerHTML, acento: C.teal };
 }
 
+function ajustes(docBase) {
+  // seen:true a la fuerza: en la app real, estar en Ajustes NO frena el modal de "primera
+  // vez" (render() lo agrega encima de CUALQUIER pantalla si onbAskDue() da true — Ajustes
+  // incluida). emptyDoc() trae seen:false, así que sin este empujón el caso "cuenta nueva"
+  // terminaría comparando el modal de onboarding, no la pantalla de Ajustes vacía que en
+  // realidad se quiere ver acá (el modal ya tiene sus propios casos, más arriba).
+  const doc = { ...clone(docBase), onboarding: { seen: true } };
+  V.setState(V.normalize(clone(doc)));
+  V.ui.tab = 'hoy'; V.ui.hoySub = 'ajustes';
+  // AUTH.user: sin esto viewAjustes() no dibuja la sección "Cuenta" (chequea authUser()),
+  // pero renderScreen() SIEMPRE da una sesión iniciada (fakeUser()) — mismo mail, para
+  // que la fila "Sesión iniciada como" diga lo mismo de los dos lados.
+  V.AUTH.user = { email: 'lulo@ejemplo.com' };
+  // withOnboarding: con seen:true forzado arriba, el proveedor no le agrega nada a la
+  // captura — está solo porque AjustesPage usa useOnboarding() y se rompe sin él.
+  const { container } = renderScreen(<AjustesPage />, { doc: clone(doc), withOnboarding: true });
+  return { vanilla: V.viewAjustes(), react: container.innerHTML, acento: C.amber };
+}
+
+/* ---- onboarding ----
+   No hay atajo para "arrancar el tour ya en el paso N": ni acá ni en vanilla existe eso
+   (los dos lo recorren un paso a la vez). Se simula la interacción real de la persona —
+   tocar "Sí, mostrame cómo funciona" y después "Siguiente" las veces que hagan falta— en
+   los DOS lados, así la comparación sigue siendo "mismos datos, mismas acciones". */
+function vistaActual() {
+  const porTab = { hoy: 'viewHoy', calendario: 'viewCalendario', gym: 'viewGym', habitos: 'viewHabitos', progreso: 'viewProgreso' };
+  return V[porTab[V.ui.tab]]();
+}
+
+// Pasos 'info' (que-es, instalar, el +, cierre): fondo fijo en Hoy, como en la vida real
+// (es de ahí de donde sale "primera vez" apenas se entra a la app la primera vez).
+function onboardingInfo(doc, pasos) {
+  V.setState(V.normalize(clone(doc)));
+  V.ui.tab = 'hoy'; V.ui.hoySub = null; V.ui.daySel = TODAY;
+  V.startTour();
+  for (let i = 1; i <= pasos; i++) V.tourGo(i);
+  const vanilla = V.viewHoy() + V.tourView();
+
+  const { container } = renderScreen(<HoyPage />, { doc: clone(doc), route: `/?d=${TODAY}`, withOnboarding: true });
+  fireEvent.click(screen.getByText('Sí, mostrame cómo funciona'));
+  for (let i = 0; i < pasos; i++) fireEvent.click(screen.getByText('Siguiente'));
+  return { vanilla, react: container.innerHTML, acento: C.amber };
+}
+
+// El modal de "primera vez", antes de elegir nada.
+function onboardingAsk(doc) {
+  V.setState(V.normalize(clone(doc)));
+  V.ui.tab = 'hoy'; V.ui.hoySub = null; V.ui.daySel = TODAY; V.ui.tour = null;
+  const vanilla = V.viewHoy() + V.onbAskView();
+
+  const { container } = renderScreen(<HoyPage />, { doc: clone(doc), route: `/?d=${TODAY}`, withOnboarding: true });
+  return { vanilla, react: container.innerHTML, acento: C.amber };
+}
+
+// Un layout mínimo, NO el AppLayout real: hace falta OnboardingProvider (trae
+// useNavigate, así el tour puede saltar de pantalla de verdad), pero NO <NavBar/> — en
+// todos los demás casos de este archivo la barra no forma parte de la comparación
+// (viewGym() tampoco la trae: render() se la pega aparte), y si se usara el AppLayout
+// real, la barra aparecería en el lado React sin su contraparte del lado vanilla.
+function LayoutSinBarra() {
+  return <OnboardingProvider><Outlet /></OnboardingProvider>;
+}
+
+// Un paso 'section': acá SÍ hace falta una app con rutas reales, porque lo que se compara
+// es la pantalla real detrás del tip — no una de mentira. `acento` lo pone quien llama
+// porque tiene que coincidir con la sección a la que el tour va a saltar.
+function onboardingSeccion(docBase, pasos, acento) {
+  // seen:false a la fuerza: se necesitan datos reales de gimnasio detrás del tip (para
+  // probar que el tip flota sobre la pantalla real) Y que el tour se pueda arrancar
+  // preguntando "¿primera vez?" — dos cosas que fullDoc() por sí solo no da juntas
+  // (trae seen:true, porque ya tiene datos).
+  const doc = { ...clone(docBase), onboarding: { seen: false } };
+  V.setState(V.normalize(clone(doc)));
+  V.ui.tab = 'hoy'; V.ui.hoySub = null; V.ui.daySel = TODAY;
+  V.startTour();
+  for (let i = 1; i <= pasos; i++) V.tourGo(i);
+  const vanilla = vistaActual() + V.tourView();
+
+  const { container } = renderScreen(
+    <Routes>
+      <Route element={<LayoutSinBarra />}>
+        <Route path="/" element={<HoyPage />} />
+        <Route path="/calendario" element={<CalendarioPage />} />
+        <Route path="/gym" element={<GymPage />} />
+        <Route path="/habitos" element={<HabitosPage />} />
+        <Route path="/progreso" element={<ProgresoPage />} />
+      </Route>
+    </Routes>,
+    { doc: clone(doc), route: `/?d=${TODAY}` },
+  );
+  fireEvent.click(screen.getByText('Sí, mostrame cómo funciona'));
+  for (let i = 0; i < pasos; i++) fireEvent.click(screen.getByText('Siguiente'));
+  return { vanilla, react: container.innerHTML, acento };
+}
+
 // Los modales viven fuera de #app, en su propia capa.
 function modal(abrirVanilla, Componente, acento) {
   V.setState(V.normalize(emptyDoc()));
@@ -346,6 +443,15 @@ const CASOS = {
     V.ui.rutId = 'r1'; V.ui.rutDayId = 'd1';
     return modalCon(doc, () => V.rutExModal(null), ExerciseFormModal, C.rose);
   },
+
+  // ---- etapa 4: Ajustes y onboarding ----
+  'Ajustes — con datos': () => ajustes(fullDoc()),
+  'Ajustes — cuenta nueva': () => ajustes(emptyDoc()),
+  'Onboarding — ¿primera vez?': () => onboardingAsk(emptyDoc()),
+  'Onboarding — paso 1 (qué es Daily)': () => onboardingInfo(emptyDoc(), 0),
+  'Onboarding — paso 2 (instalar)': () => onboardingInfo(emptyDoc(), 1),
+  'Onboarding — paso 9 (cierre)': () => onboardingInfo(emptyDoc(), 8),
+  'Onboarding — sección (Gimnasio)': () => onboardingSeccion(fullDoc(), 4, C.rose),
 };
 
 /* Diferencias YA CONOCIDAS y no achacables al puerto: bugs de la app vanilla, que
@@ -359,11 +465,31 @@ const CONOCIDOS = {
     + 'gap de .sect (11px) en vez del gap de .body (22px) — la página vanilla sale más '
     + 'compacta de lo que su propio código quiso decir. El puerto React cierra cada sección '
     + 'bien y no puede replicar eso sin romper su propio marcado a propósito.',
+
+  'Ajustes — con datos': 'app/js/ajustes.js:156 dice "Tus datos viven en este teléfono.", '
+    + 'texto que quedó de antes de la etapa 2 (Firestore) y nunca se actualizó — hoy los '
+    + 'datos viven en la cuenta, no en el teléfono. Esto no es un cambio de esta etapa: ya '
+    + 'decía "en tu cuenta, en la nube" desde la etapa 1 de v4. Se documenta acá en vez de '
+    + 'volver a la frase vieja e incorrecta. La diferencia de alto (6px) es la misma frase '
+    + 'más larga ocupando un pixel más por el word-wrap, no un bug aparte.',
+  'Ajustes — cuenta nueva': 'Mismo motivo que "Ajustes — con datos" (ver ahí).',
+
+  /* Las cuatro comparten el mismo residuo, siempre ~20px sobre un lienzo de más de dos
+     millones (780×alto×2 de densidad): se midió el botón "Omitir" (.onbtop .cancel) con
+     getBoundingClientRect() en las dos versiones después del ajuste de margin de
+     app.css, y la caja da EXACTAMENTE igual en los dos lados (mismo x/y/width/height).
+     Lo que sobra es antialiasing de texto/borde en un <button> vs. el <span> de vanilla
+     — Chromium a veces suaviza distinto el texto de un control de formulario, y eso no
+     se corrige por CSS. Invisible a simple vista (se comprobó mirando el PNG entero). */
+  'Onboarding — paso 1 (qué es Daily)': 'Antialiasing de "Omitir" (button vs. span) — ver la nota arriba de este objeto.',
+  'Onboarding — paso 2 (instalar)': 'Antialiasing de "Omitir" (button vs. span) — ver la nota arriba de este objeto.',
+  'Onboarding — paso 9 (cierre)': 'Antialiasing de "Omitir" (button vs. span) — ver la nota arriba de este objeto.',
+  'Onboarding — sección (Gimnasio)': 'Antialiasing de "Omitir" (button vs. span) — ver la nota arriba de este objeto.',
 };
 
 describe.runIf(CORRER)('píxel a píxel contra la app vanilla', () => {
   it.each(Object.keys(CASOS))('%s', async (nombre) => {
-    const { vanilla, react, acento, capa } = CASOS[nombre]();
+    const { vanilla, react, acento, capa } = await CASOS[nombre]();
 
     const envolver = (html) => (capa
       ? `<div class="overlay show">${html}</div>`

@@ -30,9 +30,11 @@ describe('cabecera', () => {
 
   it('la mejor racha entre todos los hábitos se destaca arriba', () => {
     // h2 (Leer) tiene 4 días seguidos; h1 (Tomar agua) tiene 2. Gana Leer.
-    renderScreen(<HabitosPage />, { doc: fullDoc() });
+    // El "4" se busca acotado a .beststreak-n: un día de la tira semanal puede caer
+    // justo en el 4 del mes y duplicar el texto suelto (ya pasó: día 4, racha de 4).
+    const { container } = renderScreen(<HabitosPage />, { doc: fullDoc() });
     expect(screen.getByText('Mejor racha')).toBeInTheDocument();
-    expect(screen.getByText('4')).toBeInTheDocument();
+    expect(container.querySelector('.beststreak-n')).toHaveTextContent('4');
     expect(screen.getByText('días · Leer')).toBeInTheDocument();
   });
 

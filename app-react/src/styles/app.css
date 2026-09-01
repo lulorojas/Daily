@@ -59,6 +59,15 @@ button.iconcirc, button.stepbtn, button.roundadd, button.ordbtn, button.hmenubtn
    que devolvérselo a las filas que antes eran <div>. */
 button.evrow { width: 100%; text-align: left; }
 button.slot:disabled { cursor: default; }
+/* .onbtop .cancel ("Omitir") era un <span> en vanilla: display:inline de fábrica, así que
+   su padding vertical (8px) se ve pero NO empuja el alto de línea — el fondo redondeado
+   "sangra" 7px arriba y 9px abajo del cuadro que en verdad ocupa en el layout (medido con
+   getBoundingClientRect; la asimetría sale de las métricas de la fuente, no es un
+   redondeo). Un <button> es un cuadro reemplazado: Chromium no deja pisarle el `display`
+   con `inline` (queda inline-block igual, verificado), así que la única forma de replicar
+   la misma sangría es la misma cuenta pero con márgenes negativos en vez de con el modelo
+   de caja de un span. */
+.onbtop button.cancel { margin: -7px 0 -9px; }
 
 /* ---- utilidades ----
    `flex:1;min-width:0` aparecía en catorce lugares distintos de la app vanilla: es el
@@ -195,6 +204,7 @@ button.slot:disabled { cursor: default; }
 .ajustes-h1 { margin-top: 10px; }
 .card.pad2 { padding: 4px 6px; }
 .inforow { display: flex; align-items: center; gap: 12px; padding: 14px 12px; }
+.inforow.sep { border-bottom: 1px solid var(--line); }
 .infoname { flex: 1; font-size: 14.5px; font-weight: 500; }
 .infoval { font-size: 13px; color: rgba(242, 244, 248, .4); }
 
@@ -385,3 +395,68 @@ a.rcover { display: block; }
 .kginput { border-radius: 20px; background: rgba(255, 255, 255, .04); border: 1.5px solid; padding: 18px; display: flex; align-items: baseline; justify-content: center; gap: 8px; }
 .kgfield { background: none; border: none; text-align: center; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 40px; letter-spacing: -2px; width: auto; padding: 0; }
 .kgunit { font-size: 17px; font-weight: 500; color: rgba(242, 244, 248, .45); }
+
+/* ============================ AJUSTES (completo) ============================ */
+/* Las filas de "Exportar backup"/"Importar backup" ya usan .evrow/.evic (styles.css), acá
+   solo lo que en vanilla era un `style="width:40px;height:40px"` puntual encima del
+   .evic de 30px por defecto — es una constante (siempre 40 en esta pantalla), va a clase. */
+.evic.lg { width: 40px; height: 40px; }
+.evic.lg svg { width: 20px; height: 20px; }
+.ajrow { background: var(--surf); border: 1px solid var(--line); }
+.ajversion { text-align: center; font-size: 11.5px; color: rgba(242, 244, 248, .25); margin-top: 4px; }
+/* .sect ya pone 11px de gap entre la tarjeta de "Sesión iniciada como" y este botón; el
+   9px de acá se SUMA a eso (igual que en vanilla, que tiene los dos: el gap del flex
+   .sect Y el margin-top propio del .delbtn). */
+.logout-acct { margin-top: 9px; }
+
+/* ---- avisos (backup / actualización): misma tarjeta, dos colores ----
+   El aviso de backup existe en vanilla (bkBanner(), amber); el de actualización es nuevo
+   de esta etapa (no hay de dónde portarlo — vanilla nunca tuvo uno) y se le dio el mismo
+   trato visual a propósito, con teal en vez de amber para no confundirlo con el de
+   backup. Los dos colores son constantes de esta pantalla, nunca datos: por eso son
+   clases y no un tinte calculado en JS como hacía vanilla con tint(col, alfa). */
+.noticecard { padding: 14px 16px; border-radius: 22px; display: flex; align-items: center; gap: 12px; }
+.noticecard.amber { background: linear-gradient(135deg, #EAC06A2E, #EAC06A0A); border: 1px solid #EAC06A40; }
+.noticecard.teal { background: linear-gradient(135deg, #6FD2D22E, #6FD2D20A); border: 1px solid #6FD2D240; }
+.noticecard-ic { width: 36px; height: 36px; border-radius: 12px; background: rgba(10, 12, 17, .3); display: grid; place-items: center; flex: none; }
+.noticecard.amber .noticecard-ic { color: #EAC06A; }
+.noticecard.teal .noticecard-ic { color: #6FD2D2; }
+.noticecard-body { flex: 1; min-width: 0; }
+.noticecard-title { font-weight: 600; font-size: 13.5px; }
+.noticecard-sub { font-size: 11.5px; color: rgba(242, 244, 248, .55); margin-top: 1px; }
+button.noticecard-action { font-size: 12.5px; font-weight: 600; color: #0A0C11; padding: 8px 13px; border-radius: 99px; flex: none; }
+.noticecard.amber .noticecard-action { background: #EAC06A; }
+.noticecard.teal .noticecard-action { background: #6FD2D2; }
+button.noticecard-dismiss { width: 32px; height: 32px; padding: 0; }
+
+/* El banner de actualización flota sobre CUALQUIER pantalla (no es parte del flujo de
+   ninguna, a diferencia del de backup que sí vive adentro de Hoy/Ajustes) — misma
+   posición que .onbtip, justo arriba de la barra de navegación. */
+.updatebanner-wrap { position: fixed; left: 16px; right: 16px; bottom: calc(var(--nav-h) + var(--safe-bottom) + 12px); z-index: 55; }
+
+@media (min-width: 820px) {
+  .updatebanner-wrap { left: 236px; right: 16px; max-width: 460px; bottom: 24px; }
+}
+
+/* ============================ ÁREA TÁCTIL ============================ */
+/* Cuatro checkboxes que vanilla dibujaba a su tamaño VISUAL sin más (8 a 42px, todos por
+   debajo del mínimo táctil de 44x44 que pide WCAG) — el de tareas sin fecha es el peor
+   (8px). Achicar el círculo no es una opción: es parte del diseño ya validado y hay
+   verificación píxel a píxel corriendo contra él. La salida es agrandar el ÁREA TOCABLE
+   sin tocar lo que se VE: un pseudo-elemento invisible, más grande que el botón, que
+   sigue disparando el click del botón por herencia (bubbling) al estar adentro de él.
+   `pointer-events` no hace falta tocarlo: el ::after no tiene fondo, pero igual es parte
+   del árbol del botón y un click ahí cuenta como un click en el botón. */
+/* El agrandado es el mínimo que hace falta para llegar a 44x44 en CADA elemento, calculado
+   por separado — no un mismo margen para los cuatro. Estos botones se repiten en filas
+   apiladas (un .traydot abajo del otro en la bandeja, un .gcheck abajo del otro en el plan
+   semanal); un margen más generoso que el justo empezaría a invadir la fila de al lado. */
+button.traydot, button.chk, button.slot, button.gcheck { position: relative; }
+button.traydot::after, button.chk::after, button.slot::after, button.gcheck::after {
+  content: '';
+  position: absolute;
+}
+button.traydot::after { inset: -18px; }   /*  8px + 2×18 = 44 */
+button.chk::after     { inset: -10px; }   /* 24px + 2×10 = 44 */
+button.gcheck::after  { inset: -9px; }    /* 26px + 2×9  = 44 */
+button.slot::after    { inset: -1px; }    /* 42px + 2×1  = 44 */

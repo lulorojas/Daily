@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { WeekStrip } from '../components/ui/WeekStrip';
+import { BackupBanner } from '../components/ajustes/BackupBanner';
 import { DayProgress } from '../components/hoy/DayProgress';
 import { HabitRow } from '../components/hoy/HabitRow';
 import { TrainingRow } from '../components/hoy/TrainingRow';
@@ -90,6 +91,8 @@ export function HoyPage() {
       </div>
 
       <div className="body">
+        <BackupBanner />
+
         <WeekStrip
           selected={day}
           onSelect={setDay}

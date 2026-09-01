@@ -2,6 +2,8 @@ import { Outlet } from 'react-router-dom';
 import { NavBar } from '../components/nav/NavBar';
 import { ItemFormsProvider } from '../context/ItemFormsProvider';
 import { HabitFormsProvider } from '../context/HabitFormsProvider';
+import { OnboardingProvider } from '../context/OnboardingProvider';
+import { UpdateBanner } from '../components/ui/UpdateBanner';
 
 /* ----------------------------- EL MARCO DE LA APP -----------------------------
    Todo lo que hay adentro de la sesión comparte dos cosas: la barra de abajo y los
@@ -18,13 +20,22 @@ import { HabitFormsProvider } from '../context/HabitFormsProvider';
    Dos proveedores de formularios, uno por tipo de dato: el de agenda (tarea/cita, que abren
    Hoy, Calendario y el botón + de la barra) y el de hábitos (que abren Hoy y Hábitos). Cada
    uno sabe solo de lo suyo — mezclarlos en un contexto único obligaría a los formularios de
-   agenda a cargar con el estado del editor de hábitos sin usarlo nunca, y viceversa. */
+   agenda a cargar con el estado del editor de hábitos sin usarlo nunca, y viceversa.
+
+   OnboardingProvider va adentro de todo esto (necesita useNavigate, que solo funciona
+   dentro del Router) pero afuera de nada en particular: el modal de "primera vez" y el
+   tour tienen que poder taparlo todo, sección que sea. <UpdateBanner /> es aparte y no
+   tiene proveedor propio: no guarda ningún estado de la cuenta, solo escucha al service
+   worker, así que alcanza con un componente suelto. */
 export function AppLayout() {
   return (
     <ItemFormsProvider>
       <HabitFormsProvider>
-        <Outlet />
-        <NavBar />
+        <OnboardingProvider>
+          <Outlet />
+          <NavBar />
+          <UpdateBanner />
+        </OnboardingProvider>
       </HabitFormsProvider>
     </ItemFormsProvider>
   );
