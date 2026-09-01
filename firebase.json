@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "public": "app",
+    "public": "app-react/dist",
     "ignore": [
       "**/.*",
       "**/node_modules/**",

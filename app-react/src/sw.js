@@ -15,7 +15,7 @@
    `caches.open(CACHE).then(c => c.addAll(ASSETS))` de vanilla. */
 import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
 
-const CACHE = 'daily-react-v1';
+const CACHE = 'daily-react-v2';
 
 precacheAndRoute(self.__WB_MANIFEST);
 
