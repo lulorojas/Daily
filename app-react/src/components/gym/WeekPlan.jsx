@@ -1,6 +1,6 @@
 import { ChevronLeftIcon, ChevronRightIcon, ChipChevronIcon, CrossIcon, HabitCheckIcon, PencilIcon, PlusIcon } from '../ui/Icons';
-import { DOW_SHORT, dow, parseISO, todayD } from '../../lib/dates';
-import { REST, allTypes, dayTurnos, describeCoreLogEntry, typeColor } from '../../lib/gym';
+import { DOW_SHORT, dow, todayD } from '../../lib/dates';
+import { CORE_CATS, CORE_CAT_LABELS, REST, allTypes, dayAbs, dayTurnos, describeAbs, typeColor } from '../../lib/gym';
 import { C, tint } from '../../lib/theme';
 
 /* ----------------------------- PLAN SEMANAL -----------------------------
@@ -14,7 +14,7 @@ import { C, tint } from '../../lib/theme';
 
    Cuál chip está desplegado ahora es `{ day, slot }` en vez de un índice solo — antes
    alcanzaba con "qué día" porque había un solo chip por día; con dos turnos hace falta
-   saber además cuál de los dos.
+   saber además cuál de los dos. `slot` vale 1, 2 o 'abs' (ver más abajo).
 
    Ojo con una diferencia deliberada de la etapa 2: en la app vanilla, getWeekPlan() creaba
    la semana en el documento con solo MIRARLA, y esa semana vacía se guardaba en el próximo
@@ -22,17 +22,17 @@ import { C, tint } from '../../lib/theme';
    escribe cuando de verdad cambiás algo. Vanilla recrea al vuelo las semanas que falten,
    así que ninguna de las dos versiones pierde datos.
 
-   Abs y movilidad (etapa 6, corregido después de la primera entrega): Lulo pidió
-   explícitamente que esto NO fuera una sección aparte más abajo en la pantalla, sino algo
-   "dentro de la planificación semanal". El dato sigue siendo el mismo (gym.coreLog, una
-   lista independiente de weekPlans — ver la nota en lib/gym.js), lo que cambió es dónde
-   vive en la pantalla: `coreEntries` ya viene filtrado por GymPage a los registros de la
-   semana que se está mirando, y se dibuja acá adentro, en el mismo `.sect` que el plan de
-   turnos, con las mismas piezas visuales que "Administrar tipos" (managetypes-head,
-   managelist/managerow) en vez de inventar un estilo nuevo. */
+   Abs y movilidad (etapa 6, tercera vuelta después de la primera entrega): Lulo pidió
+   "literalmente como el resto de entrenamientos" — no una lista aparte, no un bloque
+   propio: un renglón MÁS dentro de cada día del plan, con el mismo gday/gchip/optchips
+   que ya dibuja los turnos. La diferencia con un turno es que categories es multi-select
+   (varias a la vez, cada click prende/apaga UNA) en vez de single-select como el tipo de
+   entreno, así que el panel de abajo no cierra solo al elegir — se cierra tocando el chip
+   de arriba de nuevo, como cualquier desplegable. No cuenta como turno: no aporta a
+   dayTurnos()/gymHistory(), es información aparte que vive en el mismo día. */
 export function WeekPlan({
   data, plan, weekLabel, isCurrentWeek, expandido, onExpandir, onSemana, onTipo, onHecho,
-  onAddTurno, onRemoveTurno, onAdministrar, coreEntries, onNewCore, onEditCore,
+  onAddTurno, onRemoveTurno, onAdministrar, onToggleAbsCat, onToggleMovilidad,
 }) {
   const hoyIdx = dow(todayD());
 
@@ -54,6 +54,9 @@ export function WeekPlan({
       <div className="card plancard">
         {plan.map((d, i) => {
           const turnos = dayTurnos(d);
+          const abs = dayAbs(d);
+          const absDescr = describeAbs(abs);
+          const absAbierto = !!expandido && expandido.day === i && expandido.slot === 'abs';
 
           return (
             <div className="planday" key={i}>
@@ -111,7 +114,7 @@ export function WeekPlan({
                 );
               })}
 
-              {expandido && expandido.day === i && (
+              {expandido && expandido.day === i && typeof expandido.slot === 'number' && (
                 <div className="optchips">
                   {allTypes(data).map((opt) => {
                     const turnoActivo = turnos.find((t) => t.slot === expandido.slot);
@@ -142,36 +145,69 @@ export function WeekPlan({
                   2do turno
                 </button>
               )}
+
+              {/* data-absrow: sin equivalente en vanilla, así que src/compat/screens.test.jsx
+                  lo saca del DOM antes de comparar texto. Es un atributo, no una clase, para
+                  no arrastrar el chequeo de "toda clase usada existe en el CSS" — este
+                  renglón reutiliza gday/gchip/optchips tal cual, no necesita ninguna nueva. */}
+              <div className="gday" data-absrow="true">
+                <span className="gtag" />
+                <div className="gbar" style={absDescr ? { background: C.violet } : undefined} />
+
+                <button
+                  type="button"
+                  className="gchip"
+                  style={absDescr ? { background: tint(C.violet, '24'), color: C.violet } : undefined}
+                  aria-label={`Abs y movilidad de ${DOW_SHORT[i]}`}
+                  aria-expanded={absAbierto}
+                  onClick={() => onExpandir(absAbierto ? null : { day: i, slot: 'abs' })}
+                >
+                  {absDescr || 'Abs y movilidad'}{' '}
+                  <ChipChevronIcon open={absAbierto} />
+                </button>
+
+                <div className="spacer" />
+              </div>
+
+              {absAbierto && (
+                <div className="optchips">
+                  {CORE_CATS.map((cat) => {
+                    const activo = abs.categories.includes(cat);
+                    return (
+                      <button
+                        type="button"
+                        key={cat}
+                        className={`optchip${activo ? ' on' : ''}`}
+                        style={{
+                          color: activo ? '#0A0C11' : C.violet,
+                          background: activo ? C.violet : tint(C.violet, '20'),
+                          border: `1.5px solid ${activo ? 'transparent' : tint(C.violet, '55')}`,
+                        }}
+                        aria-pressed={activo}
+                        onClick={() => onToggleAbsCat(i, cat)}
+                      >
+                        {CORE_CAT_LABELS[cat]}
+                      </button>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    className={`optchip${abs.movilidad ? ' on' : ''}`}
+                    style={{
+                      color: abs.movilidad ? '#0A0C11' : C.violet,
+                      background: abs.movilidad ? C.violet : tint(C.violet, '20'),
+                      border: `1.5px solid ${abs.movilidad ? 'transparent' : tint(C.violet, '55')}`,
+                    }}
+                    aria-pressed={abs.movilidad}
+                    onClick={() => onToggleMovilidad(i)}
+                  >
+                    Movilidad
+                  </button>
+                </div>
+              )}
             </div>
           );
         })}
-      </div>
-
-      <div className="fld weekcorelog">
-        <div className="managetypes-head">
-          <div className="flabel notopmargin">Abs y movilidad</div>
-          <button type="button" className="roundadd" style={{ background: C.violet }} onClick={onNewCore} aria-label="Registrar abs o movilidad">
-            <PlusIcon size={18} strokeWidth="2.6" color="#0A0C11" />
-          </button>
-        </div>
-
-        {coreEntries.length === 0 ? (
-          <div className="empty">Nada esta semana.</div>
-        ) : (
-          <div className="card managelist">
-            {coreEntries.map((e) => {
-              const dia = DOW_SHORT[dow(parseISO(e.date))];
-              return (
-                <div className="managerow" key={e.id}>
-                  <span className="managerow-name">{dia} · {describeCoreLogEntry(e)}</span>
-                  <button type="button" className="iconcirc" aria-label={`Editar registro de ${dia}`} onClick={() => onEditCore(e)}>
-                    <PencilIcon />
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        )}
       </div>
 
       <button type="button" className="dashed managetypes" onClick={onAdministrar}>

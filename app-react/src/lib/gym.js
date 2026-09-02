@@ -12,12 +12,15 @@
    Ninguna función de acá abajo asume que existen; dayTurnos() es el único lugar que los
    lee, y lo hace con `day.type2` como el chequeo de "¿hay un segundo turno?".
 
-   Abs y movilidad (etapa 6, otro campo nuevo, mismo pedido): gym.coreLog es una lista
-   INDEPENDIENTE de weekPlans y lifts — no es un turno de entreno, es su propio registro.
-   Cada entrada: { id, date, categories:[subset de core/bajos/oblicuos/altos], movilidad }.
-   `categories` puede ir vacío si la entrada es solo de movilidad (sin abdominales ese día);
-   `movilidad` es un booleano aparte, no una categoría más. Nada le impide a dos entradas
-   compartir la misma `date`: son registros con su propio id, no un mapa por fecha. */
+   Abs y movilidad (etapa 6, campos nuevos, pedido explícito de Lulo — reescrito dos veces
+   hasta llegar acá: primero se probó como lista aparte (gym.coreLog), después como bloque
+   propio dentro del plan semanal, y en las dos Lulo pidió más integración. Esta versión es
+   la literal: `absCategories`/`movilidad` son dos campos MÁS del mismo día del plan
+   semanal, al lado de `type`/`done`/`type2`/`done2` — no una lista, no un turno, un campo
+   del día. Se hace UNA vez por día (no varias entradas como se probó antes): elegir de
+   nuevo una categoría ya marcada la saca, exactamente como un checkbox.
+   `absCategories` ausente o `movilidad` ausente = nada marcado ese día; dayAbs() es el
+   único lugar que lee estos dos campos directamente. */
 import { addDays, iso, mondayOf, parseISO, todayD, DOW_SHORT } from './dates';
 import { C } from './theme';
 
@@ -147,14 +150,15 @@ export function bodyList(state) {
 export const CORE_CATS = ['core', 'bajos', 'oblicuos', 'altos'];
 export const CORE_CAT_LABELS = { core: 'Core', bajos: 'Bajos', oblicuos: 'Oblicuos', altos: 'Altos' };
 
-// Registros de abs/movilidad, del más viejo al más nuevo. Copia: no toca el estado.
-export function coreLogList(state) {
-  return (state.gym.coreLog || []).slice().sort((a, b) => (a.date < b.date ? -1 : 1));
+// Lee absCategories/movilidad de un día del plan, con los defaults de "nada marcado".
+// Es el único lugar que los lee directamente — WeekPlan dibuja sobre esto, no sobre el día crudo.
+export function dayAbs(day) {
+  return { categories: day.absCategories || [], movilidad: !!day.movilidad };
 }
 
-// "Core, oblicuos + movilidad" / "Movilidad" / "Bajos, altos" — lo que tenga la entrada, en ese orden.
-export function describeCoreLogEntry(entry) {
-  const partes = entry.categories.map((c) => CORE_CAT_LABELS[c]);
-  if (entry.movilidad) partes.push('Movilidad');
-  return partes.join(', ');
+// "Core, Oblicuos, Movilidad" / "Movilidad" / null si no hay nada marcado ese día.
+export function describeAbs({ categories, movilidad }) {
+  const partes = categories.map((c) => CORE_CAT_LABELS[c]);
+  if (movilidad) partes.push('Movilidad');
+  return partes.length ? partes.join(', ') : null;
 }

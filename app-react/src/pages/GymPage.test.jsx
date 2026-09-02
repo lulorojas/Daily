@@ -367,100 +367,127 @@ describe('el entreno de Hoy trae la semana correcta', () => {
   });
 });
 
-describe('abs y movilidad (etapa 6, dentro del plan semanal)', () => {
-  it('sin registros esta semana, lo dice ahí mismo, dentro del plan', () => {
+describe('abs y movilidad (etapa 6, como un renglón más de cada día)', () => {
+  it('sin nada marcado, el chip muestra el placeholder', () => {
     renderScreen(<GymPage />, { doc: emptyDoc() });
-    expect(screen.getByText('Nada esta semana.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Abs y movilidad de Lun' })).toHaveTextContent('Abs y movilidad');
   });
 
-  it('registrar categorías nuevas las agrega a gym.coreLog, con el día elegido por chip', async () => {
-    const user = userEvent.setup();
-    const { doc: leer } = renderScreen(<GymPage />, { doc: emptyDoc() });
-
-    await user.click(screen.getByRole('button', { name: 'Registrar abs o movilidad' }));
-    await user.click(screen.getByRole('button', { name: 'Lun' }));
-    await user.click(screen.getByRole('button', { name: 'Core' }));
-    await user.click(screen.getByRole('button', { name: 'Oblicuos' }));
-    await user.click(screen.getByRole('button', { name: 'Guardar' }));
-
-    const [entrada] = leer().gym.coreLog;
-    expect(entrada.categories).toEqual(['core', 'oblicuos']);
-    expect(entrada.movilidad).toBe(false);
-    expect(screen.getByText('Lun · Core, Oblicuos')).toBeInTheDocument();
-  });
-
-  it('movilidad sola, sin ninguna categoría, también se puede guardar', async () => {
-    const user = userEvent.setup();
-    const { doc: leer } = renderScreen(<GymPage />, { doc: emptyDoc() });
-
-    await user.click(screen.getByRole('button', { name: 'Registrar abs o movilidad' }));
-    await user.click(screen.getByRole('button', { name: 'Hice movilidad' }));
-    await user.click(screen.getByRole('button', { name: 'Guardar' }));
-
-    const [entrada] = leer().gym.coreLog;
-    expect(entrada.categories).toEqual([]);
-    expect(entrada.movilidad).toBe(true);
-  });
-
-  it('sin ninguna categoría ni movilidad marcada, avisa y no guarda', async () => {
-    const user = userEvent.setup();
-    const { doc: leer } = renderScreen(<GymPage />, { doc: emptyDoc() });
-
-    await user.click(screen.getByRole('button', { name: 'Registrar abs o movilidad' }));
-    await user.click(screen.getByRole('button', { name: 'Guardar' }));
-
-    expect(screen.getByText('Marcá al menos una categoría de abdominales o movilidad.')).toBeInTheDocument();
-    expect(leer().gym.coreLog ?? []).toHaveLength(0);
-  });
-
-  it('dos registros el mismo día quedan como dos entradas, no se pisan', async () => {
-    const user = userEvent.setup();
-    const { doc: leer } = renderScreen(<GymPage />, { doc: emptyDoc() });
-
-    await user.click(screen.getByRole('button', { name: 'Registrar abs o movilidad' }));
-    await user.click(screen.getByRole('button', { name: 'Lun' }));
-    await user.click(screen.getByRole('button', { name: 'Bajos' }));
-    await user.click(screen.getByRole('button', { name: 'Guardar' }));
-
-    await user.click(screen.getByRole('button', { name: 'Registrar abs o movilidad' }));
-    await user.click(screen.getByRole('button', { name: 'Lun' }));
-    await user.click(screen.getByRole('button', { name: 'Altos' }));
-    await user.click(screen.getByRole('button', { name: 'Guardar' }));
-
-    const log = leer().gym.coreLog;
-    expect(log).toHaveLength(2);
-    expect(log[0].date).toBe(log[1].date);
-    expect(log[0].id).not.toBe(log[1].id);
-  });
-
-  it('editar un registro existente actualiza sus categorías, desde el mismo plan semanal', async () => {
-    const user = userEvent.setup();
-    const { doc: leer } = renderScreen(<GymPage />, { doc: emptyDoc() });
-
-    await user.click(screen.getByRole('button', { name: 'Registrar abs o movilidad' }));
-    await user.click(screen.getByRole('button', { name: 'Lun' }));
-    await user.click(screen.getByRole('button', { name: 'Core' }));
-    await user.click(screen.getByRole('button', { name: 'Guardar' }));
-
-    await user.click(screen.getByRole('button', { name: 'Editar registro de Lun' }));
-    await user.click(screen.getByRole('button', { name: 'Oblicuos' }));
-    await user.click(screen.getByRole('button', { name: 'Guardar' }));
-
-    expect(leer().gym.coreLog[0].categories.sort()).toEqual(['core', 'oblicuos']);
-  });
-
-  it('navegar a otra semana filtra los registros que se muestran (no se mezclan entre semanas)', async () => {
+  it('tocar el renglón lo despliega y muestra las 4 categorías + movilidad', async () => {
     const user = userEvent.setup();
     renderScreen(<GymPage />, { doc: emptyDoc() });
 
-    await user.click(screen.getByRole('button', { name: 'Registrar abs o movilidad' }));
-    await user.click(screen.getByRole('button', { name: 'Lun' }));
+    await user.click(screen.getByRole('button', { name: 'Abs y movilidad de Lun' }));
+
+    expect(screen.getByRole('button', { name: 'Core' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Bajos' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Oblicuos' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Altos' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Movilidad' })).toBeInTheDocument();
+  });
+
+  it('marcar una categoría la guarda en el día y no cierra el desplegable', async () => {
+    const user = userEvent.setup();
+    const { doc: leer } = renderScreen(<GymPage />, { doc: emptyDoc() });
+
+    await user.click(screen.getByRole('button', { name: 'Abs y movilidad de Lun' }));
     await user.click(screen.getByRole('button', { name: 'Core' }));
-    await user.click(screen.getByRole('button', { name: 'Guardar' }));
-    expect(screen.getByText('Lun · Core')).toBeInTheDocument();
+
+    expect(leer().gym.weekPlans[weekKey(0)][0].absCategories).toEqual(['core']);
+    // Sigue desplegado: multi-select no cierra al elegir, a diferencia del tipo de turno.
+    expect(screen.getByRole('button', { name: 'Oblicuos' })).toBeInTheDocument();
+  });
+
+  it('marcar varias categorías a la vez, sin pisarse entre sí', async () => {
+    const user = userEvent.setup();
+    const { doc: leer } = renderScreen(<GymPage />, { doc: emptyDoc() });
+
+    await user.click(screen.getByRole('button', { name: 'Abs y movilidad de Lun' }));
+    await user.click(screen.getByRole('button', { name: 'Core' }));
+    await user.click(screen.getByRole('button', { name: 'Oblicuos' }));
+
+    expect(leer().gym.weekPlans[weekKey(0)][0].absCategories).toEqual(['core', 'oblicuos']);
+  });
+
+  it('tocar una categoría ya marcada la saca', async () => {
+    const user = userEvent.setup();
+    const { doc: leer } = renderScreen(<GymPage />, { doc: emptyDoc() });
+
+    await user.click(screen.getByRole('button', { name: 'Abs y movilidad de Lun' }));
+    await user.click(screen.getByRole('button', { name: 'Core' }));
+    await user.click(screen.getByRole('button', { name: 'Core' }));
+
+    expect(leer().gym.weekPlans[weekKey(0)][0].absCategories).toBeUndefined();
+  });
+
+  it('movilidad es independiente de las categorías', async () => {
+    const user = userEvent.setup();
+    const { doc: leer } = renderScreen(<GymPage />, { doc: emptyDoc() });
+
+    await user.click(screen.getByRole('button', { name: 'Abs y movilidad de Lun' }));
+    await user.click(screen.getByRole('button', { name: 'Movilidad' }));
+
+    expect(leer().gym.weekPlans[weekKey(0)][0].movilidad).toBe(true);
+    expect(leer().gym.weekPlans[weekKey(0)][0].absCategories).toBeUndefined();
+  });
+
+  it('el chip refleja lo marcado y vuelve al placeholder si se saca todo', async () => {
+    const user = userEvent.setup();
+    renderScreen(<GymPage />, { doc: emptyDoc() });
+    const chip = () => screen.getByRole('button', { name: 'Abs y movilidad de Lun' });
+
+    await user.click(chip());
+    await user.click(screen.getByRole('button', { name: 'Core' }));
+    expect(chip()).toHaveTextContent('Core');
+
+    await user.click(screen.getByRole('button', { name: 'Core' }));
+    expect(chip()).toHaveTextContent('Abs y movilidad');
+  });
+
+  it('no cuenta como turno: no cambia el contador de entrenamientos de la semana', async () => {
+    const user = userEvent.setup();
+    renderScreen(<GymPage />, { doc: emptyDoc() });
+    expect(screen.getByText('0 de 0 entrenamientos esta semana')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Abs y movilidad de Lun' }));
+    await user.click(screen.getByRole('button', { name: 'Core' }));
+    await user.click(screen.getByRole('button', { name: 'Movilidad' }));
+
+    expect(screen.getByText('0 de 0 entrenamientos esta semana')).toBeInTheDocument();
+  });
+
+  it('no toca el turno de entreno del mismo día', async () => {
+    const user = userEvent.setup();
+    const { doc: leer } = renderScreen(<GymPage />, { doc: doc() });
+
+    await user.click(screen.getByRole('button', { name: 'Abs y movilidad de Lun' }));
+    await user.click(screen.getByRole('button', { name: 'Core' }));
+
+    const lun = leer().gym.weekPlans[weekKey(0)][0];
+    expect(lun.type).toBe('Pecho'); // fullDoc(): Lun ya viene con Pecho hecho
+    expect(lun.done).toBe(true);
+    expect(lun.absCategories).toEqual(['core']);
+  });
+
+  it('abrir el tipo de un turno cierra el desplegable de abs, y viceversa', async () => {
+    const user = userEvent.setup();
+    renderScreen(<GymPage />, { doc: doc() });
+
+    await user.click(screen.getByRole('button', { name: 'Abs y movilidad de Lun' }));
+    expect(screen.getByRole('button', { name: 'Movilidad' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Lun: Pecho, cambiar tipo' }));
+    expect(screen.queryByRole('button', { name: 'Movilidad' })).not.toBeInTheDocument();
+  });
+
+  it('cambiar de semana cierra el desplegable de abs que estaba abierto', async () => {
+    const user = userEvent.setup();
+    renderScreen(<GymPage />, { doc: emptyDoc() });
+
+    await user.click(screen.getByRole('button', { name: 'Abs y movilidad de Lun' }));
+    expect(screen.getByRole('button', { name: 'Movilidad' })).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Semana anterior' }));
-    expect(screen.queryByText('Lun · Core')).not.toBeInTheDocument();
-    expect(screen.getByText('Nada esta semana.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Movilidad' })).not.toBeInTheDocument();
   });
 });

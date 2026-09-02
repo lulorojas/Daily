@@ -4,7 +4,6 @@ import { WeekPlan } from '../components/gym/WeekPlan';
 import { BodyWeightSection } from '../components/gym/BodyWeightSection';
 import { BodyWeightModal } from '../components/gym/BodyWeightModal';
 import { BodyManageModal } from '../components/gym/BodyManageModal';
-import { CoreLogModal } from '../components/gym/CoreLogModal';
 import { LiftCard } from '../components/gym/LiftCard';
 import { LiftModal } from '../components/gym/LiftModal';
 import { LiftDetailModal } from '../components/gym/LiftDetailModal';
@@ -13,11 +12,10 @@ import { TypesManager } from '../components/gym/TypesManager';
 import { Section } from '../components/ui/Section';
 import { BookIcon } from '../components/ui/Icons';
 import { useData } from '../hooks/useData';
-import { REST, coreLogList, dayTurnos, weekKey, weekPlanFor } from '../lib/gym';
+import { REST, dayTurnos, weekKey, weekPlanFor } from '../lib/gym';
 import { gymSubtitle, weekOffsetForDay, weekRangeLabel } from '../lib/gymView';
 import { isValidISO } from '../hooks/useSelectedDay';
-import { addDays, dow, iso, parseISO, todayD } from '../lib/dates';
-import { addSecondTurno, removeSecondTurno, setWeekDayType, toggleWeekDayDone } from '../store/mutations';
+import { addSecondTurno, removeSecondTurno, setWeekDayType, toggleAbsCategory, toggleMovilidad, toggleWeekDayDone } from '../store/mutations';
 import { C, tint } from '../lib/theme';
 
 /* ============================================================================
@@ -55,19 +53,6 @@ export function GymPage() {
   const doneCount = turnos.filter((t) => t.done).length;
   const weekLabel = weekRangeLabel(offset);
 
-  /* Abs y movilidad (etapa 6, corregido después de la primera entrega): pedido explícito
-     de que viva "dentro de la planificación semanal", no en una sección aparte más abajo.
-     El dato (gym.coreLog) sigue siendo una lista independiente de weekPlans — lo que
-     cambia acá es que se filtra a la semana que se está mirando (mismo offset que el plan
-     de turnos), así que navegar de semana con las flechas de WeekPlan también navega estos
-     registros. */
-  const weekStartISO = weekKey(offset);
-  const weekEndISO = iso(addDays(parseISO(weekStartISO), 6));
-  const coreEntries = coreLogList(data).filter((e) => e.date >= weekStartISO && e.date <= weekEndISO);
-  // Si se está mirando la semana actual, el día por defecto para un registro nuevo es hoy;
-  // si no, el lunes de esa semana (no hay un "hoy" que tenga sentido en otra semana).
-  const defaultDayIndex = offset === 0 ? dow(todayD()) : 0;
-
   const changeWeek = (dir) => { setOffset((o) => o + dir); setExpandido(null); };
 
   const nRut = data.gym.routines.length;
@@ -94,9 +79,8 @@ export function GymPage() {
           onAddTurno={(i) => update((draft) => addSecondTurno(draft, weekKey(offset), i))}
           onRemoveTurno={(i) => { setExpandido(null); update((draft) => removeSecondTurno(draft, weekKey(offset), i)); }}
           onAdministrar={() => setModal({ kind: 'types' })}
-          coreEntries={coreEntries}
-          onNewCore={() => setModal({ kind: 'core-new' })}
-          onEditCore={(entry) => setModal({ kind: 'core-edit', entry })}
+          onToggleAbsCat={(i, cat) => update((draft) => toggleAbsCategory(draft, weekKey(offset), i, cat))}
+          onToggleMovilidad={(i) => update((draft) => toggleMovilidad(draft, weekKey(offset), i))}
         />
 
         <BodyWeightSection
@@ -159,13 +143,6 @@ export function GymPage() {
           onNew={() => setModal({ kind: 'body-new' })}
           onEdit={(record) => setModal({ kind: 'body-edit', record })}
         />
-      )}
-
-      {modal?.kind === 'core-new' && (
-        <CoreLogModal weekStart={weekStartISO} defaultDayIndex={defaultDayIndex} onClose={() => setModal(null)} />
-      )}
-      {modal?.kind === 'core-edit' && (
-        <CoreLogModal entry={modal.entry} weekStart={weekStartISO} onClose={() => setModal(null)} />
       )}
     </div>
   );

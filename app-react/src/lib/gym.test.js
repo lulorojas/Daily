@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { coreLogList, dayTurnos, describeCoreLogEntry, gymHistory, REST } from './gym';
+import { dayAbs, dayTurnos, describeAbs, gymHistory, REST } from './gym';
 import { normalize } from './model';
 import { emptyDoc } from '../test/fixtures';
 
@@ -60,41 +60,35 @@ describe('gymHistory con turnos dobles', () => {
   });
 });
 
-describe('coreLogList', () => {
-  it('un documento sin gym.coreLog da lista vacía, no explota', () => {
-    const d = normalize(emptyDoc());
-    expect(d.gym.coreLog).toBeUndefined();
-    expect(coreLogList(d)).toEqual([]);
+describe('dayAbs', () => {
+  it('un día sin absCategories ni movilidad: nada marcado', () => {
+    expect(dayAbs({ type: 'Pecho', done: true })).toEqual({ categories: [], movilidad: false });
   });
 
-  it('ordena del más viejo al más nuevo, como bodyList', () => {
-    const d = normalize(emptyDoc());
-    d.gym.coreLog = [
-      { id: 'c2', date: '2026-08-20', categories: ['core'], movilidad: false },
-      { id: 'c1', date: '2026-08-10', categories: [], movilidad: true },
-    ];
-    expect(coreLogList(d).map((x) => x.id)).toEqual(['c1', 'c2']);
+  it('lee absCategories y movilidad tal cual estén', () => {
+    const day = { type: 'Pecho', done: true, absCategories: ['core', 'oblicuos'], movilidad: true };
+    expect(dayAbs(day)).toEqual({ categories: ['core', 'oblicuos'], movilidad: true });
   });
 
-  it('devuelve una copia: no muta gym.coreLog', () => {
-    const d = normalize(emptyDoc());
-    d.gym.coreLog = [{ id: 'c1', date: '2026-08-10', categories: [], movilidad: true }];
-    const original = d.gym.coreLog;
-    coreLogList(d);
-    expect(d.gym.coreLog).toBe(original);
+  it('absCategories sin movilidad: movilidad da false, no undefined', () => {
+    expect(dayAbs({ absCategories: ['bajos'] })).toEqual({ categories: ['bajos'], movilidad: false });
   });
 });
 
-describe('describeCoreLogEntry', () => {
+describe('describeAbs', () => {
   it('junta las categorías con coma', () => {
-    expect(describeCoreLogEntry({ categories: ['core', 'oblicuos'], movilidad: false })).toBe('Core, Oblicuos');
+    expect(describeAbs({ categories: ['core', 'oblicuos'], movilidad: false })).toBe('Core, Oblicuos');
   });
 
   it('agrega Movilidad al final si corresponde', () => {
-    expect(describeCoreLogEntry({ categories: ['core'], movilidad: true })).toBe('Core, Movilidad');
+    expect(describeAbs({ categories: ['core'], movilidad: true })).toBe('Core, Movilidad');
   });
 
   it('movilidad sola, sin categorías', () => {
-    expect(describeCoreLogEntry({ categories: [], movilidad: true })).toBe('Movilidad');
+    expect(describeAbs({ categories: [], movilidad: true })).toBe('Movilidad');
+  });
+
+  it('nada marcado da null, no un string vacío', () => {
+    expect(describeAbs({ categories: [], movilidad: false })).toBeNull();
   });
 });

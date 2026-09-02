@@ -270,59 +270,71 @@ describe('plan semanal: segundo turno', () => {
   });
 });
 
-describe('abs y movilidad (coreLog)', () => {
-  it('un documento sin ningún registro no tiene el campo (se materializa recién al primero)', () => {
+describe('abs y movilidad (campos del día, no una lista aparte)', () => {
+  it('un día nuevo no tiene absCategories ni movilidad', () => {
     const d = vacio();
-    // A propósito NO se le pone default en normalize(): ver la nota en lib/model.js.
-    expect(d.gym.coreLog).toBeUndefined();
+    m.toggleWeekDayDone(d, '2026-08-03', 0); // toca la semana, sin tocar abs
+    const day = d.gym.weekPlans['2026-08-03'][0];
+    expect(day.absCategories).toBeUndefined();
+    expect(day.movilidad).toBeUndefined();
   });
 
-  it('agregar el primer registro crea la lista', () => {
+  it('marcar una categoría la agrega', () => {
     const d = vacio();
-    const e = m.addCoreLogEntry(d, { date: TODAY, categories: ['core'], movilidad: false });
-    expect(d.gym.coreLog).toEqual([{ id: e.id, date: TODAY, categories: ['core'], movilidad: false }]);
+    m.toggleAbsCategory(d, '2026-08-03', 0, 'core');
+    expect(d.gym.weekPlans['2026-08-03'][0].absCategories).toEqual(['core']);
   });
 
-  it('movilidad sola, sin ninguna categoría, es una entrada válida', () => {
+  it('marcar dos categorías las junta, sin pisar la primera', () => {
     const d = vacio();
-    m.addCoreLogEntry(d, { date: TODAY, categories: [], movilidad: true });
-    expect(d.gym.coreLog[0]).toEqual({ id: expect.any(String), date: TODAY, categories: [], movilidad: true });
+    m.toggleAbsCategory(d, '2026-08-03', 0, 'core');
+    m.toggleAbsCategory(d, '2026-08-03', 0, 'oblicuos');
+    expect(d.gym.weekPlans['2026-08-03'][0].absCategories).toEqual(['core', 'oblicuos']);
   });
 
-  it('dos registros el mismo día no se pisan: quedan como dos entradas distintas', () => {
+  it('tocar una categoría ya marcada la saca (toggle)', () => {
     const d = vacio();
-    m.addCoreLogEntry(d, { date: TODAY, categories: ['core'], movilidad: false });
-    m.addCoreLogEntry(d, { date: TODAY, categories: ['oblicuos'], movilidad: true });
-    expect(d.gym.coreLog).toHaveLength(2);
-    expect(d.gym.coreLog.every((x) => x.date === TODAY)).toBe(true);
-    expect(d.gym.coreLog[0].id).not.toBe(d.gym.coreLog[1].id);
+    m.toggleAbsCategory(d, '2026-08-03', 0, 'core');
+    m.toggleAbsCategory(d, '2026-08-03', 0, 'core');
+    expect(d.gym.weekPlans['2026-08-03'][0].absCategories).toBeUndefined();
   });
 
-  it('editar un registro reemplaza sus datos sin tocar el id', () => {
+  it('sacar la última categoría borra el campo entero, no deja un array vacío', () => {
     const d = vacio();
-    const e = m.addCoreLogEntry(d, { date: TODAY, categories: ['core'], movilidad: false });
-    expect(m.updateCoreLogEntry(d, e.id, { date: ago(1), categories: ['altos', 'bajos'], movilidad: true })).toBe(true);
-    expect(d.gym.coreLog[0]).toEqual({ id: e.id, date: ago(1), categories: ['altos', 'bajos'], movilidad: true });
+    m.toggleAbsCategory(d, '2026-08-03', 0, 'core');
+    m.toggleAbsCategory(d, '2026-08-03', 0, 'oblicuos');
+    m.toggleAbsCategory(d, '2026-08-03', 0, 'core');
+    m.toggleAbsCategory(d, '2026-08-03', 0, 'oblicuos');
+    const day = d.gym.weekPlans['2026-08-03'][0];
+    expect('absCategories' in day).toBe(false);
   });
 
-  it('editar uno que no existe avisa en vez de romper', () => {
+  it('movilidad se prende y apaga igual que una categoría', () => {
     const d = vacio();
-    expect(m.updateCoreLogEntry(d, 'no-existe', { date: TODAY, categories: [], movilidad: true })).toBe(false);
+    m.toggleMovilidad(d, '2026-08-03', 0);
+    expect(d.gym.weekPlans['2026-08-03'][0].movilidad).toBe(true);
+    m.toggleMovilidad(d, '2026-08-03', 0);
+    expect('movilidad' in d.gym.weekPlans['2026-08-03'][0]).toBe(false);
   });
 
-  it('borrar saca solo el que corresponde', () => {
+  it('categorías y movilidad son independientes: tocar una no toca la otra', () => {
     const d = vacio();
-    const e1 = m.addCoreLogEntry(d, { date: TODAY, categories: ['core'], movilidad: false });
-    const e2 = m.addCoreLogEntry(d, { date: TODAY, categories: ['bajos'], movilidad: false });
-    expect(m.deleteCoreLogEntry(d, e1.id)).toBe(true);
-    expect(d.gym.coreLog.map((x) => x.id)).toEqual([e2.id]);
+    m.toggleAbsCategory(d, '2026-08-03', 0, 'bajos');
+    m.toggleMovilidad(d, '2026-08-03', 0);
+    const day = d.gym.weekPlans['2026-08-03'][0];
+    expect(day.absCategories).toEqual(['bajos']);
+    expect(day.movilidad).toBe(true);
   });
 
-  it('borrar algo que no existe no cambia nada', () => {
+  it('no toca el type/done del día ni los turnos', () => {
     const d = vacio();
-    m.addCoreLogEntry(d, { date: TODAY, categories: ['core'], movilidad: false });
-    expect(m.deleteCoreLogEntry(d, 'no-existe')).toBe(false);
-    expect(d.gym.coreLog).toHaveLength(1);
+    m.setWeekDayType(d, '2026-08-03', 0, 'Pecho');
+    m.toggleWeekDayDone(d, '2026-08-03', 0);
+    m.toggleAbsCategory(d, '2026-08-03', 0, 'core');
+    m.toggleMovilidad(d, '2026-08-03', 0);
+    const day = d.gym.weekPlans['2026-08-03'][0];
+    expect(day.type).toBe('Pecho');
+    expect(day.done).toBe(true);
   });
 });
 

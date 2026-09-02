@@ -17,33 +17,38 @@
        habits: [ { id, name, detail, color, icon, timesPerDay } ],
        habitLog: { 'YYYY-MM-DD': { [habitId]: cantidadDeMarcas } },
        gym: {
-         customTypes: [ { id, name, color } ],
-         weekPlans:   { 'YYYY-MM-DD(lunes)': [ { type, done }, ...x7 ] },
-         lifts:       [ { id, name, unit, color, history:[ { date, weight } ] } ],
-         routines:    [ { id, name, days:[ { id, name, exercises:[ { id, name, detail } ] } ] } ],
-         bodyWeights: [ { id, kg, date } ],
-         coreLog?:    [ { id, date, categories:[...subset de core/bajos/oblicuos/altos], movilidad } ],
+         customTypes:    [ { id, name, color } ],
+         weekPlans:      { 'YYYY-MM-DD(lunes)': [ { type, done, type2?, done2?, absCategories?, movilidad? }, ...x7 ] },
+         lifts:          [ { id, name, unit, color, history:[ { date, weight } ] } ],
+         routines:       [ { id, name, days:[ { id, name, exercises:[ { id, name, detail } ] } ] } ],
+         bodyWeights:    [ { id, kg, date } ],
        },
        onboarding: { seen: boolean },
        fcmTokens?:  [ 'token de FCM de cada dispositivo que activó notificaciones' ],
        migratedFrom?, migratedAt?,     // solo en cuentas que vienen de daily.v1
      }
 
-   `weekPlans[semana][día].type2/done2`, `gym.coreLog` y `fcmTokens` son de la etapa 6
-   (React), sin equivalente en la app vanilla: no hay contra qué comparar en src/compat/,
-   así que se prueban directo. Los tres son compatibles hacia atrás por construcción:
-   type2/done2 son opcionales (ver dayTurnos() en lib/gym.js).
+   `weekPlans[semana][día].type2/done2/absCategories/movilidad` y `fcmTokens` son de la
+   etapa 6 (React), sin equivalente en la app vanilla: no hay contra qué comparar en
+   src/compat/, así que se prueban directo. Los cuatro campos del día son compatibles
+   hacia atrás por construcción: todos opcionales, ausentes en un día viejo (ver
+   dayTurnos()/dayAbs() en lib/gym.js).
 
-   `gym.coreLog` y `fcmTokens` a propósito NO tienen un default acá (a diferencia de
-   customTypes, weekPlans, etc.): si normalize() le pusiera `||= []` a TODA cuenta, ese
-   campo vacío aparecería hasta en un documento que nunca usó la función, y los tests de
+   `absCategories`/`movilidad` NO son una lista aparte ni un turno más — son dos campos
+   MÁS del mismo objeto día, exactamente al lado de type/done/type2/done2. No hacía falta
+   ningún truco de "no poner default en normalize()" para estos dos (a diferencia de
+   `fcmTokens`, más abajo): el día YA existe una vez que se toca la semana (ensureWeekPlan
+   en store/mutations.js), así que agregarle dos campos más no es distinto de agregarle
+   type2/done2.
+
+   `fcmTokens` sí a propósito NO tiene un default acá (a diferencia de customTypes,
+   weekPlans, etc.): si normalize() le pusiera `||= []` a TODA cuenta, ese campo vacío
+   aparecería hasta en un documento que nunca activó notificaciones, y los tests de
    src/compat/writes.test.js (que comparan el documento ENTERO, campo por campo, contra lo
-   que escribe vanilla) fallarían en cada mutación de cualquier pantalla, no solo en las
-   que agregan el campo — vanilla jamás va a escribir ninguno de los dos. Mismo truco que
-   weekPlanFor(): la lectura (coreLogList() en lib/gym.js; el propio `data.fcmTokens || []`
+   que escribe vanilla) fallarían en cada mutación de cualquier pantalla — vanilla jamás va
+   a escribir ese campo. Mismo truco que weekPlanFor(): la lectura (`data.fcmTokens || []`
    donde haga falta) trata la ausencia como `[]`, y el campo se materializa en el documento
-   recién cuando se guarda el primer registro/token (addCoreLogEntry(), registerFcmToken(),
-   ambas en store/mutations.js).
+   recién cuando se guarda el primer token (registerFcmToken(), en store/mutations.js).
 
    DOS REGLAS QUE NO SE NEGOCIAN:
 

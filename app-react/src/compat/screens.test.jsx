@@ -147,12 +147,12 @@ function gymVanilla(doc) {
 function gymReact(doc) {
   const { container } = renderScreen(<GymPage />, { doc: clone(doc) });
   /* Etapa 6 agregó a Gimnasio dos cosas sin equivalente en vanilla: el botón "+2do turno"
-     de cada día (entrenamientos dobles) y el bloque "Abs y movilidad" dentro del plan
-     semanal (.weekcorelog — pedido explícito de Lulo de que viviera ahí adentro y no en
-     una sección aparte). Ninguna de las dos se puede comparar contra la vanilla porque
-     vanilla no las tiene — se sacan del DOM antes de leer el texto, así el resto de la
-     pantalla (que sí es migración 1:1) sigue bajo esta misma red de seguridad. */
-  container.querySelectorAll('.turno-agregar, .weekcorelog').forEach((el) => el.remove());
+     de cada día (entrenamientos dobles) y el renglón de "Abs y movilidad" de cada día
+     (data-absrow — pedido explícito de Lulo de que viviera dentro del plan semanal, como
+     un turno más). Ninguna de las dos se puede comparar contra la vanilla porque vanilla
+     no las tiene — se sacan del DOM antes de leer el texto, así el resto de la pantalla
+     (que sí es migración 1:1) sigue bajo esta misma red de seguridad. */
+  container.querySelectorAll('.turno-agregar, [data-absrow]').forEach((el) => el.remove());
   return texto(container);
 }
 

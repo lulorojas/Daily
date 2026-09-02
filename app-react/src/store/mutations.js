@@ -271,27 +271,30 @@ export function deleteBodyWeight(draft, id) {
 
 /* ============================ gimnasio: abs y movilidad ============================ */
 
-/* Lista independiente de weekPlans: una entrada por sesión, con su propio id. Nada agrupa
-   por fecha, así que dos entradas del mismo día no se pisan — son dos registros distintos,
-   igual que dos cargas del mismo ejercicio el mismo día en lifts[].history. */
-export function addCoreLogEntry(draft, { date, categories = [], movilidad = false }) {
-  draft.gym.coreLog ||= [];
-  const entry = { id: uid(), date, categories: [...categories], movilidad: !!movilidad };
-  draft.gym.coreLog.push(entry);
-  return entry;
-}
-
-export function updateCoreLogEntry(draft, id, { date, categories, movilidad }) {
-  const e = (draft.gym.coreLog || []).find((x) => x.id === id);
-  if (!e) return false;
-  Object.assign(e, { date, categories: [...categories], movilidad: !!movilidad });
+/* Campos del MISMO día del plan semanal, al lado de type/done/type2/done2 — no una lista
+   aparte, no un turno. Cada toggle prende/apaga una sola cosa, como cualquier checkbox:
+   volver a tocar una categoría ya marcada la saca. Se borra el campo entero (no se deja un
+   array vacío ni un `false` colgando) cuando queda en "nada marcado", mismo criterio que
+   removeSecondTurno: un día que nunca tocó esto y uno al que se le sacó todo tienen que
+   quedar exactamente iguales. */
+export function toggleAbsCategory(draft, weekKeyISO, dayIndex, category) {
+  const plan = ensureWeekPlan(draft, weekKeyISO);
+  const day = plan[dayIndex];
+  if (!day) return false;
+  const cur = day.absCategories || [];
+  const next = cur.includes(category) ? cur.filter((c) => c !== category) : [...cur, category];
+  if (next.length) day.absCategories = next;
+  else delete day.absCategories;
   return true;
 }
 
-export function deleteCoreLogEntry(draft, id) {
-  const before = (draft.gym.coreLog || []).length;
-  draft.gym.coreLog = (draft.gym.coreLog || []).filter((x) => x.id !== id);
-  return draft.gym.coreLog.length !== before;
+export function toggleMovilidad(draft, weekKeyISO, dayIndex) {
+  const plan = ensureWeekPlan(draft, weekKeyISO);
+  const day = plan[dayIndex];
+  if (!day) return false;
+  if (day.movilidad) delete day.movilidad;
+  else day.movilidad = true;
+  return true;
 }
 
 /* ============================ rutinas ============================ */

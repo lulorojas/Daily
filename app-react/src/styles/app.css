@@ -233,13 +233,6 @@ button.slot:disabled { cursor: default; }
 .turno-agregar:hover { color: rgba(242, 244, 248, .6); }
 .sectcount { font-size: 12px; color: rgba(242, 244, 248, .35); }
 
-/* ---- abs y movilidad, dentro del plan semanal (etapa 6, corregido después de la
-   primera entrega: Lulo pidió que viviera acá adentro, no en una sección aparte más
-   abajo). El bloque en sí reutiliza managetypes-head/managelist/managerow tal cual —
-   el único ajuste propio es la separación del plancard de arriba, misma magnitud que
-   dashed.managetypes le da al botón de abajo. */
-.weekcorelog { margin-top: 2px; }
-
 /* ---- peso corporal (Gimnasio y Progreso comparten estas clases: son el mismo dibujo) ----
    .bigcard ya existe en styles.css (el degradé de fondo). Acá va lo de adentro, que en
    vanilla eran estilos inline repetidos igual en bodyWeightSection() y progBodyWeight(). */
