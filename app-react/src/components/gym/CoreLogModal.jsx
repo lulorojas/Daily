@@ -1,29 +1,31 @@
 import { useState } from 'react';
 import { Modal } from '../ui/Modal';
 import { Field } from '../ui/Field';
-import { DateField } from '../ui/DatePicker';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { useData } from '../../hooks/useData';
 import { addCoreLogEntry, deleteCoreLogEntry, updateCoreLogEntry } from '../../store/mutations';
 import { CORE_CATS, CORE_CAT_LABELS } from '../../lib/gym';
 import { C } from '../../lib/theme';
-import { todayISO } from '../../lib/dates';
+import { addDays, dow, DOW_SHORT, iso, parseISO } from '../../lib/dates';
 
 const ACCENT = C.violet;
 
 /* ----------------------------- REGISTRAR / EDITAR ABS Y MOVILIDAD -----------------------------
-   Sin equivalente en la app vanilla (etapa 6): no hay un modal viejo del que portar el
-   marcado, así que este sigue el mismo patrón que BodyWeightModal (campo + Field + chips +
-   borrar al editar), no una traducción de otra cosa.
+   Sin equivalente en la app vanilla (etapa 6). Pedido explícito de Lulo (corregido después
+   de la primera entrega): esto tiene que sentirse parte del plan semanal, no una fecha
+   suelta con su propio calendario — por eso el día se elige con los mismos chips Lun..Dom
+   que ya usa toda la semana, no con un <DateField>. `weekStart` es el lunes de la semana
+   que se está mirando en Gimnasio (mismo `weekKey(offset)` que arma el plan de turnos);
+   el date que se guarda sale de sumarle el índice del chip elegido.
 
    `categories` y `movilidad` son independientes: se puede marcar solo movilidad (sin
    ninguna categoría) o al revés. Lo único que no vale es guardar una entrada sin nada
    marcado — no habría qué registrar. */
-export function CoreLogModal({ entry, onClose }) {
+export function CoreLogModal({ entry, weekStart, defaultDayIndex = 0, onClose }) {
   const { update } = useData();
   const editing = !!entry;
 
-  const [date, setDate] = useState(entry ? entry.date : todayISO());
+  const [dayIndex, setDayIndex] = useState(editing ? dow(parseISO(entry.date)) : defaultDayIndex);
   const [categories, setCategories] = useState(entry ? entry.categories : []);
   const [movilidad, setMovilidad] = useState(entry ? entry.movilidad : false);
   const [error, setError] = useState('');
@@ -35,11 +37,11 @@ export function CoreLogModal({ entry, onClose }) {
   };
 
   const handleSave = () => {
-    if (!date) { setError('Elegí una fecha.'); return; }
     if (categories.length === 0 && !movilidad) {
       setError('Marcá al menos una categoría de abdominales o movilidad.');
       return;
     }
+    const date = iso(addDays(parseISO(weekStart), dayIndex));
     update((draft) => {
       if (editing) updateCoreLogEntry(draft, entry.id, { date, categories, movilidad });
       else addCoreLogEntry(draft, { date, categories, movilidad });
@@ -56,8 +58,21 @@ export function CoreLogModal({ entry, onClose }) {
   return (
     <>
       <Modal title={editing ? 'Editar registro' : 'Abs y movilidad'} accent={ACCENT} onSave={handleSave} onClose={onClose}>
-        <Field label="Fecha">
-          <DateField value={date} accent={ACCENT} onChange={setDate} />
+        <Field label="Día">
+          <div className="chips">
+            {DOW_SHORT.map((d, i) => (
+              <button
+                type="button"
+                key={d}
+                className={`chip${dayIndex === i ? ' on' : ''}`}
+                style={dayIndex === i ? { background: ACCENT } : undefined}
+                aria-pressed={dayIndex === i}
+                onClick={() => setDayIndex(i)}
+              >
+                {d}
+              </button>
+            ))}
+          </div>
         </Field>
 
         <Field label="Abdominales" hint="opcional">
@@ -102,7 +117,7 @@ export function CoreLogModal({ entry, onClose }) {
       {confirming && (
         <ConfirmDialog
           title="¿Eliminar este registro?"
-          description="Se saca del historial de abs y movilidad."
+          description="Se saca del plan semanal."
           okLabel="Eliminar"
           onConfirm={handleDelete}
           onCancel={() => setConfirming(false)}

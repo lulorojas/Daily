@@ -367,18 +367,18 @@ describe('el entreno de Hoy trae la semana correcta', () => {
   });
 });
 
-describe('abs y movilidad (etapa 6)', () => {
-  it('sin registros, invita a crear el primero y no muestra "Administrar"', () => {
+describe('abs y movilidad (etapa 6, dentro del plan semanal)', () => {
+  it('sin registros esta semana, lo dice ahí mismo, dentro del plan', () => {
     renderScreen(<GymPage />, { doc: emptyDoc() });
-    expect(screen.getByText('Todavía no registraste abs ni movilidad.')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Administrar abs y movilidad' })).not.toBeInTheDocument();
+    expect(screen.getByText('Nada esta semana.')).toBeInTheDocument();
   });
 
-  it('registrar categorías nuevas las agrega a gym.coreLog', async () => {
+  it('registrar categorías nuevas las agrega a gym.coreLog, con el día elegido por chip', async () => {
     const user = userEvent.setup();
     const { doc: leer } = renderScreen(<GymPage />, { doc: emptyDoc() });
 
-    await user.click(screen.getByRole('button', { name: '+ Registrar' }));
+    await user.click(screen.getByRole('button', { name: 'Registrar abs o movilidad' }));
+    await user.click(screen.getByRole('button', { name: 'Lun' }));
     await user.click(screen.getByRole('button', { name: 'Core' }));
     await user.click(screen.getByRole('button', { name: 'Oblicuos' }));
     await user.click(screen.getByRole('button', { name: 'Guardar' }));
@@ -386,13 +386,14 @@ describe('abs y movilidad (etapa 6)', () => {
     const [entrada] = leer().gym.coreLog;
     expect(entrada.categories).toEqual(['core', 'oblicuos']);
     expect(entrada.movilidad).toBe(false);
+    expect(screen.getByText('Lun · Core, Oblicuos')).toBeInTheDocument();
   });
 
   it('movilidad sola, sin ninguna categoría, también se puede guardar', async () => {
     const user = userEvent.setup();
     const { doc: leer } = renderScreen(<GymPage />, { doc: emptyDoc() });
 
-    await user.click(screen.getByRole('button', { name: '+ Registrar' }));
+    await user.click(screen.getByRole('button', { name: 'Registrar abs o movilidad' }));
     await user.click(screen.getByRole('button', { name: 'Hice movilidad' }));
     await user.click(screen.getByRole('button', { name: 'Guardar' }));
 
@@ -405,7 +406,7 @@ describe('abs y movilidad (etapa 6)', () => {
     const user = userEvent.setup();
     const { doc: leer } = renderScreen(<GymPage />, { doc: emptyDoc() });
 
-    await user.click(screen.getByRole('button', { name: '+ Registrar' }));
+    await user.click(screen.getByRole('button', { name: 'Registrar abs o movilidad' }));
     await user.click(screen.getByRole('button', { name: 'Guardar' }));
 
     expect(screen.getByText('Marcá al menos una categoría de abdominales o movilidad.')).toBeInTheDocument();
@@ -416,14 +417,13 @@ describe('abs y movilidad (etapa 6)', () => {
     const user = userEvent.setup();
     const { doc: leer } = renderScreen(<GymPage />, { doc: emptyDoc() });
 
-    await user.click(screen.getByRole('button', { name: '+ Registrar' }));
+    await user.click(screen.getByRole('button', { name: 'Registrar abs o movilidad' }));
+    await user.click(screen.getByRole('button', { name: 'Lun' }));
     await user.click(screen.getByRole('button', { name: 'Bajos' }));
     await user.click(screen.getByRole('button', { name: 'Guardar' }));
 
-    await user.click(screen.getByRole('button', { name: 'Administrar abs y movilidad' }));
-    // Con la hoja de historial abierta detrás, "+ Registrar" existe dos veces (la de esta
-    // hoja y la de la pantalla, que sigue montada debajo del modal): se acota a la hoja.
-    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: '+ Registrar' }));
+    await user.click(screen.getByRole('button', { name: 'Registrar abs o movilidad' }));
+    await user.click(screen.getByRole('button', { name: 'Lun' }));
     await user.click(screen.getByRole('button', { name: 'Altos' }));
     await user.click(screen.getByRole('button', { name: 'Guardar' }));
 
@@ -433,19 +433,34 @@ describe('abs y movilidad (etapa 6)', () => {
     expect(log[0].id).not.toBe(log[1].id);
   });
 
-  it('administrar el historial permite editar un registro existente', async () => {
+  it('editar un registro existente actualiza sus categorías, desde el mismo plan semanal', async () => {
     const user = userEvent.setup();
     const { doc: leer } = renderScreen(<GymPage />, { doc: emptyDoc() });
 
-    await user.click(screen.getByRole('button', { name: '+ Registrar' }));
+    await user.click(screen.getByRole('button', { name: 'Registrar abs o movilidad' }));
+    await user.click(screen.getByRole('button', { name: 'Lun' }));
     await user.click(screen.getByRole('button', { name: 'Core' }));
     await user.click(screen.getByRole('button', { name: 'Guardar' }));
 
-    await user.click(screen.getByRole('button', { name: 'Administrar abs y movilidad' }));
-    await user.click(screen.getByRole('button', { name: 'Editar' }));
+    await user.click(screen.getByRole('button', { name: 'Editar registro de Lun' }));
     await user.click(screen.getByRole('button', { name: 'Oblicuos' }));
     await user.click(screen.getByRole('button', { name: 'Guardar' }));
 
     expect(leer().gym.coreLog[0].categories.sort()).toEqual(['core', 'oblicuos']);
+  });
+
+  it('navegar a otra semana filtra los registros que se muestran (no se mezclan entre semanas)', async () => {
+    const user = userEvent.setup();
+    renderScreen(<GymPage />, { doc: emptyDoc() });
+
+    await user.click(screen.getByRole('button', { name: 'Registrar abs o movilidad' }));
+    await user.click(screen.getByRole('button', { name: 'Lun' }));
+    await user.click(screen.getByRole('button', { name: 'Core' }));
+    await user.click(screen.getByRole('button', { name: 'Guardar' }));
+    expect(screen.getByText('Lun · Core')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Semana anterior' }));
+    expect(screen.queryByText('Lun · Core')).not.toBeInTheDocument();
+    expect(screen.getByText('Nada esta semana.')).toBeInTheDocument();
   });
 });

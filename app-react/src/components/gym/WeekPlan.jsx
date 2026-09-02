@@ -1,7 +1,7 @@
 import { ChevronLeftIcon, ChevronRightIcon, ChipChevronIcon, CrossIcon, HabitCheckIcon, PencilIcon, PlusIcon } from '../ui/Icons';
-import { DOW_SHORT, dow, todayD } from '../../lib/dates';
-import { REST, allTypes, dayTurnos, typeColor } from '../../lib/gym';
-import { tint } from '../../lib/theme';
+import { DOW_SHORT, dow, parseISO, todayD } from '../../lib/dates';
+import { REST, allTypes, dayTurnos, describeCoreLogEntry, typeColor } from '../../lib/gym';
+import { C, tint } from '../../lib/theme';
 
 /* ----------------------------- PLAN SEMANAL -----------------------------
    Port del primer bloque de viewGym(). Siete filas, una por día: la sigla, una barra del
@@ -20,8 +20,20 @@ import { tint } from '../../lib/theme';
    la semana en el documento con solo MIRARLA, y esa semana vacía se guardaba en el próximo
    guardado. Acá leer es leer: weekPlanFor() devuelve la semana sin tocar nada, y recién se
    escribe cuando de verdad cambiás algo. Vanilla recrea al vuelo las semanas que falten,
-   así que ninguna de las dos versiones pierde datos. */
-export function WeekPlan({ data, plan, weekLabel, isCurrentWeek, expandido, onExpandir, onSemana, onTipo, onHecho, onAddTurno, onRemoveTurno, onAdministrar }) {
+   así que ninguna de las dos versiones pierde datos.
+
+   Abs y movilidad (etapa 6, corregido después de la primera entrega): Lulo pidió
+   explícitamente que esto NO fuera una sección aparte más abajo en la pantalla, sino algo
+   "dentro de la planificación semanal". El dato sigue siendo el mismo (gym.coreLog, una
+   lista independiente de weekPlans — ver la nota en lib/gym.js), lo que cambió es dónde
+   vive en la pantalla: `coreEntries` ya viene filtrado por GymPage a los registros de la
+   semana que se está mirando, y se dibuja acá adentro, en el mismo `.sect` que el plan de
+   turnos, con las mismas piezas visuales que "Administrar tipos" (managetypes-head,
+   managelist/managerow) en vez de inventar un estilo nuevo. */
+export function WeekPlan({
+  data, plan, weekLabel, isCurrentWeek, expandido, onExpandir, onSemana, onTipo, onHecho,
+  onAddTurno, onRemoveTurno, onAdministrar, coreEntries, onNewCore, onEditCore,
+}) {
   const hoyIdx = dow(todayD());
 
   return (
@@ -133,6 +145,33 @@ export function WeekPlan({ data, plan, weekLabel, isCurrentWeek, expandido, onEx
             </div>
           );
         })}
+      </div>
+
+      <div className="fld weekcorelog">
+        <div className="managetypes-head">
+          <div className="flabel notopmargin">Abs y movilidad</div>
+          <button type="button" className="roundadd" style={{ background: C.violet }} onClick={onNewCore} aria-label="Registrar abs o movilidad">
+            <PlusIcon size={18} strokeWidth="2.6" color="#0A0C11" />
+          </button>
+        </div>
+
+        {coreEntries.length === 0 ? (
+          <div className="empty">Nada esta semana.</div>
+        ) : (
+          <div className="card managelist">
+            {coreEntries.map((e) => {
+              const dia = DOW_SHORT[dow(parseISO(e.date))];
+              return (
+                <div className="managerow" key={e.id}>
+                  <span className="managerow-name">{dia} · {describeCoreLogEntry(e)}</span>
+                  <button type="button" className="iconcirc" aria-label={`Editar registro de ${dia}`} onClick={() => onEditCore(e)}>
+                    <PencilIcon />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <button type="button" className="dashed managetypes" onClick={onAdministrar}>
