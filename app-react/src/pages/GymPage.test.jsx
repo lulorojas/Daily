@@ -67,6 +67,86 @@ describe('plan semanal', () => {
   });
 });
 
+describe('plan semanal: segundo turno (etapa 6)', () => {
+  it('un día normal no ofrece quitar un segundo turno que no tiene', () => {
+    renderScreen(<GymPage />, { doc: doc() });
+    // Ninguna fila de "Lun" (turno único) tiene el botón de quitar segundo turno.
+    expect(screen.queryByRole('button', { name: /Quitar el segundo turno de Lun/ })).not.toBeInTheDocument();
+  });
+
+  it('"2do turno" agrega un segundo chip en Descanso, sin tocar el primero', async () => {
+    const user = userEvent.setup();
+    const { doc: leer } = renderScreen(<GymPage />, { doc: doc() });
+
+    const filaLun = screen.getByRole('button', { name: 'Lun: Pecho, cambiar tipo' }).closest('.planday');
+    await user.click(within(filaLun).getByRole('button', { name: '2do turno' }));
+
+    const dia = leer().gym.weekPlans[weekKey(0)][0];
+    expect(dia.type).toBe('Pecho'); // el primer turno no se tocó
+    expect(dia.type2).toBe('Descanso');
+    expect(dia.done2).toBe(false);
+    expect(screen.getByRole('button', { name: 'Lun (2do turno): Descanso, cambiar tipo' })).toBeInTheDocument();
+  });
+
+  it('elegir tipo y marcar hecho en el segundo turno no toca el primero', async () => {
+    const user = userEvent.setup();
+    const { doc: leer } = renderScreen(<GymPage />, { doc: doc() });
+
+    const filaLun = screen.getByRole('button', { name: 'Lun: Pecho, cambiar tipo' }).closest('.planday');
+    await user.click(within(filaLun).getByRole('button', { name: '2do turno' }));
+    await user.click(screen.getByRole('button', { name: 'Lun (2do turno): Descanso, cambiar tipo' }));
+    await user.click(screen.getByRole('button', { name: 'Espalda' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Lun (2do turno): Espalda' }));
+
+    // Lun ya venía marcado como hecho en el fixture (Pecho, done:true): el punto acá es
+    // que agregar y marcar el SEGUNDO turno no lo haya tocado.
+    const dia = leer().gym.weekPlans[weekKey(0)][0];
+    expect(dia).toMatchObject({ type: 'Pecho', done: true, type2: 'Espalda', done2: true });
+  });
+
+  it('quitar el segundo turno lo saca del todo', async () => {
+    const user = userEvent.setup();
+    const conSegundo = doc();
+    conSegundo.gym.weekPlans[weekKey(0)][0].type2 = 'Espalda';
+    conSegundo.gym.weekPlans[weekKey(0)][0].done2 = true;
+    const { doc: leer } = renderScreen(<GymPage />, { doc: conSegundo });
+
+    await user.click(screen.getByRole('button', { name: 'Quitar el segundo turno de Lun' }));
+
+    const dia = leer().gym.weekPlans[weekKey(0)][0];
+    expect('type2' in dia).toBe(false);
+    expect('done2' in dia).toBe(false);
+    // La fila de Lun vuelve a tener un solo turno (Miércoles sigue con su "Espalda"
+    // propio: por eso no alcanza con buscar el texto suelto, hay que mirar SU fila).
+    const filaLun = screen.getByRole('button', { name: 'Lun: Pecho, cambiar tipo' }).closest('.planday');
+    expect(within(filaLun).queryByRole('button', { name: /Quitar el segundo turno/ })).not.toBeInTheDocument();
+    expect(within(filaLun).getAllByRole('button', { name: /cambiar tipo/ })).toHaveLength(1);
+    // Y vuelve a ofrecerse agregar uno, como en cualquier día de un solo turno.
+    expect(within(filaLun).getByRole('button', { name: '2do turno' })).toBeInTheDocument();
+  });
+
+  it('un día ya con dos turnos no vuelve a ofrecer "2do turno"', () => {
+    const conSegundo = doc();
+    conSegundo.gym.weekPlans[weekKey(0)][0].type2 = 'Descanso';
+    renderScreen(<GymPage />, { doc: conSegundo });
+
+    const filaLun = screen.getByRole('button', { name: 'Lun: Pecho, cambiar tipo' }).closest('.planday');
+    expect(within(filaLun).queryByRole('button', { name: '2do turno' })).not.toBeInTheDocument();
+  });
+
+  it('el contador de la cabecera cuenta turnos, no días', () => {
+    const conSegundo = doc();
+    // Lun ya está hecho (turno 1); se agrega un turno 2 también hecho.
+    conSegundo.gym.weekPlans[weekKey(0)][0].type2 = 'Espalda';
+    conSegundo.gym.weekPlans[weekKey(0)][0].done2 = true;
+    renderScreen(<GymPage />, { doc: conSegundo });
+
+    // fullDoc() ya tenía "2 de 3" con un solo turno por día; con un turno más hecho y un
+    // tipo más que cuenta, pasa a "3 de 4".
+    expect(screen.getByText('3 de 4 entrenamientos esta semana')).toBeInTheDocument();
+  });
+});
+
 describe('tipos de entrenamiento', () => {
   it('"Administrar tipos" lista los propios, sin "Descanso"', async () => {
     const user = userEvent.setup();
@@ -284,5 +364,88 @@ describe('el entreno de Hoy trae la semana correcta', () => {
   it('con ?d= de un día de la semana pasada, arranca en esa semana', () => {
     renderScreen(<GymPage />, { doc: doc(), route: `/gym?d=${TODAY}` });
     expect(screen.getByText('Esta semana')).toBeInTheDocument();
+  });
+});
+
+describe('abs y movilidad (etapa 6)', () => {
+  it('sin registros, invita a crear el primero y no muestra "Administrar"', () => {
+    renderScreen(<GymPage />, { doc: emptyDoc() });
+    expect(screen.getByText('Todavía no registraste abs ni movilidad.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Administrar abs y movilidad' })).not.toBeInTheDocument();
+  });
+
+  it('registrar categorías nuevas las agrega a gym.coreLog', async () => {
+    const user = userEvent.setup();
+    const { doc: leer } = renderScreen(<GymPage />, { doc: emptyDoc() });
+
+    await user.click(screen.getByRole('button', { name: '+ Registrar' }));
+    await user.click(screen.getByRole('button', { name: 'Core' }));
+    await user.click(screen.getByRole('button', { name: 'Oblicuos' }));
+    await user.click(screen.getByRole('button', { name: 'Guardar' }));
+
+    const [entrada] = leer().gym.coreLog;
+    expect(entrada.categories).toEqual(['core', 'oblicuos']);
+    expect(entrada.movilidad).toBe(false);
+  });
+
+  it('movilidad sola, sin ninguna categoría, también se puede guardar', async () => {
+    const user = userEvent.setup();
+    const { doc: leer } = renderScreen(<GymPage />, { doc: emptyDoc() });
+
+    await user.click(screen.getByRole('button', { name: '+ Registrar' }));
+    await user.click(screen.getByRole('button', { name: 'Hice movilidad' }));
+    await user.click(screen.getByRole('button', { name: 'Guardar' }));
+
+    const [entrada] = leer().gym.coreLog;
+    expect(entrada.categories).toEqual([]);
+    expect(entrada.movilidad).toBe(true);
+  });
+
+  it('sin ninguna categoría ni movilidad marcada, avisa y no guarda', async () => {
+    const user = userEvent.setup();
+    const { doc: leer } = renderScreen(<GymPage />, { doc: emptyDoc() });
+
+    await user.click(screen.getByRole('button', { name: '+ Registrar' }));
+    await user.click(screen.getByRole('button', { name: 'Guardar' }));
+
+    expect(screen.getByText('Marcá al menos una categoría de abdominales o movilidad.')).toBeInTheDocument();
+    expect(leer().gym.coreLog ?? []).toHaveLength(0);
+  });
+
+  it('dos registros el mismo día quedan como dos entradas, no se pisan', async () => {
+    const user = userEvent.setup();
+    const { doc: leer } = renderScreen(<GymPage />, { doc: emptyDoc() });
+
+    await user.click(screen.getByRole('button', { name: '+ Registrar' }));
+    await user.click(screen.getByRole('button', { name: 'Bajos' }));
+    await user.click(screen.getByRole('button', { name: 'Guardar' }));
+
+    await user.click(screen.getByRole('button', { name: 'Administrar abs y movilidad' }));
+    // Con la hoja de historial abierta detrás, "+ Registrar" existe dos veces (la de esta
+    // hoja y la de la pantalla, que sigue montada debajo del modal): se acota a la hoja.
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: '+ Registrar' }));
+    await user.click(screen.getByRole('button', { name: 'Altos' }));
+    await user.click(screen.getByRole('button', { name: 'Guardar' }));
+
+    const log = leer().gym.coreLog;
+    expect(log).toHaveLength(2);
+    expect(log[0].date).toBe(log[1].date);
+    expect(log[0].id).not.toBe(log[1].id);
+  });
+
+  it('administrar el historial permite editar un registro existente', async () => {
+    const user = userEvent.setup();
+    const { doc: leer } = renderScreen(<GymPage />, { doc: emptyDoc() });
+
+    await user.click(screen.getByRole('button', { name: '+ Registrar' }));
+    await user.click(screen.getByRole('button', { name: 'Core' }));
+    await user.click(screen.getByRole('button', { name: 'Guardar' }));
+
+    await user.click(screen.getByRole('button', { name: 'Administrar abs y movilidad' }));
+    await user.click(screen.getByRole('button', { name: 'Editar' }));
+    await user.click(screen.getByRole('button', { name: 'Oblicuos' }));
+    await user.click(screen.getByRole('button', { name: 'Guardar' }));
+
+    expect(leer().gym.coreLog[0].categories.sort()).toEqual(['core', 'oblicuos']);
   });
 });

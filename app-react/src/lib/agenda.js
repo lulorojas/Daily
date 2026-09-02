@@ -52,9 +52,15 @@ export function itemsDe(state, dISO) {
 }
 
 // Entreno planificado para una fecha (solo lectura; el plan lo maneja Gimnasio).
+// Entrenamientos dobles (etapa 6): un día "tiene entreno" si CUALQUIERA de sus dos
+// turnos no es descanso — antes alcanzaba con mirar `type` solo. Devuelve el día
+// completo (con type2/done2 si los tiene); dayTurnos() en lib/gym.js lo desarma en 1 o 2
+// turnos para dibujar.
 export function entrenoDe(state, dISO) {
   const d = parseISO(dISO);
   const plan = state.gym.weekPlans[iso(mondayOf(d))];
   const day = plan && plan[dow(d)];
-  return day && day.type !== REST ? day : null;
+  if (!day) return null;
+  const hayEntreno = day.type !== REST || (day.type2 && day.type2 !== REST);
+  return hayEntreno ? day : null;
 }

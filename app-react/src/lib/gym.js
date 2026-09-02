@@ -3,7 +3,21 @@
 
    El plan semanal se guarda en gym.weekPlans, indexado por el LUNES de cada semana
    ('YYYY-MM-DD'), con un arreglo de 7 días { type, done }. El "historial" de entrenos no
-   se guarda aparte: se deriva de los días marcados como hechos. */
+   se guarda aparte: se deriva de los días marcados como hechos.
+
+   Entrenamientos dobles (etapa 6, campo nuevo del modelo, pedido explícito de Lulo):
+   un día puede tener un segundo turno con `type2`/`done2`, mismo significado que
+   `type`/`done` pero para el turno de la tarde. Los dos son OPCIONALES: un día viejo, de
+   antes de este campo, no los tiene — y eso es exactamente "un solo turno", no un error.
+   Ninguna función de acá abajo asume que existen; dayTurnos() es el único lugar que los
+   lee, y lo hace con `day.type2` como el chequeo de "¿hay un segundo turno?".
+
+   Abs y movilidad (etapa 6, otro campo nuevo, mismo pedido): gym.coreLog es una lista
+   INDEPENDIENTE de weekPlans y lifts — no es un turno de entreno, es su propio registro.
+   Cada entrada: { id, date, categories:[subset de core/bajos/oblicuos/altos], movilidad }.
+   `categories` puede ir vacío si la entrada es solo de movilidad (sin abdominales ese día);
+   `movilidad` es un booleano aparte, no una categoría más. Nada le impide a dos entradas
+   compartir la misma `date`: son registros con su propio id, no un mapa por fecha. */
 import { addDays, iso, mondayOf, parseISO, todayD, DOW_SHORT } from './dates';
 import { C } from './theme';
 
@@ -51,14 +65,26 @@ export function typeColor(state, name) {
   return t ? t.color : C.rose;
 }
 
-/* El historial de entrenos, derivado del plan: cada día marcado como hecho que no sea
-   descanso. Ordenado del más nuevo al más viejo. */
+// Desarma un día del plan en 1 o 2 turnos, según tenga `type2` o no. Es el único lugar
+// que lee type2/done2 directamente — WeekPlan (Gimnasio) y TrainingRow (Hoy) dibujan
+// sobre esto, no sobre el día crudo.
+export function dayTurnos(day) {
+  const turnos = [{ slot: 1, type: day.type, done: !!day.done }];
+  if (day.type2) turnos.push({ slot: 2, type: day.type2, done: !!day.done2 });
+  return turnos;
+}
+
+/* El historial de entrenos, derivado del plan: cada TURNO marcado como hecho que no sea
+   descanso — un día con los dos turnos hechos aporta dos entradas, una por tipo, porque
+   son dos entrenamientos distintos (cuentan aparte para el ranking y las rachas por
+   tipo). Ordenado del más nuevo al más viejo. */
 export function gymHistory(state) {
   const out = [];
   Object.keys(state.gym.weekPlans).forEach((k) => {
     const mon = parseISO(k);
     state.gym.weekPlans[k].forEach((day, i) => {
-      if (day.done && day.type !== REST) out.push({ date: iso(addDays(mon, i)), type: day.type });
+      const date = iso(addDays(mon, i));
+      dayTurnos(day).forEach((t) => { if (t.done && t.type !== REST) out.push({ date, type: t.type }); });
     });
   });
   out.sort((a, b) => (a.date < b.date ? 1 : -1));
@@ -114,4 +140,21 @@ export function liftGains(state, startISO) {
 // Registros de peso corporal, del más viejo al más nuevo. Copia: no toca el estado.
 export function bodyList(state) {
   return state.gym.bodyWeights.slice().sort((a, b) => (a.date < b.date ? -1 : 1));
+}
+
+/* ------------------------------ ABS Y MOVILIDAD ------------------------------ */
+
+export const CORE_CATS = ['core', 'bajos', 'oblicuos', 'altos'];
+export const CORE_CAT_LABELS = { core: 'Core', bajos: 'Bajos', oblicuos: 'Oblicuos', altos: 'Altos' };
+
+// Registros de abs/movilidad, del más viejo al más nuevo. Copia: no toca el estado.
+export function coreLogList(state) {
+  return (state.gym.coreLog || []).slice().sort((a, b) => (a.date < b.date ? -1 : 1));
+}
+
+// "Core, oblicuos + movilidad" / "Movilidad" / "Bajos, altos" — lo que tenga la entrada, en ese orden.
+export function describeCoreLogEntry(entry) {
+  const partes = entry.categories.map((c) => CORE_CAT_LABELS[c]);
+  if (entry.movilidad) partes.push('Movilidad');
+  return partes.join(', ');
 }

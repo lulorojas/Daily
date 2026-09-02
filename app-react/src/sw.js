@@ -14,8 +14,37 @@
    "bajar y guardar todo esto al instalar", que es exactamente lo que hacía el
    `caches.open(CACHE).then(c => c.addAll(ASSETS))` de vanilla. */
 import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
+import { initializeApp } from 'firebase/app';
+import { getMessaging, onBackgroundMessage } from 'firebase/messaging/sw';
 
 const CACHE = 'daily-react-v2';
+
+/* ----------------------------- NOTIFICACIONES (etapa 6) -----------------------------
+   Mismo firebaseConfig que services/firebase.js, duplicado a propósito: ese archivo
+   también inicializa Auth al importarse (getAuth(app)), que se apoya en APIs de la
+   pestaña que acá no existen (no hay `document` en un service worker). Traerlo tal cual
+   arriesgaría romper el SW entero por un efecto secundario pensado para otro contexto —
+   un objeto de config duplicado es más seguro que compartir un módulo con ese acoplamiento. */
+const firebaseConfig = {
+  apiKey: 'AIzaSyDBHLj-OHZAAC0WGQTIVygs51Gl-2u9Cgk',
+  authDomain: 'daily-app-2aae2.firebaseapp.com',
+  projectId: 'daily-app-2aae2',
+  storageBucket: 'daily-app-2aae2.firebasestorage.app',
+  messagingSenderId: '90685314455',
+  appId: '1:90685314455:web:aab2a0eda47201de2b20d2',
+};
+
+const messaging = getMessaging(initializeApp(firebaseConfig));
+
+/* El script del cron (notifications/send.js) manda `notification: {title, body}`, que la
+   mayoría de los navegadores ya muestran solos sin este handler. onBackgroundMessage()
+   cubre el caso en que el payload llega como `data` puro: ahí nadie más la dibuja, así
+   que se hace a mano con la misma API que usa el resto de la PWA. */
+onBackgroundMessage(messaging, (payload) => {
+  const { title, body } = payload.notification || payload.data || {};
+  if (!title) return;
+  self.registration.showNotification(title, { body, icon: '/icons/icon-192.png' });
+});
 
 precacheAndRoute(self.__WB_MANIFEST);
 

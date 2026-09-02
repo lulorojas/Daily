@@ -3,6 +3,7 @@ import { BackPill } from '../components/ui/BackPill';
 import { Section } from '../components/ui/Section';
 import { BackupBanner } from '../components/ajustes/BackupBanner';
 import { BackupSection } from '../components/ajustes/BackupSection';
+import { NotificationsSection } from '../components/ajustes/NotificationsSection';
 import { LogoutButton } from '../components/auth/LogoutButton';
 import { AuthFlash } from '../components/auth/AuthFlash';
 import { useAuth } from '../hooks/useAuth';
@@ -37,6 +38,8 @@ export function AjustesPage() {
         <Section label="Backup">
           <BackupSection />
         </Section>
+
+        <NotificationsSection />
 
         <Section label="General">
           <div className="card pad2">

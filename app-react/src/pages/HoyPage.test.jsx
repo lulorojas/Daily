@@ -406,4 +406,33 @@ describe('entreno del día', () => {
     renderScreen(<HoyPage />);
     expect(screen.queryByText('Entreno')).not.toBeInTheDocument();
   });
+
+  it('entrenamientos dobles: un segundo turno se ve como una segunda fila', () => {
+    const doc = conPlan();
+    const lunes = iso(mondayOf(todayD()));
+    const dia = doc.gym.weekPlans[lunes][(parseISO(TODAY).getDay() + 6) % 7];
+    dia.type2 = 'Espalda';
+    dia.done2 = true;
+    doc.gym.customTypes.push({ id: 'ct2', name: 'Espalda', color: '#6FD2D2' });
+
+    renderScreen(<HoyPage />, { doc });
+
+    expect(screen.getByText('Pecho')).toBeInTheDocument();
+    expect(screen.getByText('Planificado')).toBeInTheDocument();
+    expect(screen.getByText('Espalda')).toBeInTheDocument();
+    expect(screen.getByText('Entrenado')).toBeInTheDocument();
+  });
+
+  it('un turno de descanso mezclado con uno real: se ve solo el real', () => {
+    const doc = conPlan();
+    const lunes = iso(mondayOf(todayD()));
+    const idx = (parseISO(TODAY).getDay() + 6) % 7;
+    doc.gym.weekPlans[lunes][idx] = { type: 'Descanso', done: false, type2: 'Pecho', done2: false };
+
+    renderScreen(<HoyPage />, { doc });
+
+    expect(screen.getByText('Entreno')).toBeInTheDocument();
+    expect(screen.getAllByText('Pecho')).toHaveLength(1);
+    expect(screen.queryByText('Descanso')).not.toBeInTheDocument();
+  });
 });

@@ -4,6 +4,9 @@ import { WeekPlan } from '../components/gym/WeekPlan';
 import { BodyWeightSection } from '../components/gym/BodyWeightSection';
 import { BodyWeightModal } from '../components/gym/BodyWeightModal';
 import { BodyManageModal } from '../components/gym/BodyManageModal';
+import { CoreLogSection } from '../components/gym/CoreLogSection';
+import { CoreLogModal } from '../components/gym/CoreLogModal';
+import { CoreLogManageModal } from '../components/gym/CoreLogManageModal';
 import { LiftCard } from '../components/gym/LiftCard';
 import { LiftModal } from '../components/gym/LiftModal';
 import { LiftDetailModal } from '../components/gym/LiftDetailModal';
@@ -12,10 +15,10 @@ import { TypesManager } from '../components/gym/TypesManager';
 import { Section } from '../components/ui/Section';
 import { BookIcon } from '../components/ui/Icons';
 import { useData } from '../hooks/useData';
-import { REST, weekKey, weekPlanFor } from '../lib/gym';
+import { REST, dayTurnos, weekKey, weekPlanFor } from '../lib/gym';
 import { gymSubtitle, weekOffsetForDay, weekRangeLabel } from '../lib/gymView';
 import { isValidISO } from '../hooks/useSelectedDay';
-import { setWeekDayType, toggleWeekDayDone } from '../store/mutations';
+import { addSecondTurno, removeSecondTurno, setWeekDayType, toggleWeekDayDone } from '../store/mutations';
 import { C, tint } from '../lib/theme';
 
 /* ============================================================================
@@ -47,8 +50,10 @@ export function GymPage() {
   const [modal, setModal] = useState(null);
 
   const plan = weekPlanFor(data, offset);
-  const trainingDays = plan.filter((d) => d.type !== REST);
-  const doneCount = trainingDays.filter((d) => d.done).length;
+  // Entrenamientos dobles: se cuentan TURNOS, no días — un día con sus dos turnos hechos
+  // son dos entrenamientos, no uno. dayTurnos() ya sabe leer type2/done2 si existen.
+  const turnos = plan.flatMap(dayTurnos).filter((t) => t.type !== REST);
+  const doneCount = turnos.filter((t) => t.done).length;
   const weekLabel = weekRangeLabel(offset);
 
   const changeWeek = (dir) => { setOffset((o) => o + dir); setExpandido(null); };
@@ -60,7 +65,7 @@ export function GymPage() {
     <div className="view">
       <div className="head">
         <h1>Gimnasio</h1>
-        <div className="sub">{gymSubtitle(offset, doneCount, trainingDays.length)}</div>
+        <div className="sub">{gymSubtitle(offset, doneCount, turnos.length)}</div>
       </div>
 
       <div className="body">
@@ -72,8 +77,10 @@ export function GymPage() {
           expandido={expandido}
           onExpandir={setExpandido}
           onSemana={changeWeek}
-          onTipo={(i, type) => update((draft) => setWeekDayType(draft, weekKey(offset), i, type))}
-          onHecho={(i) => update((draft) => toggleWeekDayDone(draft, weekKey(offset), i))}
+          onTipo={(i, slot, type) => update((draft) => setWeekDayType(draft, weekKey(offset), i, type, slot))}
+          onHecho={(i, slot) => update((draft) => toggleWeekDayDone(draft, weekKey(offset), i, slot))}
+          onAddTurno={(i) => update((draft) => addSecondTurno(draft, weekKey(offset), i))}
+          onRemoveTurno={(i) => { setExpandido(null); update((draft) => removeSecondTurno(draft, weekKey(offset), i)); }}
           onAdministrar={() => setModal({ kind: 'types' })}
         />
 
@@ -81,6 +88,12 @@ export function GymPage() {
           data={data}
           onNew={() => setModal({ kind: 'body-new' })}
           onManage={() => setModal({ kind: 'body-manage' })}
+        />
+
+        <CoreLogSection
+          data={data}
+          onNew={() => setModal({ kind: 'core-new' })}
+          onManage={() => setModal({ kind: 'core-manage' })}
         />
 
         <Section label="Cargas por ejercicio" note={null} action={<span className="sectcount">{data.gym.lifts.length} ejercicios</span>}>
@@ -136,6 +149,16 @@ export function GymPage() {
           onClose={() => setModal(null)}
           onNew={() => setModal({ kind: 'body-new' })}
           onEdit={(record) => setModal({ kind: 'body-edit', record })}
+        />
+      )}
+
+      {modal?.kind === 'core-new' && <CoreLogModal onClose={() => setModal(null)} />}
+      {modal?.kind === 'core-edit' && <CoreLogModal entry={modal.entry} onClose={() => setModal(null)} />}
+      {modal?.kind === 'core-manage' && (
+        <CoreLogManageModal
+          onClose={() => setModal(null)}
+          onNew={() => setModal({ kind: 'core-new' })}
+          onEdit={(entry) => setModal({ kind: 'core-edit', entry })}
         />
       )}
     </div>

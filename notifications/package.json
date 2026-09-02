@@ -1,0 +1,17 @@
+{
+  "name": "daily-notifications",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Cron de GitHub Actions: resumen agregado de pendientes, cuatro veces por día, vía FCM. No es una app — corre desde .github/workflows/notificaciones.yml, nunca en el navegador.",
+  "scripts": {
+    "build": "esbuild send.js --bundle --platform=node --format=esm --packages=external --outfile=dist/send.mjs",
+    "send": "npm run build && node dist/send.mjs"
+  },
+  "dependencies": {
+    "firebase-admin": "^14.3.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0"
+  }
+}

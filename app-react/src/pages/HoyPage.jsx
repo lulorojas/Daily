@@ -15,7 +15,7 @@ import { useItemForms } from '../hooks/useItemForms';
 import { useSelectedDay } from '../hooks/useSelectedDay';
 import { agendaDe, entrenoDe, pendVisible, pendientes, tareasDe } from '../lib/agenda';
 import { habitDone } from '../lib/habits';
-import { typeColor } from '../lib/gym';
+import { REST, dayTurnos, typeColor } from '../lib/gym';
 import { dayProgress } from '../lib/progress';
 import { parseISO, todayISO } from '../lib/dates';
 import { dayKicker, dayTitle, hoySubtitle, saludo, shiftWeek } from '../lib/items';
@@ -122,7 +122,12 @@ export function HoyPage() {
 
         {view.entreno && (
           <Section label="Entreno">
-            <TrainingRow training={view.entreno} color={typeColor(data, view.entreno.type)} day={day} />
+            {/* Entrenamientos dobles: un turno de descanso no se muestra (mismo criterio
+                que ya tenía un solo turno: "Entreno" solo aparece si hay algo que hacer),
+                pero el otro sí, aunque el día tenga los dos tipos mezclados. */}
+            {dayTurnos(view.entreno).filter((t) => t.type !== REST).map((t) => (
+              <TrainingRow key={t.slot} training={t} color={typeColor(data, t.type)} day={day} />
+            ))}
           </Section>
         )}
 

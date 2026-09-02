@@ -1,0 +1,37 @@
+name: Notificaciones (resumen agregado)
+
+# Cuatro horarios fijos, hora Buenos Aires (UTC-3 todo el año, sin horario de verano desde
+# 2009 — por eso son restas fijas, sin zona horaria de por medio):
+#   08:00 ART -> 11:00 UTC
+#   12:30 ART -> 15:30 UTC
+#   18:00 ART -> 21:00 UTC
+#   22:00 ART -> 01:00 UTC (del día siguiente)
+# GitHub Actions no garantiza el minuto exacto bajo carga del runner compartido; para un
+# aviso de "qué quedó pendiente hoy" unos minutos de margen no cambian el contenido.
+on:
+  schedule:
+    - cron: '0 11 * * *'
+    - cron: '30 15 * * *'
+    - cron: '0 21 * * *'
+    - cron: '0 1 * * *'
+  workflow_dispatch: {} # para poder probarlo a mano desde la pestaña Actions.
+
+jobs:
+  enviar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Instalar dependencias
+        working-directory: notifications
+        run: npm install
+
+      - name: Mandar el resumen agregado
+        working-directory: notifications
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: npm run send

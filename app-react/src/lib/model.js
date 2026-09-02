@@ -22,10 +22,28 @@
          lifts:       [ { id, name, unit, color, history:[ { date, weight } ] } ],
          routines:    [ { id, name, days:[ { id, name, exercises:[ { id, name, detail } ] } ] } ],
          bodyWeights: [ { id, kg, date } ],
+         coreLog?:    [ { id, date, categories:[...subset de core/bajos/oblicuos/altos], movilidad } ],
        },
        onboarding: { seen: boolean },
+       fcmTokens?:  [ 'token de FCM de cada dispositivo que activó notificaciones' ],
        migratedFrom?, migratedAt?,     // solo en cuentas que vienen de daily.v1
      }
+
+   `weekPlans[semana][día].type2/done2`, `gym.coreLog` y `fcmTokens` son de la etapa 6
+   (React), sin equivalente en la app vanilla: no hay contra qué comparar en src/compat/,
+   así que se prueban directo. Los tres son compatibles hacia atrás por construcción:
+   type2/done2 son opcionales (ver dayTurnos() en lib/gym.js).
+
+   `gym.coreLog` y `fcmTokens` a propósito NO tienen un default acá (a diferencia de
+   customTypes, weekPlans, etc.): si normalize() le pusiera `||= []` a TODA cuenta, ese
+   campo vacío aparecería hasta en un documento que nunca usó la función, y los tests de
+   src/compat/writes.test.js (que comparan el documento ENTERO, campo por campo, contra lo
+   que escribe vanilla) fallarían en cada mutación de cualquier pantalla, no solo en las
+   que agregan el campo — vanilla jamás va a escribir ninguno de los dos. Mismo truco que
+   weekPlanFor(): la lectura (coreLogList() en lib/gym.js; el propio `data.fcmTokens || []`
+   donde haga falta) trata la ausencia como `[]`, y el campo se materializa en el documento
+   recién cuando se guarda el primer registro/token (addCoreLogEntry(), registerFcmToken(),
+   ambas en store/mutations.js).
 
    DOS REGLAS QUE NO SE NEGOCIAN:
 

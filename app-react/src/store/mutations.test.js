@@ -207,6 +207,166 @@ describe('plan semanal', () => {
   });
 });
 
+/* Entrenamientos dobles (etapa 6): type2/done2 son opcionales, así que un día sin ellos
+   tiene que leerse EXACTAMENTE como si el campo nunca hubiera existido — no un type2:''
+   ni un done2:false de más, que un backup viejo (o la vanilla, si algún día volviera a
+   escribir) jamás va a mandar. */
+describe('plan semanal: segundo turno', () => {
+  it('un día nuevo no tiene segundo turno', () => {
+    const d = vacio();
+    m.toggleWeekDayDone(d, '2026-08-03', 0);
+    expect(d.gym.weekPlans['2026-08-03'][0].type2).toBeUndefined();
+  });
+
+  it('agregarlo lo deja en Descanso sin marcar, sin tocar el primero', () => {
+    const d = vacio();
+    m.setWeekDayType(d, '2026-08-03', 0, 'Pecho');
+    m.toggleWeekDayDone(d, '2026-08-03', 0);
+    m.addSecondTurno(d, '2026-08-03', 0);
+    expect(d.gym.weekPlans['2026-08-03'][0]).toEqual({ type: 'Pecho', done: true, type2: 'Descanso', done2: false });
+  });
+
+  it('agregarlo dos veces no pisa el segundo turno ya elegido', () => {
+    const d = vacio();
+    m.addSecondTurno(d, '2026-08-03', 0);
+    m.setWeekDayType(d, '2026-08-03', 0, 'Espalda', 2);
+    expect(m.addSecondTurno(d, '2026-08-03', 0)).toBe(false);
+    expect(d.gym.weekPlans['2026-08-03'][0].type2).toBe('Espalda');
+  });
+
+  it('setWeekDayType y toggleWeekDayDone con slot 2 tocan type2/done2, no el turno 1', () => {
+    const d = vacio();
+    m.addSecondTurno(d, '2026-08-03', 0);
+    m.setWeekDayType(d, '2026-08-03', 0, 'Cardio', 2);
+    m.toggleWeekDayDone(d, '2026-08-03', 0, 2);
+    const day = d.gym.weekPlans['2026-08-03'][0];
+    expect(day.type2).toBe('Cardio');
+    expect(day.done2).toBe(true);
+    expect(day.type).toBe('Descanso');
+    expect(day.done).toBe(false);
+  });
+
+  it('quitarlo lo saca del todo (no lo deja en blanco)', () => {
+    const d = vacio();
+    m.addSecondTurno(d, '2026-08-03', 0);
+    m.removeSecondTurno(d, '2026-08-03', 0);
+    const day = d.gym.weekPlans['2026-08-03'][0];
+    expect('type2' in day).toBe(false);
+    expect('done2' in day).toBe(false);
+    expect(day).toEqual({ type: 'Descanso', done: false });
+  });
+
+  it('quitar un segundo turno que no existe no rompe', () => {
+    const d = vacio();
+    expect(m.removeSecondTurno(d, '2026-08-03', 0)).toBe(false);
+  });
+
+  it('renombrar un tipo también renombra el segundo turno si lo usaba', () => {
+    const d = doc(); // ct1 = 'Pecho'
+    m.addSecondTurno(d, Object.keys(d.gym.weekPlans)[0], 0);
+    m.setWeekDayType(d, Object.keys(d.gym.weekPlans)[0], 0, 'Pecho', 2);
+    m.updateCustomType(d, 'ct1', { name: 'Torso', color: '#fff' });
+    expect(d.gym.weekPlans[Object.keys(d.gym.weekPlans)[0]][0].type2).toBe('Torso');
+  });
+});
+
+describe('abs y movilidad (coreLog)', () => {
+  it('un documento sin ningún registro no tiene el campo (se materializa recién al primero)', () => {
+    const d = vacio();
+    // A propósito NO se le pone default en normalize(): ver la nota en lib/model.js.
+    expect(d.gym.coreLog).toBeUndefined();
+  });
+
+  it('agregar el primer registro crea la lista', () => {
+    const d = vacio();
+    const e = m.addCoreLogEntry(d, { date: TODAY, categories: ['core'], movilidad: false });
+    expect(d.gym.coreLog).toEqual([{ id: e.id, date: TODAY, categories: ['core'], movilidad: false }]);
+  });
+
+  it('movilidad sola, sin ninguna categoría, es una entrada válida', () => {
+    const d = vacio();
+    m.addCoreLogEntry(d, { date: TODAY, categories: [], movilidad: true });
+    expect(d.gym.coreLog[0]).toEqual({ id: expect.any(String), date: TODAY, categories: [], movilidad: true });
+  });
+
+  it('dos registros el mismo día no se pisan: quedan como dos entradas distintas', () => {
+    const d = vacio();
+    m.addCoreLogEntry(d, { date: TODAY, categories: ['core'], movilidad: false });
+    m.addCoreLogEntry(d, { date: TODAY, categories: ['oblicuos'], movilidad: true });
+    expect(d.gym.coreLog).toHaveLength(2);
+    expect(d.gym.coreLog.every((x) => x.date === TODAY)).toBe(true);
+    expect(d.gym.coreLog[0].id).not.toBe(d.gym.coreLog[1].id);
+  });
+
+  it('editar un registro reemplaza sus datos sin tocar el id', () => {
+    const d = vacio();
+    const e = m.addCoreLogEntry(d, { date: TODAY, categories: ['core'], movilidad: false });
+    expect(m.updateCoreLogEntry(d, e.id, { date: ago(1), categories: ['altos', 'bajos'], movilidad: true })).toBe(true);
+    expect(d.gym.coreLog[0]).toEqual({ id: e.id, date: ago(1), categories: ['altos', 'bajos'], movilidad: true });
+  });
+
+  it('editar uno que no existe avisa en vez de romper', () => {
+    const d = vacio();
+    expect(m.updateCoreLogEntry(d, 'no-existe', { date: TODAY, categories: [], movilidad: true })).toBe(false);
+  });
+
+  it('borrar saca solo el que corresponde', () => {
+    const d = vacio();
+    const e1 = m.addCoreLogEntry(d, { date: TODAY, categories: ['core'], movilidad: false });
+    const e2 = m.addCoreLogEntry(d, { date: TODAY, categories: ['bajos'], movilidad: false });
+    expect(m.deleteCoreLogEntry(d, e1.id)).toBe(true);
+    expect(d.gym.coreLog.map((x) => x.id)).toEqual([e2.id]);
+  });
+
+  it('borrar algo que no existe no cambia nada', () => {
+    const d = vacio();
+    m.addCoreLogEntry(d, { date: TODAY, categories: ['core'], movilidad: false });
+    expect(m.deleteCoreLogEntry(d, 'no-existe')).toBe(false);
+    expect(d.gym.coreLog).toHaveLength(1);
+  });
+});
+
+describe('notificaciones: token de FCM', () => {
+  it('un documento sin ningún token no tiene el campo (se materializa recién al primero)', () => {
+    const d = vacio();
+    expect(d.fcmTokens).toBeUndefined();
+  });
+
+  it('registrar el primer token crea la lista', () => {
+    const d = vacio();
+    expect(m.registerFcmToken(d, 'tok-1')).toBe(true);
+    expect(d.fcmTokens).toEqual(['tok-1']);
+  });
+
+  it('registrar el mismo token dos veces no lo duplica', () => {
+    const d = vacio();
+    m.registerFcmToken(d, 'tok-1');
+    expect(m.registerFcmToken(d, 'tok-1')).toBe(false);
+    expect(d.fcmTokens).toEqual(['tok-1']);
+  });
+
+  it('dos dispositivos distintos quedan como dos tokens', () => {
+    const d = vacio();
+    m.registerFcmToken(d, 'tok-1');
+    m.registerFcmToken(d, 'tok-2');
+    expect(d.fcmTokens).toEqual(['tok-1', 'tok-2']);
+  });
+
+  it('quitar un token saca solo ese, no los demás', () => {
+    const d = vacio();
+    m.registerFcmToken(d, 'tok-1');
+    m.registerFcmToken(d, 'tok-2');
+    expect(m.removeFcmToken(d, 'tok-1')).toBe(true);
+    expect(d.fcmTokens).toEqual(['tok-2']);
+  });
+
+  it('quitar un token que no existe no rompe, y no crea el campo si no existía', () => {
+    const d = vacio();
+    expect(m.removeFcmToken(d, 'no-existe')).toBe(false);
+    expect(d.fcmTokens).toBeUndefined();
+  });
+});
+
 describe('tipos de entrenamiento', () => {
   it('editar uno que no existe no toca nada', () => {
     const d = doc();

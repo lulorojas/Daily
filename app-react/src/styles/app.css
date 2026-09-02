@@ -34,6 +34,7 @@
 button.wcell, button.nb, button.navbtn, button.dp-day, button.chk, button.traydot,
 button.minibtn, button.slot, button.navadd, button.switch, button.gcheck,
 button.iconcirc, button.stepbtn, button.roundadd, button.ordbtn, button.hmenubtn,
+button.turno-quitar,
 .mhead button.cancel, .mhead button.save, button.dd-add {
   padding: 0;
 }
@@ -222,6 +223,14 @@ button.slot:disabled { cursor: default; }
 .gchip.rest { background: rgba(255, 255, 255, .05); color: rgba(242, 244, 248, .5); }
 .spacer { flex: 1; }
 .dashed.managetypes { margin-top: 2px; }
+
+/* ---- entrenamientos dobles (etapa 6, sin precedente en vanilla) ---- */
+.turno-quitar { width: 20px; height: 20px; flex: none; border-radius: 7px; display: grid; place-items: center; color: rgba(242, 244, 248, .35); cursor: pointer; position: relative; }
+.turno-quitar:hover { color: rgba(242, 244, 248, .6); background: rgba(255, 255, 255, .06); }
+/* Mismo criterio de área táctil que el resto de los checkboxes chicos (etapa 4). */
+.turno-quitar::after { content: ''; position: absolute; inset: -12px; }
+.turno-agregar { display: flex; align-items: center; gap: 6px; margin: 2px 10px 4px; padding: 6px 2px; font-size: 12px; font-weight: 600; color: rgba(242, 244, 248, .35); cursor: pointer; align-self: flex-start; }
+.turno-agregar:hover { color: rgba(242, 244, 248, .6); }
 .sectcount { font-size: 12px; color: rgba(242, 244, 248, .35); }
 
 /* ---- peso corporal (Gimnasio y Progreso comparten estas clases: son el mismo dibujo) ----
