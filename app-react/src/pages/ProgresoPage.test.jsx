@@ -105,9 +105,9 @@ describe('estados vacíos: "sin datos" no es lo mismo que "sin datos en este rec
     expect(screen.getByText('Cargá tu peso para ver la tendencia.')).toBeInTheDocument();
     expect(screen.getByText('Marcá entrenamientos para ver tu frecuencia.')).toBeInTheDocument();
     expect(screen.getByText('Agregá ejercicios en Gimnasio para seguir tus cargas.')).toBeInTheDocument();
-    // "Todavía no creaste hábitos." se repite en las tres secciones de hábitos
-    // (Cumplimiento, Mapa, Rachas): cada una la muestra por su cuenta.
-    expect(screen.getAllByText('Todavía no creaste hábitos.')).toHaveLength(3);
+    // Etapa 6: Progreso quedó con un solo bloque de hábitos (Cumplimiento) — se sacaron
+    // Mapa de hábitos y Rachas para que la pantalla gire en torno a entrenamientos.
+    expect(screen.getByText('Todavía no creaste hábitos.')).toBeInTheDocument();
   });
 
   it('con ejercicios pero sin dos registros en la ventana, el mensaje es otro', async () => {
@@ -143,9 +143,16 @@ describe('las otras secciones', () => {
     expect(despues).toBe(antes);
   });
 
-  it('el mapa de hábitos y las rachas de cada hábito aparecen con hábitos cargados', () => {
+  it('cumplimiento de hábitos aparece con hábitos cargados (único bloque de hábitos, etapa 6)', () => {
     renderScreen(<ProgresoPage />, { doc: fullDoc() });
-    expect(screen.getByText('Mapa de hábitos')).toBeInTheDocument();
-    expect(screen.getByText('Rachas')).toBeInTheDocument();
+    expect(screen.getByText('Cumplimiento de hábitos')).toBeInTheDocument();
+  });
+
+  it('abs cuenta como entreno en el ranking, movilidad no (etapa 6)', () => {
+    const doc = fullDoc();
+    doc.gym.weekPlans[Object.keys(doc.gym.weekPlans)[0]][0].absCategories = ['core'];
+    renderScreen(<ProgresoPage />, { doc });
+    // Aparece más de una vez: ranking y balance muestran los mismos tipos, cada uno a su manera.
+    expect(screen.getAllByText('Abs').length).toBeGreaterThan(0);
   });
 });

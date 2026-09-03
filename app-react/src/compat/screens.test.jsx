@@ -244,7 +244,18 @@ describe('Hábitos dice exactamente lo mismo que la app vanilla', () => {
 function progresoVanilla(doc, per = 'mes') {
   V.setState(V.normalize(clone(doc)));
   V.ui.tab = 'progreso'; V.ui.progPeriod = per;
-  return texto(vanillaHTML(V.viewProgreso()));
+  const cont = vanillaHTML(V.viewProgreso());
+  /* Etapa 6, pedido explícito de Lulo: Progreso tiene que girar en torno a entrenamientos,
+     con nada más que uno o dos bloques de hábitos. Se sacaron "Mapa de hábitos" y "Rachas"
+     (quedó solo "Cumplimiento de hábitos") — del lado React esas dos secciones ya no
+     existen, así que acá se sacan del lado vanilla antes de comparar. Comparación EXACTA
+     de texto, no startsWith: "Rachas de entrenamiento" (Gimnasio, no se toca) también
+     arranca con la palabra "Rachas" y no tiene que caer en el mismo corte. */
+  cont.querySelectorAll('.sect').forEach((sect) => {
+    const label = sect.querySelector('.sectlabel')?.textContent;
+    if (label === 'Mapa de hábitos' || label === 'Rachas') sect.remove();
+  });
+  return texto(cont);
 }
 
 function progresoReact(doc) {

@@ -20,13 +20,25 @@
    del día. Se hace UNA vez por día (no varias entradas como se probó antes): elegir de
    nuevo una categoría ya marcada la saca, exactamente como un checkbox.
    `absCategories` ausente o `movilidad` ausente = nada marcado ese día; dayAbs() es el
-   único lugar que lee estos dos campos directamente. */
+   único lugar que lee estos dos campos directamente.
+
+   Abs cuenta como entreno para Progreso, movilidad no (pedido explícito de Lulo, cuarta
+   vuelta sobre el mismo tema): un día con alguna categoría marcada aporta UNA entrada al
+   historial (gymHistory), con type ABS_TYPE — así entra solo en el ranking, el balance,
+   las rachas y la frecuencia de Progreso, exactamente "como cualquier tipo que creo",
+   sin que Abs sea un tipo elegible de verdad en Administrar tipos (no compite por turno,
+   sigue siendo su propio renglón). Movilidad, aunque esté marcada, NUNCA aporta una
+   entrada: es la distinción explícita que pidió Lulo. */
 import { addDays, iso, mondayOf, parseISO, todayD, DOW_SHORT } from './dates';
 import { C } from './theme';
 
 // Los tipos de entrenamiento los crea el usuario; solo "Descanso" es fijo.
 // Es un string que vive DENTRO de los datos: cambiarlo rompería todos los planes guardados.
 export const REST = 'Descanso';
+
+// El "tipo" con el que Abs entra al historial de Progreso. No es un tipo elegible en
+// Administrar tipos (allTypes() no lo incluye): es solo la etiqueta que ve gymHistory().
+export const ABS_TYPE = 'Abs';
 
 // La clave de weekPlans para una semana, contada desde la actual (0 = esta, -1 = la pasada).
 export function weekKey(offset) { return iso(addDays(mondayOf(todayD()), offset * 7)); }
@@ -64,6 +76,7 @@ export function allTypes(state) {
 }
 
 export function typeColor(state, name) {
+  if (name === ABS_TYPE) return C.violet; // mismo color que el renglón de abs en el plan.
   const t = allTypes(state).find((x) => x.name === name);
   return t ? t.color : C.rose;
 }
@@ -80,7 +93,10 @@ export function dayTurnos(day) {
 /* El historial de entrenos, derivado del plan: cada TURNO marcado como hecho que no sea
    descanso — un día con los dos turnos hechos aporta dos entradas, una por tipo, porque
    son dos entrenamientos distintos (cuentan aparte para el ranking y las rachas por
-   tipo). Ordenado del más nuevo al más viejo. */
+   tipo) — MÁS una entrada de tipo ABS_TYPE por cada día con alguna categoría de abs
+   marcada (una sola, sin importar cuántas categorías ni si también hay movilidad: es un
+   solo evento de entreno ese día, no uno por categoría). Movilidad sola, sin categorías,
+   no aporta nada. Ordenado del más nuevo al más viejo. */
 export function gymHistory(state) {
   const out = [];
   Object.keys(state.gym.weekPlans).forEach((k) => {
@@ -88,6 +104,7 @@ export function gymHistory(state) {
     state.gym.weekPlans[k].forEach((day, i) => {
       const date = iso(addDays(mon, i));
       dayTurnos(day).forEach((t) => { if (t.done && t.type !== REST) out.push({ date, type: t.type }); });
+      if (dayAbs(day).categories.length) out.push({ date, type: ABS_TYPE });
     });
   });
   out.sort((a, b) => (a.date < b.date ? 1 : -1));

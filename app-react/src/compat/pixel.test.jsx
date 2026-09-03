@@ -250,6 +250,13 @@ function habitos(doc, day) {
   return { vanilla: V.viewHabitos(), react: container.innerHTML, acento: C.green };
 }
 
+/* OJO al correr npm run test:pixel a mano: desde etapa 6, Progreso YA NO intenta verse
+   igual que vanilla a propósito. Lulo pidió recortar a 1-2 bloques de hábitos ("Mapa de
+   hábitos" y "Rachas" se sacaron, queda "Cumplimiento de hábitos") para que la pantalla
+   gire en torno a entrenamientos — src/compat/screens.test.jsx ya lo sabe y lo compensa
+   sacando esas dos secciones del lado vanilla antes de comparar texto, pero ESTE archivo
+   (capturas reales, sin ese recorte) va a mostrar un diff real y esperable en las dos
+   variantes de Progreso: la página React sale más corta, no rota. */
 function progreso(doc, per = 'mes') {
   V.setState(V.normalize(clone(doc)));
   V.ui.tab = 'progreso'; V.ui.progPeriod = per;

@@ -8,8 +8,6 @@ import { ProgFrecuencia } from '../components/progreso/ProgFrecuencia';
 import { ProgCargas } from '../components/progreso/ProgCargas';
 import { ProgGymStreaks } from '../components/progreso/ProgGymStreaks';
 import { ProgCumplimiento } from '../components/progreso/ProgCumplimiento';
-import { ProgHeatmap } from '../components/progreso/ProgHeatmap';
-import { ProgStreaks } from '../components/progreso/ProgStreaks';
 import { Section } from '../components/ui/Section';
 import { useData } from '../hooks/useData';
 import { gymHistory } from '../lib/gym';
@@ -25,9 +23,17 @@ import { todayISO } from '../lib/dates';
    nada — ni un update() en toda la pantalla. El selector de período de arriba recorta
    TODO lo de abajo de una sola vez.
 
-   Nueve bloques, siempre en el mismo orden que la app vanilla. Cada uno decide su propio
-   estado vacío (EmptyCard adentro de cada componente), porque el mensaje cambia según qué
-   falta: no es lo mismo "no tenés hábitos" que "no tenés datos en este recorte".
+   Bloques siempre en el mismo orden que la app vanilla. Cada uno decide su propio estado
+   vacío (EmptyCard adentro de cada componente), porque el mensaje cambia según qué falta:
+   no es lo mismo "no tenés hábitos" que "no tenés datos en este recorte".
+
+   Etapa 6, pedido explícito de Lulo: Progreso tiene que girar en torno a entrenamientos,
+   así que se sacaron dos de los tres bloques de hábitos que traía vanilla — "Mapa de
+   hábitos" (heatmap) y "Rachas" (racha por hábito) — y queda solo "Cumplimiento de
+   hábitos". Los seis bloques de gimnasio no se tocaron: ya eran mayoría antes de este
+   recorte. Sin equivalente en vanilla — no hay contra qué comparar acá, así que
+   src/compat/screens.test.jsx compensa sacando esas dos secciones del lado vanilla antes
+   de comparar.
    ============================================================================ */
 export function ProgresoPage() {
   const { data } = useData();
@@ -63,8 +69,6 @@ export function ProgresoPage() {
         <ProgCargas data={data} per={period} start={start} />
         <ProgGymStreaks data={data} />
         <ProgCumplimiento data={data} per={period} />
-        <ProgHeatmap data={data} per={period} />
-        <ProgStreaks data={data} />
       </div>
     </div>
   );
