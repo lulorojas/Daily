@@ -127,6 +127,14 @@ export function gymDayCounts(hist) {
   return out;
 }
 
+// Qué tipos se entrenaron cada día exacto: { fechaISO: [tipo, ...] }. Recibe el
+// historial ya filtrado. La usa ProgGymHeatmap para el globito de "qué hice ese día".
+export function gymDayTypes(hist) {
+  const out = {};
+  hist.forEach((x) => { (out[x.date] ||= []).push(x.type); });
+  return out;
+}
+
 /* Racha POR TIPO de entrenamiento (no por semana): cuántas semanas seguidas, contando
    hacia atrás, se hizo ese tipo al menos una vez. Un tipo "está en racha" a partir de 2.
    La semana en curso no corta la racha: si todavía no entrenaste esta semana, se empieza

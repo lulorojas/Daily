@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ABS_TYPE, dayAbs, dayTurnos, describeAbs, gymDayCounts, gymHistory, gymRanking, REST, typeColor } from './gym';
+import { ABS_TYPE, dayAbs, dayTurnos, describeAbs, gymDayCounts, gymDayTypes, gymHistory, gymRanking, REST, typeColor } from './gym';
 import { normalize } from './model';
 import { emptyDoc } from '../test/fixtures';
 
@@ -124,6 +124,26 @@ describe('gymDayCounts (etapa 7, mapa de entrenamientos)', () => {
       { date: '2026-08-03', type: ABS_TYPE },
     ];
     expect(gymDayCounts(hist)).toEqual({ '2026-08-03': 3 });
+  });
+});
+
+describe('gymDayTypes (etapa 7, globito del mapa de entrenamientos)', () => {
+  it('un día sin entrenos no aparece en el objeto', () => {
+    expect(gymDayTypes([])).toEqual({});
+  });
+
+  it('un tipo por día', () => {
+    const hist = [{ date: '2026-08-03', type: 'Pecho' }, { date: '2026-08-05', type: 'Espalda' }];
+    expect(gymDayTypes(hist)).toEqual({ '2026-08-03': ['Pecho'], '2026-08-05': ['Espalda'] });
+  });
+
+  it('varios tipos el mismo día quedan en orden, sin pisarse', () => {
+    const hist = [
+      { date: '2026-08-03', type: 'Pecho' },
+      { date: '2026-08-03', type: 'Cardio' },
+      { date: '2026-08-03', type: ABS_TYPE },
+    ];
+    expect(gymDayTypes(hist)).toEqual({ '2026-08-03': ['Pecho', 'Cardio', ABS_TYPE] });
   });
 });
 

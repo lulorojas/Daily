@@ -160,8 +160,25 @@ describe('las otras secciones', () => {
     const lunes = semana; // weekPlans[semana][0] es justo el lunes de esa semana
     const { container } = renderScreen(<ProgresoPage />, { doc });
 
-    const celda = container.querySelector(`.heatcell[title^="${lunes}"]`);
+    const celda = container.querySelector(`.heatcell[data-date="${lunes}"]`);
     expect(celda).toBeTruthy();
     expect(celda.style.background).not.toBe('rgba(255, 255, 255, 0.05)');
+  });
+
+  it('tocar una celda del mapa despliega el globito con qué se entrenó ese día, y tocar afuera lo cierra', async () => {
+    const user = userEvent.setup();
+    const doc = fullDoc();
+    const semana = Object.keys(doc.gym.weekPlans)[0];
+    doc.gym.weekPlans[semana][0] = { type: 'Espalda', done: true };
+    const { container } = renderScreen(<ProgresoPage />, { doc });
+
+    const celda = container.querySelector(`.heatcell[data-date="${semana}"]`);
+    expect(container.querySelector('.heatcell-tip')).toBeFalsy();
+
+    await user.click(celda);
+    expect(container.querySelector('.heatcell-tip')).toHaveTextContent('Espalda');
+
+    await user.click(document.body);
+    expect(container.querySelector('.heatcell-tip')).toBeFalsy();
   });
 });

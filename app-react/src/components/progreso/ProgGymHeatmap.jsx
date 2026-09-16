@@ -1,7 +1,8 @@
+import { useEffect, useState } from 'react';
 import { EmptyCard, Section } from '../ui/Section';
-import { gymDayCounts, gymHistory } from '../../lib/gym';
+import { gymDayCounts, gymDayTypes, gymHistory } from '../../lib/gym';
 import { progWeekWindow } from '../../lib/progress';
-import { DOW_MINI, addDays, iso, todayISO } from '../../lib/dates';
+import { DOW_MINI, MONTHS, addDays, iso, shortDate, todayISO } from '../../lib/dates';
 import { C, tint } from '../../lib/theme';
 
 /* ----------------------------- MAPA DE ENTRENAMIENTOS -----------------------------
@@ -14,7 +15,17 @@ import { C, tint } from '../../lib/theme';
    (0 = casi invisible, 1/2/3+ = tres pasos), no un color distinto por tipo — más simple
    de leer y evita el problema de qué color mostrar en un día con dos turnos de tipos
    distintos. Sin equivalente en vanilla: no hay contra qué comparar, así que
-   src/compat/screens.test.jsx la saca del lado React antes de comparar texto. */
+   src/compat/screens.test.jsx la saca del lado React antes de comparar texto.
+
+   Segunda vuelta (mismo pedido, corrección): dos cosas que le faltaban al mapa de
+   hábitos original y que acá SÍ hacen falta — una referencia de fecha (qué mes es cada
+   columna, no solo "cuántas semanas") y un detalle de qué se entrenó al tocar un día. Lo
+   segundo NO puede ser el `title` nativo del navegador: la app es sobre todo celular, y
+   ahí no hay "pasar el mouse por arriba". Se resuelve con el mismo patrón que ya usa
+   LineChart (ui/LineChart.jsx) para el globito de un punto — clic/toque abre, clic afuera
+   cierra — pero anclado a la celda en vez de a coordenadas de un SVG, porque acá no hay
+   un canvas único: cada celda es su propio `position:relative` y el globito es su hijo
+   absoluto, así no hace falta convertir columna de grilla a porcentaje de nada. */
 const STEPS = ['4D', 'B3', 'FF']; // 1, 2, 3+ sesiones ese día
 
 function stepFor(n) { return n > 0 ? STEPS[Math.min(2, n - 1)] : null; }
@@ -36,10 +47,31 @@ export function ProgGymHeatmap({ data, per }) {
 function GymHeatmapCard({ hist, per }) {
   const win = progWeekWindow(per, [hist[hist.length - 1].date]);
   const counts = gymDayCounts(hist);
+  const types = gymDayTypes(hist);
   const tISO = todayISO();
+  const [abierto, setAbierto] = useState(null); // fecha ISO de la celda con el globito abierto
+
+  useEffect(() => {
+    if (abierto === null) return undefined;
+    const fuera = (e) => { if (!e.target.closest('.heatmapcard')) setAbierto(null); };
+    document.addEventListener('click', fuera, true);
+    return () => document.removeEventListener('click', fuera, true);
+  }, [abierto]);
+
+  // Una etiqueta de mes por columna: solo en la primera semana de la ventana y cada vez
+  // que el mes cambia respecto de la columna anterior — igual que un calendario de commits.
+  const meses = Array.from({ length: win.weeks }, (_, w) => {
+    const d = addDays(win.from, w * 7);
+    const anterior = w > 0 ? addDays(win.from, (w - 1) * 7) : null;
+    return anterior && anterior.getMonth() === d.getMonth() ? '' : MONTHS[d.getMonth()].slice(0, 3);
+  });
 
   return (
     <div className="card heatmapcard">
+      <div className="heatmonths" style={{ gridTemplateColumns: `repeat(${win.weeks},minmax(0,1fr))` }}>
+        {meses.map((m, w) => <span key={w}>{m}</span>)}
+      </div>
+
       {Array.from({ length: 7 }, (_, d) => (
         <div className="heatrow" key={d}>
           <span className="heatrow-dow">{DOW_MINI[d]}</span>
@@ -49,13 +81,25 @@ function GymHeatmapCard({ hist, per }) {
               const future = cISO > tISO;
               const step = future ? null : stepFor(counts[cISO] || 0);
               const bg = future ? 'transparent' : step ? tint(C.teal, step) : 'rgba(255,255,255,.05)';
+              const abiertoAca = abierto === cISO;
               return (
-                <div
+                <button
+                  type="button"
                   key={cISO}
                   className={`heatcell${cISO === tISO ? ' today' : ''}`}
                   style={{ background: bg }}
-                  title={`${cISO}${counts[cISO] ? ` · ${counts[cISO]}` : ''}`}
-                />
+                  disabled={future}
+                  data-date={cISO}
+                  aria-label={`${shortDate(cISO)}: ${(types[cISO] || []).join(', ') || 'sin entreno'}`}
+                  aria-expanded={abiertoAca}
+                  onClick={(e) => { e.stopPropagation(); setAbierto((prev) => (prev === cISO ? null : cISO)); }}
+                >
+                  {abiertoAca && (
+                    <span className="charttip show heatcell-tip">
+                      {shortDate(cISO)} · {(types[cISO] || []).join(', ') || 'sin entreno'}
+                    </span>
+                  )}
+                </button>
               );
             })}
           </div>
@@ -67,7 +111,7 @@ function GymHeatmapCard({ hist, per }) {
         {STEPS.map((step) => <span key={step} className="heatlegend-dot" style={{ background: tint(C.teal, step) }} />)}
         <span>más</span>
         <span className="grow" />
-        <span>{win.weeks} semanas</span>
+        <span>{shortDate(iso(win.from))} – {shortDate(tISO)}</span>
       </div>
     </div>
   );
