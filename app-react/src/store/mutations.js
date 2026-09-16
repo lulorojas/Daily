@@ -211,26 +211,32 @@ export function nextLiftColor(state) {
   return PALETTE[state.gym.lifts.length % PALETTE.length];
 }
 
-export function addLift(draft, { name, weight, date }) {
-  const lift = { id: uid(), name, unit: 'kg', color: nextLiftColor(draft), history: [{ date, weight }] };
+/* `reps` es opcional (pedido explícito de Lulo, etapa 7): cuántas repeticiones hizo con
+   ese peso. Ausente si no se cargó — no un 0 ni un null colgando, mismo criterio que
+   type2/absCategories: un registro viejo sin reps y uno al que nunca se le puso reps
+   tienen que quedar exactamente iguales. */
+export function addLift(draft, { name, weight, date, reps }) {
+  const record = reps ? { date, weight, reps } : { date, weight };
+  const lift = { id: uid(), name, unit: 'kg', color: nextLiftColor(draft), history: [record] };
   draft.gym.lifts.push(lift);
   return lift;
 }
 
 /* Se AGREGA al final, sin ordenar por fecha: el historial guarda el orden en que se
    cargaron los registros, y quien lo lee (gráficos, récords) ordena por fecha. */
-export function logLift(draft, liftId, { date, weight }) {
+export function logLift(draft, liftId, { date, weight, reps }) {
   const l = draft.gym.lifts.find((x) => x.id === liftId);
   if (!l) return false;
-  l.history.push({ date, weight });
+  l.history.push(reps ? { date, weight, reps } : { date, weight });
   return true;
 }
 
 // Editar un registro lo reemplaza entero y redondea a un decimal, como el formulario.
-export function updateLiftRecord(draft, liftId, index, { date, weight }) {
+export function updateLiftRecord(draft, liftId, index, { date, weight, reps }) {
   const l = draft.gym.lifts.find((x) => x.id === liftId);
   if (!l || !l.history[index]) return false;
-  l.history[index] = { date, weight: +Number(weight).toFixed(1) };
+  const rounded = +Number(weight).toFixed(1);
+  l.history[index] = reps ? { date, weight: rounded, reps } : { date, weight: rounded };
   return true;
 }
 

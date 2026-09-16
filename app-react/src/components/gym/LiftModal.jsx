@@ -7,6 +7,7 @@ import { useData } from '../../hooks/useData';
 import { addLift, deleteLift, logLift } from '../../store/mutations';
 import { C, tint } from '../../lib/theme';
 import { fmtNum, todayISO } from '../../lib/dates';
+import { parseDecimal } from '../../lib/numberForms';
 
 const ACCENT = C.rose;
 const STEP = 2.5;
@@ -36,7 +37,9 @@ export function LiftModal({ onClose }) {
   const [newName, setNewName] = useState('');
   const [weight, setWeight] = useState(selId ? lastFor(selId) : 0);
   const [date, setDate] = useState(todayISO());
+  const [reps, setReps] = useState('');
   const [error, setError] = useState(null);
+  const [repsError, setRepsError] = useState(null);
   const [confirming, setConfirming] = useState(false);
   const newNameId = useId();
   const newNameRef = useRef(null);
@@ -62,9 +65,15 @@ export function LiftModal({ onClose }) {
       newNameRef.current?.focus();
       return;
     }
+    const parsedReps = parseDecimal(reps);
+    if (parsedReps !== null && (!Number.isInteger(parsedReps) || parsedReps <= 0)) {
+      setRepsError('Poné un número entero de repeticiones (o dejalo vacío).');
+      return;
+    }
     update((draft) => {
-      if (trimmed) addLift(draft, { name: trimmed, weight, date });
-      else logLift(draft, selId, { date, weight });
+      const vals = { date, weight, reps: parsedReps ?? undefined };
+      if (trimmed) addLift(draft, { name: trimmed, ...vals });
+      else logLift(draft, selId, vals);
     });
     onClose();
   };
@@ -148,6 +157,16 @@ export function LiftModal({ onClose }) {
               Última carga: {fmtNum(last)} kg · <span style={{ color: gain < 0 ? C.danger : C.green }}>{gain >= 0 ? '+' : ''}{gain.toFixed(1)} kg</span>
             </div>
           )}
+        </Field>
+
+        <Field label="Repeticiones" hint="opcional" error={repsError}>
+          <input
+            className={`inp${repsError ? ' bad' : ''}`}
+            inputMode="numeric"
+            placeholder="Ej: 5"
+            value={reps}
+            onChange={(e) => { setReps(e.target.value); if (repsError) setRepsError(null); }}
+          />
         </Field>
 
         <Field label="Fecha">

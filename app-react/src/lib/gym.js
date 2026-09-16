@@ -174,6 +174,11 @@ export function liftGains(state, startISO) {
   }).filter(Boolean).sort((a, b) => b.gain - a.gain);
 }
 
+// " × 5" si el registro tiene reps cargadas, "" si no (registro viejo o sin cargar).
+export function repsLabel(reps) {
+  return reps ? ` × ${reps}` : '';
+}
+
 // Registros de peso corporal, del más viejo al más nuevo. Copia: no toca el estado.
 export function bodyList(state) {
   return state.gym.bodyWeights.slice().sort((a, b) => (a.date < b.date ? -1 : 1));

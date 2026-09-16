@@ -19,7 +19,7 @@
        gym: {
          customTypes:    [ { id, name, color } ],
          weekPlans:      { 'YYYY-MM-DD(lunes)': [ { type, done, type2?, done2?, absCategories?, movilidad? }, ...x7 ] },
-         lifts:          [ { id, name, unit, color, history:[ { date, weight } ] } ],
+         lifts:          [ { id, name, unit, color, history:[ { date, weight, reps? } ] } ],
          routines:       [ { id, name, days:[ { id, name, exercises:[ { id, name, detail } ] } ] } ],
          bodyWeights:    [ { id, kg, date } ],
        },
@@ -28,11 +28,11 @@
        migratedFrom?, migratedAt?,     // solo en cuentas que vienen de daily.v1
      }
 
-   `weekPlans[semana][día].type2/done2/absCategories/movilidad` y `fcmTokens` son de la
-   etapa 6 (React), sin equivalente en la app vanilla: no hay contra qué comparar en
-   src/compat/, así que se prueban directo. Los cuatro campos del día son compatibles
-   hacia atrás por construcción: todos opcionales, ausentes en un día viejo (ver
-   dayTurnos()/dayAbs() en lib/gym.js).
+   `weekPlans[semana][día].type2/done2/absCategories/movilidad`, `lifts[].history[].reps`
+   y `fcmTokens` son de las etapas 6-7 (React), sin equivalente en la app vanilla: no hay
+   contra qué comparar en src/compat/, así que se prueban directo. Todos son compatibles
+   hacia atrás por construcción: opcionales, ausentes en un día/registro viejo (ver
+   dayTurnos()/dayAbs() en lib/gym.js; repsLabel() para reps).
 
    `absCategories`/`movilidad` NO son una lista aparte ni un turno más — son dos campos
    MÁS del mismo objeto día, exactamente al lado de type/done/type2/done2. No hacía falta

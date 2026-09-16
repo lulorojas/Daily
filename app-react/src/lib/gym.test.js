@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ABS_TYPE, dayAbs, dayTurnos, describeAbs, gymDayCounts, gymDayTypes, gymHistory, gymRanking, REST, typeColor } from './gym';
+import { ABS_TYPE, dayAbs, dayTurnos, describeAbs, gymDayCounts, gymDayTypes, gymHistory, gymRanking, repsLabel, REST, typeColor } from './gym';
 import { normalize } from './model';
 import { emptyDoc } from '../test/fixtures';
 
@@ -177,5 +177,16 @@ describe('describeAbs', () => {
 
   it('nada marcado da null, no un string vacío', () => {
     expect(describeAbs({ categories: [], movilidad: false })).toBeNull();
+  });
+});
+
+describe('repsLabel (etapa 7, cargas por ejercicio)', () => {
+  it('sin reps da string vacío', () => {
+    expect(repsLabel(undefined)).toBe('');
+    expect(repsLabel(0)).toBe('');
+  });
+
+  it('con reps da " × N"', () => {
+    expect(repsLabel(5)).toBe(' × 5');
   });
 });

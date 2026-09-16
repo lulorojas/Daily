@@ -1,3 +1,4 @@
+import { repsLabel } from '../../lib/gym';
 import { fmtNum } from '../../lib/dates';
 import { C } from '../../lib/theme';
 
@@ -8,6 +9,7 @@ import { C } from '../../lib/theme';
 export function LiftCard({ lift, maxCur, onOpen }) {
   const data = lift.history.map((p) => p.weight);
   const cur = data[data.length - 1];
+  const curReps = lift.history[lift.history.length - 1].reps;
   const gain = +(cur - data[0]).toFixed(1);
   const bar = Math.round((cur / (maxCur || cur)) * 100);
   const deltaColor = gain < 0 ? C.danger : gain > 0 ? C.green : 'rgba(242,244,248,.35)';
@@ -19,7 +21,7 @@ export function LiftCard({ lift, maxCur, onOpen }) {
         <div className="bartrack thin"><div style={{ background: lift.color, width: `${bar}%` }} /></div>
       </div>
       <div className="liftrow-side">
-        <span className="kg">{fmtNum(cur)} {lift.unit || 'kg'}</span>
+        <span className="kg">{fmtNum(cur)} {lift.unit || 'kg'}{repsLabel(curReps)}</span>
         <span className="delta" style={{ color: deltaColor }}>
           {data.length > 1 ? (gain > 0 ? '+' : '') + (gain === 0 ? '=' : fmtNum(gain)) : 'nuevo'}
         </span>

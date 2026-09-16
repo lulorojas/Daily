@@ -94,6 +94,37 @@ describe('ejercicios y cargas', () => {
     for (let i = 0; i < 7; i++) colores.push(m.addLift(d, { name: 'e' + i, weight: 0, date: TODAY }).color);
     expect(colores[6]).toBe(colores[0]);
   });
+
+  it('reps es opcional: un ejercicio nuevo sin reps no tiene el campo', () => {
+    const d = vacio();
+    const lift = m.addLift(d, { name: 'Sentadilla', weight: 80, date: TODAY });
+    expect(lift.history[0]).toEqual({ date: TODAY, weight: 80 });
+    expect('reps' in lift.history[0]).toBe(false);
+  });
+
+  it('reps se guarda si se manda', () => {
+    const d = vacio();
+    const lift = m.addLift(d, { name: 'Sentadilla', weight: 80, date: TODAY, reps: 5 });
+    expect(lift.history[0]).toEqual({ date: TODAY, weight: 80, reps: 5 });
+  });
+
+  it('cargar peso nuevo con reps se agrega al historial existente', () => {
+    const d = doc();
+    m.logLift(d, 'l1', { date: TODAY, weight: 65, reps: 3 });
+    const ultimo = d.gym.lifts.find((l) => l.id === 'l1').history.at(-1);
+    expect(ultimo).toEqual({ date: TODAY, weight: 65, reps: 3 });
+  });
+
+  it('editar un registro puede agregarle o sacarle las reps', () => {
+    const d = doc();
+    m.updateLiftRecord(d, 'l1', 0, { date: TODAY, weight: 62.5, reps: 8 });
+    expect(d.gym.lifts[0].history[0]).toEqual({ date: TODAY, weight: 62.5, reps: 8 });
+
+    // Editar de nuevo sin reps las saca (no las deja pisadas en undefined).
+    m.updateLiftRecord(d, 'l1', 0, { date: TODAY, weight: 62.5 });
+    expect(d.gym.lifts[0].history[0]).toEqual({ date: TODAY, weight: 62.5 });
+    expect('reps' in d.gym.lifts[0].history[0]).toBe(false);
+  });
 });
 
 describe('peso corporal', () => {

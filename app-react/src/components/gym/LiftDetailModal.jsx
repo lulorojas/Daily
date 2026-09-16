@@ -5,6 +5,7 @@ import { PencilIcon, CrossIcon } from '../ui/Icons';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { useData } from '../../hooks/useData';
 import { deleteLift } from '../../store/mutations';
+import { repsLabel } from '../../lib/gym';
 import { fmtDateLong, fmtNum, shortDate } from '../../lib/dates';
 import { C, accentedDashedStyle, tint } from '../../lib/theme';
 
@@ -27,6 +28,7 @@ export function LiftDetailModal({ lift, onClose, onLogWeight, onEditRecord }) {
   const desc = asc.slice().reverse();
   const data = asc.map((x) => x.p.weight);
   const cur = data[data.length - 1], first = data[0];
+  const curRecord = asc[asc.length - 1].p;
   const gain = +(cur - first).toFixed(1);
   const pr = Math.max(...data);
   const prRecord = asc.find((x) => x.p.weight === pr).p;
@@ -43,7 +45,7 @@ export function LiftDetailModal({ lift, onClose, onLogWeight, onEditRecord }) {
         <div className="liftdetail-top">
           <div className="liftdetail-cur">
             <span className="fr liftdetail-val" style={{ color: col }}>{fmtNum(cur)}</span>
-            <span className="liftdetail-unit">{unit}</span>
+            <span className="liftdetail-unit">{unit}{repsLabel(curRecord.reps)}</span>
             {data.length > 1 && (
               <span className="deltapill inline" style={{ color: gain < 0 ? C.danger : C.green, background: tint(gain < 0 ? C.danger : C.green, '29') }}>
                 {gain >= 0 ? '+' : ''}{fmtNum(gain)} {unit}
@@ -52,7 +54,7 @@ export function LiftDetailModal({ lift, onClose, onLogWeight, onEditRecord }) {
           </div>
           <div className="liftdetail-pr">
             <div className="liftdetail-prlbl">RÉCORD</div>
-            <div className="fr liftdetail-prval">{fmtNum(pr)} {unit}</div>
+            <div className="fr liftdetail-prval">{fmtNum(pr)} {unit}{repsLabel(prRecord.reps)}</div>
           </div>
         </div>
 
@@ -83,7 +85,7 @@ export function LiftDetailModal({ lift, onClose, onLogWeight, onEditRecord }) {
               const esPr = p.weight === pr;
               return (
                 <div className="managerow" key={i}>
-                  <span className="fr managerow-kg" style={{ color: col }}>{fmtNum(p.weight)} {unit}</span>
+                  <span className="fr managerow-kg" style={{ color: col }}>{fmtNum(p.weight)} {unit}{repsLabel(p.reps)}</span>
                   <span className="managerow-date">{fmtDateLong(p.date)}</span>
                   {esPr && <span className="prtag">récord</span>}
                   <div className="managerow-actions">

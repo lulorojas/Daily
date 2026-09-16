@@ -341,6 +341,57 @@ describe('cargas por ejercicio', () => {
 
     expect(leer().gym.lifts.some((l) => l.id === 'l3')).toBe(false);
   });
+
+  describe('repeticiones (etapa 7)', () => {
+    it('cargar peso con repeticiones las guarda en el registro nuevo', async () => {
+      const user = userEvent.setup();
+      const { doc: leer } = renderScreen(<GymPage />, { doc: doc() });
+
+      await user.click(screen.getByText('+ Agregar ejercicio'));
+      await user.click(screen.getByRole('button', { name: 'Sentadilla' }));
+      await user.type(screen.getByPlaceholderText('Ej: 5'), '5');
+      await user.click(screen.getByRole('button', { name: 'Guardar' }));
+
+      const sentadilla = leer().gym.lifts.find((l) => l.id === 'l1');
+      expect(sentadilla.history.at(-1).reps).toBe(5);
+    });
+
+    it('cargar peso sin repeticiones no agrega el campo', async () => {
+      const user = userEvent.setup();
+      const { doc: leer } = renderScreen(<GymPage />, { doc: doc() });
+
+      await user.click(screen.getByText('+ Agregar ejercicio'));
+      await user.click(screen.getByRole('button', { name: 'Sentadilla' }));
+      await user.click(screen.getByRole('button', { name: 'Guardar' }));
+
+      const sentadilla = leer().gym.lifts.find((l) => l.id === 'l1');
+      expect('reps' in sentadilla.history.at(-1)).toBe(false);
+    });
+
+    it('repeticiones inválidas (decimal) avisan y no guardan', async () => {
+      const user = userEvent.setup();
+      renderScreen(<GymPage />, { doc: doc() });
+
+      await user.click(screen.getByText('+ Agregar ejercicio'));
+      await user.click(screen.getByRole('button', { name: 'Sentadilla' }));
+      await user.type(screen.getByPlaceholderText('Ej: 5'), '5,5');
+      await user.click(screen.getByRole('button', { name: 'Guardar' }));
+
+      expect(screen.getByText('Poné un número entero de repeticiones (o dejalo vacío).')).toBeInTheDocument();
+    });
+
+    it('editar un registro puede agregarle repeticiones, y se ven en el detalle', async () => {
+      const user = userEvent.setup();
+      renderScreen(<GymPage />, { doc: doc() });
+
+      await user.click(screen.getByRole('button', { name: /Sentadilla/ }));
+      await user.click(screen.getAllByRole('button', { name: 'Editar registro' })[0]); // el más nuevo
+      await user.type(screen.getByPlaceholderText('Ej: 5'), '3');
+      await user.click(screen.getByRole('button', { name: 'Guardar' }));
+
+      expect(screen.getAllByText(/× 3/).length).toBeGreaterThan(0);
+    });
+  });
 });
 
 describe('rutinas', () => {
