@@ -115,7 +115,6 @@ const EXACTAS = {
   '.streakrow-title': 'font-weight:600;font-size:15px',
   '.balance-total': 'font-weight:800;font-size:25px;letter-spacing:-.8px;line-height:1',
   '.balance-legend-pct': 'font-size:12.5px;font-weight:600',
-  '.barchart-num': 'font-weight:800;font-size:26px;letter-spacing:-.9px;line-height:1',
   '.cargas-cur': 'font-weight:800;font-size:24px;letter-spacing:-.8px;line-height:1',
   '.rutentry-chev': 'font-size:16px;color:rgba(242,244,248,.5)',
   '.fieldhint': 'font-size:12px;color:rgba(242,244,248,.35);margin:2px 2px 0',

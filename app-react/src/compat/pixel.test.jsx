@@ -251,12 +251,16 @@ function habitos(doc, day) {
 }
 
 /* OJO al correr npm run test:pixel a mano: desde etapa 6, Progreso YA NO intenta verse
-   igual que vanilla a propósito. Lulo pidió recortar a 1-2 bloques de hábitos ("Mapa de
-   hábitos" y "Rachas" se sacaron, queda "Cumplimiento de hábitos") para que la pantalla
-   gire en torno a entrenamientos — src/compat/screens.test.jsx ya lo sabe y lo compensa
-   sacando esas dos secciones del lado vanilla antes de comparar texto, pero ESTE archivo
+   igual que vanilla a propósito. Lulo pidió recortar los bloques de hábitos para que la
+   pantalla gire en torno a entrenamientos — primero "Mapa de hábitos" y "Rachas" (etapa
+   6), después el "Cumplimiento de hábitos" que había quedado, sumado a sacar también
+   "Frecuencia de entrenamiento" y agregar en su lugar un mapa de calor de entrenos,
+   "Mapa de entrenamientos" (etapa 7, 100% React, sin equivalente en vanilla) —
+   src/compat/screens.test.jsx ya lo sabe y lo compensa sacando esas cuatro secciones del
+   lado vanilla y la nueva del lado React antes de comparar texto, pero ESTE archivo
    (capturas reales, sin ese recorte) va a mostrar un diff real y esperable en las dos
-   variantes de Progreso: la página React sale más corta, no rota. */
+   variantes de Progreso: la página React sale más corta y con un bloque distinto, no
+   rota. */
 function progreso(doc, per = 'mes') {
   V.setState(V.normalize(clone(doc)));
   V.ui.tab = 'progreso'; V.ui.progPeriod = per;

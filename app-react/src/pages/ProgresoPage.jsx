@@ -4,10 +4,9 @@ import { ResumenTiles } from '../components/progreso/ResumenTiles';
 import { ProgBodyWeight } from '../components/progreso/ProgBodyWeight';
 import { ProgRanking } from '../components/progreso/ProgRanking';
 import { ProgBalance } from '../components/progreso/ProgBalance';
-import { ProgFrecuencia } from '../components/progreso/ProgFrecuencia';
+import { ProgGymHeatmap } from '../components/progreso/ProgGymHeatmap';
 import { ProgCargas } from '../components/progreso/ProgCargas';
 import { ProgGymStreaks } from '../components/progreso/ProgGymStreaks';
-import { ProgCumplimiento } from '../components/progreso/ProgCumplimiento';
 import { Section } from '../components/ui/Section';
 import { useData } from '../hooks/useData';
 import { gymHistory } from '../lib/gym';
@@ -29,11 +28,20 @@ import { todayISO } from '../lib/dates';
 
    Etapa 6, pedido explícito de Lulo: Progreso tiene que girar en torno a entrenamientos,
    así que se sacaron dos de los tres bloques de hábitos que traía vanilla — "Mapa de
-   hábitos" (heatmap) y "Rachas" (racha por hábito) — y queda solo "Cumplimiento de
-   hábitos". Los seis bloques de gimnasio no se tocaron: ya eran mayoría antes de este
-   recorte. Sin equivalente en vanilla — no hay contra qué comparar acá, así que
-   src/compat/screens.test.jsx compensa sacando esas dos secciones del lado vanilla antes
-   de comparar.
+   hábitos" (heatmap) y "Rachas" (racha por hábito) — y quedó solo "Cumplimiento de
+   hábitos".
+
+   Etapa 7, misma dirección: se sacaron "Frecuencia de entrenamiento" (barras semanales)
+   y el "Cumplimiento de hábitos" que había quedado de la etapa 6 — Progreso queda sin
+   NINGÚN bloque de hábitos (el tile "Hábitos hoy" del Resumen no cuenta: es una foto del
+   día, no un bloque de seguimiento). En el lugar de Frecuencia va ProgGymHeatmap, un
+   mapa de calor día por día de las sesiones de entreno — mismo dibujo que tenía el "Mapa
+   de hábitos" de la etapa 6, pero contando gimnasio en vez de hábitos. Ninguna de estas
+   piezas tiene equivalente en vanilla — no hay contra qué comparar acá, así que
+   src/compat/screens.test.jsx compensa sacando de vanilla las cuatro secciones que ya no
+   están en React ("Mapa de hábitos", "Rachas", "Frecuencia de entrenamiento",
+   "Cumplimiento de hábitos") y sacando de React la que vanilla no tiene ("Mapa de
+   entrenamientos").
    ============================================================================ */
 export function ProgresoPage() {
   const { data } = useData();
@@ -65,10 +73,9 @@ export function ProgresoPage() {
         <ProgBodyWeight data={data} per={period} start={start} />
         <ProgRanking data={data} per={period} start={start} />
         <ProgBalance data={data} per={period} start={start} />
-        <ProgFrecuencia data={data} per={period} start={start} />
+        <ProgGymHeatmap data={data} per={period} />
         <ProgCargas data={data} per={period} start={start} />
         <ProgGymStreaks data={data} />
-        <ProgCumplimiento data={data} per={period} />
       </div>
     </div>
   );

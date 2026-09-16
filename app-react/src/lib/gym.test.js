@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ABS_TYPE, dayAbs, dayTurnos, describeAbs, gymHistory, gymRanking, REST, typeColor } from './gym';
+import { ABS_TYPE, dayAbs, dayTurnos, describeAbs, gymDayCounts, gymHistory, gymRanking, REST, typeColor } from './gym';
 import { normalize } from './model';
 import { emptyDoc } from '../test/fixtures';
 
@@ -104,6 +104,26 @@ describe('gymHistory cuenta abs como entreno, movilidad no (pedido explícito de
   it('typeColor(ABS_TYPE) da el violeta del renglón de abs, sin depender de customTypes', () => {
     const d = normalize(emptyDoc());
     expect(typeColor(d, ABS_TYPE)).toBe('#B49BE8');
+  });
+});
+
+describe('gymDayCounts (etapa 7, mapa de entrenamientos)', () => {
+  it('un día sin entrenos no aparece en el objeto', () => {
+    expect(gymDayCounts([])).toEqual({});
+  });
+
+  it('cuenta una entrada por día', () => {
+    const hist = [{ date: '2026-08-03', type: 'Pecho' }, { date: '2026-08-05', type: 'Espalda' }];
+    expect(gymDayCounts(hist)).toEqual({ '2026-08-03': 1, '2026-08-05': 1 });
+  });
+
+  it('un día con dos turnos y abs suma 3, no se pisan entre sí', () => {
+    const hist = [
+      { date: '2026-08-03', type: 'Pecho' },
+      { date: '2026-08-03', type: 'Cardio' },
+      { date: '2026-08-03', type: ABS_TYPE },
+    ];
+    expect(gymDayCounts(hist)).toEqual({ '2026-08-03': 3 });
   });
 });
 

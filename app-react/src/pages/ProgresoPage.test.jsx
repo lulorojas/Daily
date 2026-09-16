@@ -103,11 +103,8 @@ describe('estados vacíos: "sin datos" no es lo mismo que "sin datos en este rec
   it('cuenta nueva: cada sección explica que falta cargar algo', () => {
     renderScreen(<ProgresoPage />, { doc: emptyDoc() });
     expect(screen.getByText('Cargá tu peso para ver la tendencia.')).toBeInTheDocument();
-    expect(screen.getByText('Marcá entrenamientos para ver tu frecuencia.')).toBeInTheDocument();
+    expect(screen.getByText('Marcá entrenamientos para ver tu mapa.')).toBeInTheDocument();
     expect(screen.getByText('Agregá ejercicios en Gimnasio para seguir tus cargas.')).toBeInTheDocument();
-    // Etapa 6: Progreso quedó con un solo bloque de hábitos (Cumplimiento) — se sacaron
-    // Mapa de hábitos y Rachas para que la pantalla gire en torno a entrenamientos.
-    expect(screen.getByText('Todavía no creaste hábitos.')).toBeInTheDocument();
   });
 
   it('con ejercicios pero sin dos registros en la ventana, el mensaje es otro', async () => {
@@ -132,7 +129,7 @@ describe('las otras secciones', () => {
     expect(screen.getByText('Entrenamientos por tipo')).toBeInTheDocument();
   });
 
-  it('las rachas de entrenamiento y las de hábitos son "estado actual": no cambian con el período', async () => {
+  it('las rachas de entrenamiento son "estado actual": no cambian con el período', async () => {
     const user = userEvent.setup();
     renderScreen(<ProgresoPage />, { doc: fullDoc() });
 
@@ -143,16 +140,28 @@ describe('las otras secciones', () => {
     expect(despues).toBe(antes);
   });
 
-  it('cumplimiento de hábitos aparece con hábitos cargados (único bloque de hábitos, etapa 6)', () => {
-    renderScreen(<ProgresoPage />, { doc: fullDoc() });
-    expect(screen.getByText('Cumplimiento de hábitos')).toBeInTheDocument();
-  });
-
   it('abs cuenta como entreno en el ranking, movilidad no (etapa 6)', () => {
     const doc = fullDoc();
     doc.gym.weekPlans[Object.keys(doc.gym.weekPlans)[0]][0].absCategories = ['core'];
     renderScreen(<ProgresoPage />, { doc });
     // Aparece más de una vez: ranking y balance muestran los mismos tipos, cada uno a su manera.
     expect(screen.getAllByText('Abs').length).toBeGreaterThan(0);
+  });
+
+  it('el mapa de entrenamientos aparece con entrenos cargados (etapa 7)', () => {
+    renderScreen(<ProgresoPage />, { doc: fullDoc() });
+    expect(screen.getByText('Mapa de entrenamientos')).toBeInTheDocument();
+  });
+
+  it('un día con abs marcado pinta una celda del mapa, no la deja vacía (etapa 7)', () => {
+    const doc = fullDoc();
+    const semana = Object.keys(doc.gym.weekPlans)[0];
+    doc.gym.weekPlans[semana][0].absCategories = ['core'];
+    const lunes = semana; // weekPlans[semana][0] es justo el lunes de esa semana
+    const { container } = renderScreen(<ProgresoPage />, { doc });
+
+    const celda = container.querySelector(`.heatcell[title^="${lunes}"]`);
+    expect(celda).toBeTruthy();
+    expect(celda.style.background).not.toBe('rgba(255, 255, 255, 0.05)');
   });
 });

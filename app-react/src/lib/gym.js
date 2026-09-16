@@ -118,6 +118,15 @@ export function gymWeekCounts(hist) {
   return out;
 }
 
+// Entrenos por día exacto: { fechaISO: cantidad }. Recibe el historial ya filtrado. Un
+// día con los dos turnos hechos más abs marcado suma 3 — mismo `hist` de gymHistory(),
+// nada nuevo que calcular. La usa ProgGymHeatmap (etapa 7) para el mapa de calor.
+export function gymDayCounts(hist) {
+  const out = {};
+  hist.forEach((x) => { out[x.date] = (out[x.date] || 0) + 1; });
+  return out;
+}
+
 /* Racha POR TIPO de entrenamiento (no por semana): cuántas semanas seguidas, contando
    hacia atrás, se hizo ese tipo al menos una vez. Un tipo "está en racha" a partir de 2.
    La semana en curso no corta la racha: si todavía no entrenaste esta semana, se empieza
