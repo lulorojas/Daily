@@ -31,7 +31,8 @@ import { C, tint } from '../../lib/theme';
    de arriba de nuevo, como cualquier desplegable. No cuenta como turno: no aporta a
    dayTurnos()/gymHistory(), es información aparte que vive en el mismo día. */
 export function WeekPlan({
-  data, plan, weekLabel, isCurrentWeek, expandido, onExpandir, onSemana, onTipo, onHecho,
+  data, plan, weekLabel, turnosHechos, turnosTotal, diasDobles, diasAbs, isCurrentWeek,
+  expandido, onExpandir, onSemana, onTipo, onHecho,
   onAddTurno, onRemoveTurno, onAdministrar, onToggleAbsCat, onToggleMovilidad,
 }) {
   const hoyIdx = dow(todayD());
@@ -208,6 +209,26 @@ export function WeekPlan({
             </div>
           );
         })}
+      </div>
+
+      {/* Tres stats de la semana (rediseño "Glass + aurora", sin equivalente en vanilla ni
+          en etapas anteriores): mismas tiles que ya usa Progreso, reutilizadas acá con la
+          cuenta de ESTA semana en vez de un período completo. data-weekstats, no clase:
+          así src/compat/screens.test.jsx lo puede sacar del DOM antes de comparar texto
+          contra vanilla, igual que ya hacía con .turno-agregar/[data-absrow]. */}
+      <div className="tiles" data-weekstats="true">
+        <div className="tile">
+          <div className="mono tile-k">TURNOS</div>
+          <div className="v">{turnosHechos}/{turnosTotal}</div>
+        </div>
+        <div className="tile">
+          <div className="mono tile-k">DOBLE TURNO</div>
+          <div className="v">{diasDobles}</div>
+        </div>
+        <div className="tile">
+          <div className="mono tile-k">ABS</div>
+          <div className="v">{diasAbs}</div>
+        </div>
       </div>
 
       <button type="button" className="dashed managetypes" onClick={onAdministrar}>

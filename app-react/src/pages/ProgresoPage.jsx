@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { PeriodSelector } from '../components/progreso/PeriodSelector';
+import { ProgComoVenis } from '../components/progreso/ProgComoVenis';
 import { ResumenTiles } from '../components/progreso/ResumenTiles';
 import { ProgBodyWeight } from '../components/progreso/ProgBodyWeight';
 import { ProgRanking } from '../components/progreso/ProgRanking';
@@ -69,6 +70,8 @@ export function ProgresoPage() {
         <Section label="Resumen">
           <ResumenTiles {...resumen} />
         </Section>
+
+        <ProgComoVenis data={data} per={period} />
 
         <ProgBodyWeight data={data} per={period} start={start} />
         <ProgRanking data={data} per={period} start={start} />

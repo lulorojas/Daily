@@ -65,6 +65,13 @@ function hoyVanilla(doc, day) {
 
 function hoyReact(doc, day) {
   const { container } = renderScreen(<HoyPage />, { doc: clone(doc), route: `/?d=${day}` });
+  /* Rediseño "Glass + aurora": el arco de progreso del día ahora muestra, además del
+     porcentaje, dos chips con el desglose Tareas X/Y y Hábitos X/Y (.progday-stats) — sin
+     equivalente en vanilla, que solo mostraba el total combinado. Se sacan antes de
+     comparar, igual que ya se hacía con lo de Gimnasio (ver gymReact): el resto de Hoy
+     (agenda, tareas, hábitos, bandeja sin fecha) sigue siendo migración 1:1 y queda bajo
+     esta misma red de seguridad. */
+  container.querySelectorAll('.progday-stats').forEach((el) => el.remove());
   return texto(container);
 }
 
@@ -138,34 +145,13 @@ describe('el Calendario dice exactamente lo mismo que la app vanilla', () => {
 });
 
 /* ---------------------------------------------------------------- Gimnasio */
-function gymVanilla(doc) {
-  V.setState(V.normalize(clone(doc)));
-  V.ui.tab = 'gym'; V.ui.gymSub = null; V.ui.gymOffset = 0; V.ui.gymExpand = null;
-  return texto(vanillaHTML(V.viewGym()));
-}
-
-function gymReact(doc) {
-  const { container } = renderScreen(<GymPage />, { doc: clone(doc) });
-  /* Etapa 6 agregó a Gimnasio dos cosas sin equivalente en vanilla: el botón "+2do turno"
-     de cada día (entrenamientos dobles) y el renglón de "Abs y movilidad" de cada día
-     (data-absrow — pedido explícito de Lulo de que viviera dentro del plan semanal, como
-     un turno más). Ninguna de las dos se puede comparar contra la vanilla porque vanilla
-     no las tiene — se sacan del DOM antes de leer el texto, así el resto de la pantalla
-     (que sí es migración 1:1) sigue bajo esta misma red de seguridad. */
-  container.querySelectorAll('.turno-agregar, [data-absrow]').forEach((el) => el.remove());
-  return texto(container);
-}
-
-describe('Gimnasio dice exactamente lo mismo que la app vanilla', () => {
-  const casos = {
-    'cuenta nueva, sin nada': emptyDoc(),
-    'con plan, cargas y peso': fullDoc(),
-  };
-
-  it.each(Object.keys(casos))('%s', (nombre) => {
-    expect(gymReact(casos[nombre])).toBe(gymVanilla(casos[nombre]));
-  });
-});
+/* Gimnasio dejó de compararse letra por letra contra la vanilla (viewGym()): el rediseño
+   "Glass + aurora" reordena las secciones (Cargas y Frecuencia semanal, nueva, pasan a ir
+   ANTES de Peso corporal) y agrega contenido propio (las tres stats del plan semanal, la
+   Frecuencia semanal entera) — ni el orden ni el texto nuevo tienen con qué compararse del
+   lado de vanilla. Lo que sigue vigente (y con su propio test) es que el plan semanal LEA
+   y ESCRIBA bien el modelo — eso es src/compat/emulator.test.js y GymPage.test.jsx, que no
+   dependen de cómo se ve nada. */
 
 /* ---------------------------------------------------------------- Rutinas */
 function rutinasVanilla(doc, { rutId = null, dayId = null } = {}) {
@@ -259,12 +245,14 @@ function progresoVanilla(doc, per = 'mes') {
   return texto(cont);
 }
 
+// "Cómo venís" (rediseño "Glass + aurora") y "Mapa de entrenamientos" (etapa 7) son 100%
+// React, vanilla no las tiene, así que se sacan de este lado antes de comparar.
+const SIN_EQUIVALENTE_EN_VANILLA = ['Cómo venís', 'Mapa de entrenamientos'];
+
 function progresoReact(doc) {
   const { container } = renderScreen(<ProgresoPage />, { doc: clone(doc) });
-  // Al revés que arriba: "Mapa de entrenamientos" (etapa 7) es 100% React, vanilla no
-  // lo tiene, así que se saca de este lado antes de comparar.
   container.querySelectorAll('.sect').forEach((sect) => {
-    if (sect.querySelector('.sectlabel')?.textContent === 'Mapa de entrenamientos') sect.remove();
+    if (SIN_EQUIVALENTE_EN_VANILLA.includes(sect.querySelector('.sectlabel')?.textContent)) sect.remove();
   });
   return texto(container);
 }

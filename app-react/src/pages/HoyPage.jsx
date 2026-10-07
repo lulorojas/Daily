@@ -14,7 +14,7 @@ import { useData } from '../hooks/useData';
 import { useItemForms } from '../hooks/useItemForms';
 import { useSelectedDay } from '../hooks/useSelectedDay';
 import { agendaDe, entrenoDe, pendVisible, pendientes, tareasDe } from '../lib/agenda';
-import { habitDone } from '../lib/habits';
+import { habitDayMarks, habitDayPossible, habitDone } from '../lib/habits';
 import { REST, dayTurnos, typeColor } from '../lib/gym';
 import { dayProgress } from '../lib/progress';
 import { parseISO, todayISO } from '../lib/dates';
@@ -59,6 +59,8 @@ export function HoyPage() {
       progress: dayProgress(data, day),
       done: tareas.filter((x) => x.done).length,
       pendingHabits: habits.filter((h) => !habitDone(data, h.id, day)).length,
+      habitsDone: habitDayMarks(data, day),
+      habitsTotal: habitDayPossible(data),
     };
   }, [data, day]);
 
@@ -100,7 +102,13 @@ export function HoyPage() {
           hasMark={(dISO) => tareasDe(data, dISO).length > 0 || agendaDe(data, dISO).length > 0}
         />
 
-        <DayProgress progress={view.progress} />
+        <DayProgress
+          progress={view.progress}
+          tasksDone={view.done}
+          tasksTotal={view.tareas.length}
+          habitsDone={view.habitsDone}
+          habitsTotal={view.habitsTotal}
+        />
 
         {/* Agenda: citas del día y fechas anuales que caen en ese mes+día. Solo aparece si
             hay algo — un rótulo "Agenda" sobre la nada no dice nada. */}

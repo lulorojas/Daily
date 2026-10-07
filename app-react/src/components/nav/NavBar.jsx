@@ -3,7 +3,6 @@ import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { SectionIcon } from '../ui/Icons';
 import { QuickAddMenu } from './QuickAddMenu';
 import { SECTIONS, sectionForPath } from '../../lib/sections';
-import { C, tint } from '../../lib/theme';
 import { isValidISO } from '../../hooks/useSelectedDay';
 import { todayISO } from '../../lib/dates';
 import { useItemForms } from '../../hooks/useItemForms';
@@ -26,7 +25,6 @@ export function NavBar() {
   const [adding, setAdding] = useState(false);
 
   const current = sectionForPath(pathname);
-  const accent = current ? current.accent : C.amber;
 
   const raw = params.get('d');
   const day = isValidISO(raw) ? raw : todayISO();
@@ -43,6 +41,11 @@ export function NavBar() {
     if (pathname.startsWith('/gym')) lastGymPath.current = pathname;
   }, [pathname]);
 
+  /* El degradé de la pildora activa y del botón + (rediseño "Glass + aurora") sale de
+     var(--accent)/var(--accent-light), que App.jsx ya calcula para toda la pantalla — no
+     hace falta más tinte por acá. Antes este componente armaba el tinte con JS (tint()):
+     ahora es una fórmula constante en CSS (tres acentos, un solo degradé), así que el
+     estilo inline se fue entero a .navitem.on/.navadd en styles.css. */
   return (
     <>
       <div className="nav">
@@ -54,7 +57,6 @@ export function NavBar() {
               <Link
                 key={s.key}
                 className={`navitem${on ? ' on' : ''}`}
-                style={on ? { background: tint(accent, '2B'), color: accent } : undefined}
                 to={{ pathname: target, search }}
                 aria-current={on ? 'page' : undefined}
                 aria-label={s.title || s.label}
@@ -68,7 +70,6 @@ export function NavBar() {
         <button
           type="button"
           className="navadd"
-          style={{ background: accent }}
           aria-label="Agregar"
           onClick={() => setAdding(true)}
         >

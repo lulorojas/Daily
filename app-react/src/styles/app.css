@@ -135,7 +135,12 @@ button.slot:disabled { cursor: default; }
 /* Ojo: .cal-head no está adentro de .head, así que su <h1> NO hereda las reglas de
    .head h1. Es así en la app actual y se replica igual para que se vea idéntico. */
 .cal-head .kicker { color: rgba(242, 244, 248, .38); }
-.cal-head h1 { margin-top: 4px; }
+.cal-head h1 {
+  margin-top: 4px;
+  background: linear-gradient(100deg, #FFF7E6 0%, var(--accent-light) 25%, var(--accent) 45%, var(--violet) 65%, #FFF7E6 85%);
+  background-size: 200% auto; -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: shimmer 6s linear infinite;
+}
 .cal-nav { display: flex; gap: 8px; }
 
 .card.calcard { padding: 12px 8px 10px; }
@@ -160,7 +165,7 @@ button.slot:disabled { cursor: default; }
 
 /* ============================ MENÚS (el + y "agregar a este día") ============================ */
 .menulist { display: flex; flex-direction: column; gap: 10px; }
-.evrow.menu { background: var(--surf); border: 1px solid var(--line); }
+/* .evrow ya es de vidrio (styles.css); el menú no necesitaba un fondo propio. */
 .evic.lg { width: 40px; height: 40px; }
 .evic.lg svg { width: 20px; height: 20px; }
 .evic.xl { width: 42px; height: 42px; }
@@ -216,6 +221,18 @@ button.slot:disabled { cursor: default; }
 .weekstrip.weeknav { gap: 8px; flex: none; }
 .weeklabel { font-size: 12.5px; font-weight: 600; color: var(--accent); min-width: 80px; text-align: center; }
 .card.plancard { padding: 6px 8px; }
+.tile-k { font-size: 8.5px; letter-spacing: 1.2px; text-transform: uppercase; color: rgba(242, 244, 248, .5); }
+
+/* ---- frecuencia semanal (WeeklyFrequency, rediseño "Glass + aurora") ---- */
+.freq-num { font-size: 30px; letter-spacing: -1.2px; }
+.freq-doubles { background: rgba(255, 255, 255, .08); color: rgba(242, 244, 248, .75); }
+.freqbars { display: flex; align-items: flex-end; gap: 6px; height: 108px; margin-top: 14px; }
+.freqcol { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; }
+.freqdots { height: 12px; display: flex; gap: 2px; align-items: center; justify-content: center; flex-wrap: wrap; }
+.freqdot { width: 4px; height: 4px; border-radius: 50%; border: 1.2px solid rgba(242, 244, 248, .75); flex: none; }
+.freqbar { width: 100%; flex: 1; min-height: 0; display: flex; flex-direction: column-reverse; gap: 2px; border-radius: 4px; overflow: hidden; background: rgba(255, 255, 255, .04); }
+.freqseg { width: 100%; min-height: 3px; }
+.freqlbl { font-size: 8.5px; color: rgba(242, 244, 248, .42); }
 .planday:not(:last-child) .gday { border-bottom: 1px solid rgba(255, 255, 255, .05); }
 .gtag { color: rgba(242, 244, 248, .38); }
 .gtag.today { color: var(--accent); }
@@ -303,7 +320,7 @@ button.liftrow { width: 100%; text-align: left; }
 .rowinp.newliftrow { margin-top: 11px; border: 1.5px dashed #FF9B9380; }
 .rowinp.newliftrow.bad { border-color: var(--danger); border-style: solid; }
 .newliftinput { flex: 1; background: none; border: none; font-weight: 600; font-size: 14.5px; font-family: inherit; outline: none; color: inherit; }
-.weightbox { border-radius: 20px; background: rgba(255, 255, 255, .04); border: 1.5px solid var(--line); padding: 16px; }
+.weightbox { border-radius: 20px; background: rgba(255, 255, 255, .05); border: 1.5px solid var(--glass-brd); padding: 16px; }
 .weightbox-val { text-align: center; display: flex; align-items: baseline; justify-content: center; gap: 6px; margin-bottom: 15px; }
 .weightbox-val .fr { font-weight: 800; font-size: 44px; letter-spacing: -2px; }
 .weightbox-unit { font-size: 16px; font-weight: 500; color: rgba(242, 244, 248, .5); }
@@ -330,7 +347,7 @@ a.rcover { display: block; }
 .pillbtn { height: 38px; padding: 0 14px; border-radius: 14px; display: grid; place-items: center; font-size: 13px; font-weight: 600; cursor: pointer; flex: none; }
 .pillbtn.habits { background: #86D9A028; color: var(--green); }
 
-.beststreak { border-radius: 26px; background: linear-gradient(150deg, #86D9A038, #86D9A00F); border: 1px solid #86D9A03D; padding: 20px; display: flex; align-items: center; gap: 16px; }
+.beststreak { border-radius: 26px; background: linear-gradient(150deg, #86D9A038, #86D9A00F); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); box-shadow: inset 0 1px 0 rgba(255,255,255,.2), inset 0 0 0 1px #86D9A03D; padding: 20px; display: flex; align-items: center; gap: 16px; }
 .beststreak-icon { width: 56px; height: 56px; flex: none; border-radius: 20px; background: rgba(10, 12, 17, .32); display: grid; place-items: center; }
 .beststreak-label { font-size: 12px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; color: rgba(242, 244, 248, .5); }
 .beststreak-row { display: flex; align-items: baseline; gap: 7px; }
@@ -346,6 +363,25 @@ a.rcover { display: block; }
 /* ============================ PROGRESO ============================ */
 .progselector-wrap { margin-top: 16px; }
 .sectrow-baseline { display: flex; align-items: baseline; justify-content: space-between; margin: 0 2px; }
+
+/* ---- Cómo venís (ProgComoVenis, rediseño "Glass + aurora") ---- */
+.comovenis-win { color: #B5EDED; font-size: 10px; letter-spacing: 1px; white-space: nowrap; }
+.comovenis-statv { font-size: 17px; letter-spacing: -.4px; }
+.comovenis-grid { display: grid; gap: 4px; align-items: center; margin-top: 4px; }
+.comovenis-headcell { text-align: center; font-size: 8.5px; font-weight: 700; color: rgba(242, 244, 248, .45); white-space: nowrap; overflow: hidden; }
+.comovenis-headcell.on { color: #F2F4F8; }
+.comovenis-headcell.total { text-align: right; color: rgba(242, 244, 248, .45); font-weight: 400; }
+.comovenis-name { min-width: 0; display: flex; flex-direction: column; gap: 2px; padding: 8px 0; }
+.comovenis-name > span:first-child { display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.comovenis-dot { width: 6px; height: 6px; border-radius: 2px; flex: none; }
+.comovenis-status { font-size: 7.5px; letter-spacing: .3px; line-height: 1.2; }
+.comovenis-cell { height: 28px; border-radius: 7px; display: grid; place-items: center; font-size: 10.5px; font-weight: 700; transition: background .3s; }
+.comovenis-cell.current { box-shadow: inset 0 0 0 1.5px rgba(242, 244, 248, .4); color: rgba(242, 244, 248, .25); }
+.comovenis-total { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+.comovenis-avg { font-size: 8px; color: rgba(242, 244, 248, .45); white-space: nowrap; }
+.comovenis-alerts { display: flex; flex-direction: column; gap: 7px; margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, .07); }
+.comovenis-alert { display: flex; align-items: center; gap: 9px; font-size: 12.5px; line-height: 1.35; color: rgba(242, 244, 248, .85); }
+.comovenis-alert-ic { width: 18px; height: 18px; flex: none; border-radius: 6px; display: grid; place-items: center; font-size: 10px; font-weight: 700; }
 
 .tile-ic { width: 26px; height: 26px; border-radius: 9px; display: grid; place-items: center; }
 
@@ -416,7 +452,11 @@ a.rcover { display: block; }
    .evic de 30px por defecto — es una constante (siempre 40 en esta pantalla), va a clase. */
 .evic.lg { width: 40px; height: 40px; }
 .evic.lg svg { width: 20px; height: 20px; }
-.ajrow { background: var(--surf); border: 1px solid var(--line); }
+.ajrow {
+  background: var(--glass); border: none;
+  backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+  box-shadow: inset 0 1px 0 var(--glass-hi), inset 0 0 0 1px var(--glass-brd);
+}
 .ajversion { text-align: center; font-size: 11.5px; color: rgba(242, 244, 248, .25); margin-top: 4px; }
 /* .sect ya pone 11px de gap entre la tarjeta de "Sesión iniciada como" y este botón; el
    9px de acá se SUMA a eso (igual que en vanilla, que tiene los dos: el gap del flex
@@ -429,9 +469,9 @@ a.rcover { display: block; }
    trato visual a propósito, con teal en vez de amber para no confundirlo con el de
    backup. Los dos colores son constantes de esta pantalla, nunca datos: por eso son
    clases y no un tinte calculado en JS como hacía vanilla con tint(col, alfa). */
-.noticecard { padding: 14px 16px; border-radius: 22px; display: flex; align-items: center; gap: 12px; }
-.noticecard.amber { background: linear-gradient(135deg, #EAC06A2E, #EAC06A0A); border: 1px solid #EAC06A40; }
-.noticecard.teal { background: linear-gradient(135deg, #6FD2D22E, #6FD2D20A); border: 1px solid #6FD2D240; }
+.noticecard { padding: 14px 16px; border-radius: 22px; display: flex; align-items: center; gap: 12px; backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); }
+.noticecard.amber { background: linear-gradient(135deg, #EAC06A2E, #EAC06A0A); box-shadow: inset 0 0 0 1px #EAC06A40; }
+.noticecard.teal { background: linear-gradient(135deg, #6FD2D22E, #6FD2D20A); box-shadow: inset 0 0 0 1px #6FD2D240; }
 .noticecard-ic { width: 36px; height: 36px; border-radius: 12px; background: rgba(10, 12, 17, .3); display: grid; place-items: center; flex: none; }
 .noticecard.amber .noticecard-ic { color: #EAC06A; }
 .noticecard.teal .noticecard-ic { color: #6FD2D2; }

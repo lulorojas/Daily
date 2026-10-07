@@ -1,9 +1,11 @@
 /* ----------------------------- PROGRESO -----------------------------
    Port de la parte de cálculo de app/js/progreso.js, más el progreso del día que vivía
    dentro de viewHoy(). Todo esto es solo lectura: Progreso no guarda nada. */
-import { addDays, iso, mondayOf, parseISO, todayD, todayISO, MONTHS } from './dates';
+import { addDays, dow, iso, mondayOf, parseISO, todayD, todayISO, MONTHS } from './dates';
 import { habitDayMarks, habitDayPossible, habitFirstISO } from './habits';
 import { tareasDe } from './agenda';
+import { ABS_TYPE, allTypes, gymHistory, typeColor } from './gym';
+import { C } from './theme';
 
 // [clave, etiqueta, días de la ventana]. null = todo el historial.
 export const PROG_PERIODS = [['semana', 'Semana', 7], ['mes', 'Mes', 30], ['ano', 'Año', 365], ['todo', 'Todo', null]];
@@ -98,4 +100,131 @@ export function dayProgress(state, dISO) {
   const done = tareas.filter((x) => x.done).length + habitDayMarks(state, dISO);
   const total = tareas.length + habitDayPossible(state);
   return { done, total, pct: total ? Math.round(done / total * 100) : 0 };
+}
+
+/* ============================================================================
+   "CÓMO VENÍS" (rediseño "Glass + aurora", sin equivalente en vanilla ni en etapas
+   anteriores — handoff Glass Progreso v2.dc.html, sección que el propio handoff marca
+   como "lo más importante" de la pantalla). Matriz tipo × columna (semana/mes/año/
+   trimestre, la MISMA ventana que ya elige PeriodSelector) con intensidad por cantidad y
+   un estado por tipo que mira todas las columnas MENOS la actual (está en curso, todavía
+   no terminó de contarse).
+   ============================================================================ */
+
+// Las columnas de la matriz para un período: cada una es un rango [from, to] de fechas
+// ISO (inclusive) más una etiqueta corta. La última columna es siempre "la actual" —
+// salvo en 'semana', donde el día en curso es HOY y los días después quedan en blanco
+// (todavía no pasaron, no es que no se entrenó).
+function comoVenisColumns(per) {
+  const t = todayD();
+  if (per === 'semana') {
+    const mon = mondayOf(t);
+    const cols = Array.from({ length: 7 }, (_, i) => {
+      const d = addDays(mon, i);
+      return { from: iso(d), to: iso(d), label: DOW_1[i] };
+    });
+    return { cols, current: dow(t), unit: 'día', unitPl: 'días', winLabel: 'Esta semana' };
+  }
+  if (per === 'mes') {
+    const curMon = mondayOf(t);
+    const cols = Array.from({ length: 4 }, (_, i) => {
+      const mon = addDays(curMon, (i - 3) * 7);
+      const sun = addDays(mon, 6);
+      return { from: iso(mon), to: iso(sun), label: `${sun.getDate()}/${sun.getMonth() + 1}` };
+    });
+    return { cols, current: 3, unit: 'semana', unitPl: 'semanas', winLabel: 'Últimas 4 semanas' };
+  }
+  if (per === 'ano') {
+    const cols = Array.from({ length: 12 }, (_, i) => {
+      const m = new Date(t.getFullYear(), t.getMonth() - (11 - i), 1);
+      const end = new Date(m.getFullYear(), m.getMonth() + 1, 0);
+      return { from: iso(m), to: iso(end), label: MONTHS[m.getMonth()][0] };
+    });
+    return { cols, current: 11, unit: 'mes', unitPl: 'meses', winLabel: 'Últimos 12 meses' };
+  }
+  // 'todo': últimos 6 trimestres de calendario.
+  const curQ = Math.floor(t.getMonth() / 3);
+  const cols = Array.from({ length: 6 }, (_, i) => {
+    const qIndex = t.getFullYear() * 4 + curQ - (5 - i);
+    const y = Math.floor(qIndex / 4), q = qIndex % 4;
+    const start = new Date(y, q * 3, 1);
+    const end = new Date(y, q * 3 + 3, 0);
+    return { from: iso(start), to: iso(end), label: `T${q + 1}·${String(y).slice(2)}` };
+  });
+  return { cols, current: 5, unit: 'trimestre', unitPl: 'trimestres', winLabel: 'Últimos 6 trimestres' };
+}
+const DOW_1 = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+
+// Unidad abreviada para los números apretados (tiles, promedio por fila): "semana" no
+// entra en una tile de 20px, "sem" sí. La prosa de los avisos usa la palabra completa.
+const UNIT_ABBR = { día: 'día', semana: 'sem', mes: 'mes', trimestre: 'trim' };
+
+export function comoVenis(state, per) {
+  const { cols, current, unit, unitPl, winLabel } = comoVenisColumns(per);
+  const unitAbbr = UNIT_ABBR[unit] || unit;
+  const hist = gymHistory(state);
+  const tipos = allTypes(state).filter((x) => !x.rest).map((x) => ({ name: x.name, color: x.color }))
+    .concat([{ name: ABS_TYPE, color: typeColor(state, ABS_TYPE) }]);
+  const tISO = todayISO();
+
+  const rows = tipos.map((t) => {
+    const counts = hist.filter((x) => x.type === t.name).reduce((acc, x) => { acc[x.date] = (acc[x.date] || 0) + 1; return acc; }, {});
+    const cells = cols.map((c, i) => {
+      const futuro = per === 'semana' && c.from > tISO;
+      if (futuro) return { v: 0, futuro: true, current: i === current };
+      const v = Object.keys(counts).filter((d) => d >= c.from && d <= c.to).reduce((a, d) => a + counts[d], 0);
+      return { v, futuro: false, current: i === current };
+    });
+    const total = cells.reduce((a, c) => a + (c.futuro ? 0 : c.v), 0);
+    const previas = cells.filter((c) => !c.current && !c.futuro);
+    let trail = 0;
+    for (let i = previas.length - 1; i >= 0 && previas[i].v === 0; i--) trail++;
+    const allOn = previas.length > 0 && previas.every((c) => c.v > 0);
+
+    let status;
+    if (previas.length === 0) status = { label: 'SIN DATOS', color: 'rgba(242,244,248,.4)' };
+    else if (!total) status = { label: 'SIN ENTRENAR', color: C.danger };
+    else if (trail >= 2) status = { label: `SIN HACER ${trail} ${unitAbbr.toUpperCase()}${trail > 1 ? 'S' : ''}`, color: C.amber };
+    else if (allOn) status = { label: 'CONSTANTE', color: C.green };
+    else status = { label: 'IRREGULAR', color: 'rgba(242,244,248,.5)' };
+
+    return { ...t, cells, total, trail, allOn, previas: previas.length, avg: previas.length ? (previas.reduce((a, c) => a + c.v, 0) / previas.length) : 0, status };
+  });
+
+  const totalGeneral = rows.reduce((a, r) => a + r.total, 0);
+  const nC = cols.length;
+  const activeCols = cols.filter((c, i) => !c.futuro && tipos.some((t) => rows.find((r) => r.name === t.name).cells[i].v > 0)).length;
+  const absRow = rows.find((r) => r.name === ABS_TYPE);
+  const stats = per === 'semana'
+    ? [
+      { k: 'ENTRENOS', v: String(totalGeneral) },
+      { k: 'DÍAS ACTIVOS', v: `${activeCols}/${current + 1}` },
+      { k: 'ABS', v: absRow.cells[current]?.v || absRow.total ? 'Hecho' : 'Falta' },
+    ]
+    : [
+      { k: 'ENTRENOS', v: String(totalGeneral) },
+      { k: 'PROMEDIO', v: `${(totalGeneral / nC).toFixed(1).replace('.', ',')}/${unitAbbr}` },
+      { k: 'ABS', v: `${absRow.cells.filter((c) => !c.futuro && c.v > 0).length}/${nC} ${unitAbbr}` },
+    ];
+
+  const alerts = [];
+  if (per === 'semana') {
+    const pend = rows.filter((r) => r.name !== ABS_TYPE && r.total === 0).map((r) => r.name);
+    if (pend.length) alerts.push({ icon: '!', text: `Pendiente esta semana: ${pend.join(', ')}`, color: C.amber });
+    alerts.push(absRow.total
+      ? { icon: '✓', text: 'Abs ya marcado esta semana', color: C.green }
+      : { icon: '!', text: 'Todavía no hiciste abs esta semana', color: C.amber });
+  } else {
+    rows.forEach((r) => {
+      if (!r.total) alerts.push({ icon: '×', text: `No entrenaste ${r.name} en este período`, color: C.danger });
+      else if (r.trail >= 2) alerts.push({ icon: '!', text: `${r.name}: ${r.trail} ${unitPl} seguidas sin entrenar`, color: C.amber });
+    });
+    alerts.push(absRow.allOn
+      ? { icon: '✓', text: `Abs: todas las ${unitPl} sin cortar`, color: C.green }
+      : { icon: '!', text: `Abs: ${absRow.previas ? absRow.cells.filter((c) => !c.current && !c.futuro && c.v > 0).length : 0} de ${absRow.previas} ${unitPl}`, color: C.amber });
+    const top = rows.slice().sort((a, b) => b.total - a.total)[0];
+    if (top && top.total) alerts.push({ icon: '↑', text: `Lo que más entrenaste: ${top.name} (${top.total})`, color: C.teal });
+  }
+
+  return { winLabel, unit, unitAbbr, unitPl, cols, current, rows, stats, alerts };
 }

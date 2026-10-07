@@ -5,12 +5,25 @@ export const C = {
   amber: '#EAC06A', coral: '#FFA877', rose: '#FF9B93',
   green: '#86D9A0', teal: '#6FD2D2', violet: '#B49BE8',
   danger: '#FF8A80',
-  ink: '#F2F4F8', bg: '#0B0E14', surf: '#13161D', surf2: '#12151C', surf3: '#161A22',
+  ink: '#F2F4F8', bg: '#080A12', surf: '#13161D', surf2: '#12151C', surf3: '#161A22',
 };
 
 // Mismo helper que en vanilla: color + alfa en hex ('#EAC06A' + '1F').
 export function tint(color, alpha) {
   return color && color[0] === '#' ? color + alpha : 'rgba(255,255,255,0.07)';
+}
+
+/* Variante clara de cada acento, para los degradés "brillo" del rediseño "Glass + aurora"
+   (pildora activa de la nav, botón +, avatar del día elegido en la tira semanal). No es un
+   tinte con alfa (eso ya lo resuelve tint()): es el MISMO color, más claro, para que el
+   degradé vaya de un brillo arriba a la izquierda hacia el acento real — el mismo truco en
+   los cinco acentos, así que es una tabla fija, no una cuenta por color. */
+const LIGHT = {
+  [C.amber]: '#FFE3A8', [C.coral]: '#FFD3B8', [C.rose]: '#FFC2BC',
+  [C.green]: '#BDF0CC', [C.teal]: '#B5EDED', [C.violet]: '#D9CCF7',
+};
+export function lightOf(accent) {
+  return LIGHT[accent] || LIGHT[C.amber];
 }
 
 // Acento de cada sección.

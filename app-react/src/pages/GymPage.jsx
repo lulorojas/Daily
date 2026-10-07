@@ -9,10 +9,11 @@ import { LiftModal } from '../components/gym/LiftModal';
 import { LiftDetailModal } from '../components/gym/LiftDetailModal';
 import { LiftRecordModal } from '../components/gym/LiftRecordModal';
 import { TypesManager } from '../components/gym/TypesManager';
+import { WeeklyFrequency } from '../components/gym/WeeklyFrequency';
 import { Section } from '../components/ui/Section';
 import { BookIcon } from '../components/ui/Icons';
 import { useData } from '../hooks/useData';
-import { REST, dayTurnos, weekKey, weekPlanFor } from '../lib/gym';
+import { REST, dayAbs, dayTurnos, weekKey, weekPlanFor } from '../lib/gym';
 import { gymSubtitle, weekOffsetForDay, weekRangeLabel } from '../lib/gymView';
 import { isValidISO } from '../hooks/useSelectedDay';
 import { addSecondTurno, removeSecondTurno, setWeekDayType, toggleAbsCategory, toggleMovilidad, toggleWeekDayDone } from '../store/mutations';
@@ -51,6 +52,11 @@ export function GymPage() {
   // son dos entrenamientos, no uno. dayTurnos() ya sabe leer type2/done2 si existen.
   const turnos = plan.flatMap(dayTurnos).filter((t) => t.type !== REST);
   const doneCount = turnos.filter((t) => t.done).length;
+  // Las tres stats del plan semanal (rediseño "Glass + aurora", sin precedente en vanilla):
+  // turnos hechos sobre el total, días con doble turno real (no cuenta un 2do turno en
+  // Descanso) y días con algo de abs/movilidad marcado.
+  const diasDobles = plan.filter((d) => dayTurnos(d).some((t) => t.slot === 2 && t.type !== REST)).length;
+  const diasAbs = plan.filter((d) => { const a = dayAbs(d); return a.categories.length > 0 || a.movilidad; }).length;
   const weekLabel = weekRangeLabel(offset);
 
   const changeWeek = (dir) => { setOffset((o) => o + dir); setExpandido(null); };
@@ -70,6 +76,10 @@ export function GymPage() {
           data={data}
           plan={plan}
           weekLabel={weekLabel}
+          turnosHechos={doneCount}
+          turnosTotal={turnos.length}
+          diasDobles={diasDobles}
+          diasAbs={diasAbs}
           isCurrentWeek={offset === 0}
           expandido={expandido}
           onExpandir={setExpandido}
@@ -83,18 +93,20 @@ export function GymPage() {
           onToggleMovilidad={(i) => update((draft) => toggleMovilidad(draft, weekKey(offset), i))}
         />
 
-        <BodyWeightSection
-          data={data}
-          onNew={() => setModal({ kind: 'body-new' })}
-          onManage={() => setModal({ kind: 'body-manage' })}
-        />
-
         <Section label="Cargas por ejercicio" note={null} action={<span className="sectcount">{data.gym.lifts.length} ejercicios</span>}>
           {data.gym.lifts.map((l) => (
             <LiftCard key={l.id} lift={l} maxCur={maxCur} onOpen={() => setModal({ kind: 'lift-detail', liftId: l.id })} />
           ))}
           <button type="button" className="dashed" onClick={() => setModal({ kind: 'lift-new' })}>+ Agregar ejercicio</button>
         </Section>
+
+        <WeeklyFrequency data={data} />
+
+        <BodyWeightSection
+          data={data}
+          onNew={() => setModal({ kind: 'body-new' })}
+          onManage={() => setModal({ kind: 'body-manage' })}
+        />
 
         <Section label="Rutinas">
           <Link

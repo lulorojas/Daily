@@ -32,7 +32,7 @@ export function AuthShell({ title, sub, accent = C.amber, back, flash, onSubmit,
             <span>{back.label || 'Volver'}</span>
           </Link>
         )}
-        <div className="authmark" style={{ background: `linear-gradient(140deg,${accent},${C.coral})` }}>D</div>
+        <div className="authmark">D</div>
         <h1>{title}</h1>
         <div className="sub">{sub}</div>
       </div>

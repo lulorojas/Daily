@@ -201,3 +201,30 @@ export function describeAbs({ categories, movilidad }) {
   if (movilidad) partes.push('Movilidad');
   return partes.length ? partes.join(', ') : null;
 }
+
+/* ------------------------------ FRECUENCIA SEMANAL (rediseño "Glass + aurora") ------------------------------
+   Sin equivalente en vanilla ni en etapas anteriores: barras apiladas por tipo, una por
+   semana, con un círculo arriba por cada día de doble turno real (el 2do turno existe Y no
+   es Descanso — un 2do turno recién agregado, todavía en Descanso, no cuenta todavía). */
+
+// Entrenos por semana, desglosados por tipo: { lunesISO: { tipo: cantidad } }. Recibe el
+// historial ya filtrado (gymHistory), igual que gymWeekCounts.
+export function gymWeekTypeCounts(hist) {
+  const out = {};
+  hist.forEach((x) => {
+    const k = weekOf(x.date);
+    (out[k] ||= {})[x.type] = (out[k][x.type] || 0) + 1;
+  });
+  return out;
+}
+
+// Días con doble turno real por semana: { lunesISO: cantidad }. A diferencia de
+// gymHistory() (que cuenta TURNOS), esto cuenta DÍAS — el círculo del gráfico es por día.
+export function gymWeekDoubleDays(state) {
+  const out = {};
+  Object.keys(state.gym.weekPlans).forEach((k) => {
+    const n = state.gym.weekPlans[k].filter((day) => day.type2 && day.type2 !== REST).length;
+    if (n) out[k] = n;
+  });
+  return out;
+}
