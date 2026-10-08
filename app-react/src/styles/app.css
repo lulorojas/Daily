@@ -223,6 +223,10 @@ button.slot:disabled { cursor: default; }
 .card.plancard { padding: 6px 8px; }
 .tile-k { font-size: 8.5px; letter-spacing: 1.2px; text-transform: uppercase; color: rgba(242, 244, 248, .5); }
 
+/* La previsualización de "Dividir músculo": los pedazos propuestos, de lectura (no se
+   eligen, solo muestran cómo va a quedar), teñidos del rosa de Gimnasio. */
+.chip.splitchip { cursor: default; background: #FF9B9314; border-color: #FF9B9355; color: var(--rose); }
+
 /* ---- frecuencia semanal (WeeklyFrequency, rediseño "Glass + aurora") ---- */
 .freq-num { font-size: 30px; letter-spacing: -1.2px; }
 .freq-doubles { background: rgba(255, 255, 255, .08); color: rgba(242, 244, 248, .75); }
