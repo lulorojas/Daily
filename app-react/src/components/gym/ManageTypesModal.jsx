@@ -1,18 +1,12 @@
 import { Modal } from '../ui/Modal';
-import { PencilIcon, CrossIcon, PlusIcon, SplitIcon } from '../ui/Icons';
+import { PencilIcon, CrossIcon, PlusIcon } from '../ui/Icons';
 import { C } from '../../lib/theme';
 
 /* ----------------------------- ADMINISTRAR TIPOS -----------------------------
    Port de manageTypesModal(). Solo lista y edita los tipos que CREÓ el usuario:
    "Descanso" es el único fijo, no aparece acá y el texto de abajo lo aclara — nunca se
-   puede borrar porque no es un dato, es una constante de la app (ver REST en lib/gym.js).
-
-   El botón de dividir va en TODAS las filas, no solo en las que tienen un conector en el
-   nombre ("Pecho y bícep"). La primera versión lo mostraba solo ahí y estaba mal: un
-   músculo combinado puede llamarse "Torso", "Push" o "Empuje" — el nombre no alcanza para
-   saberlo, eso lo sabe la persona. suggestSplit() sigue usándose, pero para PROPONER la
-   división adentro del modal, no para decidir si se ofrece. */
-export function ManageTypesModal({ types, onClose, onNew, onEdit, onSplit, onDelete }) {
+   puede borrar porque no es un dato, es una constante de la app (ver REST en lib/gym.js). */
+export function ManageTypesModal({ types, onClose, onNew, onEdit, onDelete }) {
   return (
     <Modal title="Tipos de entrenamiento" onClose={onClose}>
       <div className="fld">
@@ -32,9 +26,6 @@ export function ManageTypesModal({ types, onClose, onNew, onEdit, onSplit, onDel
                 <span className="typedot" style={{ background: t.color }} />
                 <span className="managerow-name">{t.name}</span>
                 <div className="managerow-actions">
-                  <button type="button" className="iconcirc" aria-label={`Dividir ${t.name}`} onClick={() => onSplit(t)}>
-                    <SplitIcon />
-                  </button>
                   <button type="button" className="iconcirc" aria-label={`Editar ${t.name}`} onClick={() => onEdit(t)}>
                     <PencilIcon />
                   </button>
@@ -48,8 +39,6 @@ export function ManageTypesModal({ types, onClose, onNew, onEdit, onSplit, onDel
         )}
         <div className="managetypes-note">
           &quot;Descanso&quot; siempre está disponible como día libre y no se puede borrar.
-          Un músculo con nombre combinado (&quot;Pecho y bícep&quot;) se puede dividir en
-          los sueltos sin perder el historial: lo reescribe en todos los días que lo usaban.
         </div>
       </div>
     </Modal>

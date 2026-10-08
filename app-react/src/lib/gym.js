@@ -94,41 +94,6 @@ export function typeColor(state, name) {
   return t ? t.color : C.rose;
 }
 
-/* ------------------------------ DIVIDIR UN MÚSCULO COMBINADO ------------------------------
-   Los tipos viejos, de cuando un turno tenía UNO solo, muchas veces eran combinados:
-   "Pecho y bícep", "Espalda/tríceps", "Hombro + brazos". Ahora que un turno puede tener
-   varios músculos, conviene partirlos — y el historial ya cargado tiene que seguirlos.
-
-   Esta función es solo la PROPUESTA: lee el nombre y adivina en qué se divide, para que
-   el modal ya venga con los campos llenos y haya que confirmar, no escribir de nuevo. La
-   división de verdad (crear los que falten, reescribir los días, borrar el combinado) es
-   splitCustomType() en store/mutations.js. */
-const SEPARADORES = /\s+y\s+|\s*[,/+&]\s*|\s+con\s+/i;
-
-export function suggestSplit(name) {
-  return (name || '')
-    .split(SEPARADORES)
-    .map((p) => p.trim())
-    // Mayúscula inicial, el resto como lo escribió el usuario: "Pecho y bicep" propone
-    // "Pecho" y "Bicep", no "bicep" — pero no toca "Bíceps femoral" ni lo pone en title case.
-    .map((p) => (p ? p[0].toUpperCase() + p.slice(1) : p))
-    .filter(Boolean);
-}
-
-// Cuántos DÍAS del plan (de toda la historia) usan este músculo, en cualquiera de sus dos
-// turnos. Es lo que el modal muestra antes de confirmar: "se van a reescribir N días".
-export function daysUsingMuscle(state, name) {
-  let n = 0;
-  Object.values(state.gym.weekPlans).forEach((plan) => {
-    plan.forEach((day) => {
-      const enTurno1 = day.muscles.includes(name);
-      const enTurno2 = !!day.muscles2 && day.muscles2.includes(name);
-      if (enTurno1 || enTurno2) n++;
-    });
-  });
-  return n;
-}
-
 // Desarma un día del plan en 1 o 2 turnos, según tenga `muscles2` o no. Es el único lugar
 // que lee muscles2/done2 directamente (salvo gymWeekDoubleDays(), ver más abajo) — WeekPlan
 // (Gimnasio) y TrainingRow (Hoy) dibujan sobre esto, no sobre el día crudo.

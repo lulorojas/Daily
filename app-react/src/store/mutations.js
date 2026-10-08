@@ -205,63 +205,6 @@ export function updateCustomType(draft, id, { name, color }) {
   return true;
 }
 
-/* Dividir un músculo combinado ("Pecho y bícep") en los sueltos que lo componen.
-
-   Es la ÚNICA mutación que reescribe el historial del plan a propósito, y por eso existe
-   como operación propia en vez de "borrar el viejo y crear dos nuevos": hacer eso a mano
-   dejaría todos los días que decían "Pecho y bícep" apuntando a un músculo que ya no
-   está. Acá los tres pasos van juntos:
-
-     1. se crean los músculos que todavía no existan (el primero hereda el color del
-        combinado, para que el historial no cambie de color de golpe; los demás siguen la
-        rotación de PALETTE, igual que un hábito nuevo);
-     2. en cada día del plan, en los dos turnos, el nombre viejo se reemplaza por la lista
-        nueva, sin duplicar lo que ya estuviera marcado por separado;
-     3. recién entonces se borra el combinado del catálogo.
-
-   Dividir en UN solo nombre es legítimo: equivale a renombrar, y sirve para limpiar un
-   nombre mal escrito arrastrando el historial. */
-export function splitCustomType(draft, id, names) {
-  const t = draft.gym.customTypes.find((x) => x.id === id);
-  if (!t) return false;
-
-  const limpios = (names || []).map((n) => (n || '').trim()).filter(Boolean);
-  if (!limpios.length) return false;
-
-  // Sin duplicados adentro de la propia lista ("Pecho, Pecho" es un solo Pecho).
-  const destino = [...new Set(limpios)];
-
-  destino.forEach((name, i) => {
-    if (draft.gym.customTypes.some((x) => x.name === name)) return;
-    const color = i === 0 ? t.color : PALETTE[draft.gym.customTypes.length % PALETTE.length];
-    draft.gym.customTypes.push({ id: uid(), name, color });
-  });
-
-  const reemplazar = (lista) => {
-    if (!lista.includes(t.name)) return lista;
-    const out = [];
-    lista.forEach((m) => {
-      if (m !== t.name) { if (!out.includes(m)) out.push(m); return; }
-      destino.forEach((d) => { if (!out.includes(d)) out.push(d); });
-    });
-    return out;
-  };
-
-  Object.values(draft.gym.weekPlans).forEach((plan) => {
-    plan.forEach((day) => {
-      day.muscles = reemplazar(day.muscles);
-      if (day.muscles2) day.muscles2 = reemplazar(day.muscles2);
-    });
-  });
-
-  // El combinado se va del catálogo salvo que la propia división lo conserve (dividir
-  // "Pecho y bícep" en "Pecho y bícep" + "Pecho" sería raro, pero no hay que romperlo).
-  if (!destino.includes(t.name)) {
-    draft.gym.customTypes = draft.gym.customTypes.filter((x) => x.id !== id);
-  }
-  return true;
-}
-
 /* Borrar un tipo NO toca los planes ya marcados, a propósito: el historial de lo que
    entrenaste no se reescribe porque hoy decidas no usar más ese tipo. */
 export function deleteCustomType(draft, id) {

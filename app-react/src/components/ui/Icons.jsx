@@ -264,17 +264,6 @@ export function CrossIcon({ size = 12, strokeWidth = '2.4' }) {
   );
 }
 
-/* "Dividir un músculo en varios": un camino que entra y se bifurca en dos. Se usa en
-   Administrar tipos, para partir un combinado viejo ("Pecho y bícep") en sus músculos
-   sueltos sin perder el historial. */
-export function SplitIcon({ size = 13, strokeWidth = '2' }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" strokeWidth={strokeWidth} {...stroke}>
-      <path d="M4 12h5M9 12c3 0 3-6 6-6h5M9 12c3 0 3 6 6 6h5M17 3l3 3-3 3M17 15l3 3-3 3" />
-    </svg>
-  );
-}
-
 // El tacho del botón "Eliminar hábito" del formulario. Los demás "eliminar" usan CrossIcon.
 export function TrashIcon({ color = 'currentColor', size = 16 }) {
   return (

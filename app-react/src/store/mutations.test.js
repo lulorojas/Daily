@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { normalize } from '../lib/model';
-import { gymHistory } from '../lib/gym';
 import { emptyDoc, fullDoc, TODAY, ago } from '../test/fixtures';
 import * as m from './mutations';
 
@@ -495,102 +494,6 @@ describe('después de cualquier escritura, el documento sigue siendo válido', (
     const d = doc();
     operaciones[nombre](d);
     expect(JSON.parse(JSON.stringify(d))).toEqual(d);
-  });
-});
-
-describe('dividir un músculo combinado', () => {
-  // Un documento con el combinado viejo usado en días sueltos y en un segundo turno.
-  function docConCombinado() {
-    const d = vacio();
-    d.gym.customTypes = [{ id: 'ct1', name: 'Pecho y bicep', color: '#FF9B93' }];
-    d.gym.weekPlans['2026-08-03'] = [
-      { muscles: ['Pecho y bicep'], done: true },
-      { muscles: [], done: false },
-      { muscles: ['Pecho y bicep'], done: false, muscles2: ['Pecho y bicep'], done2: true },
-      ...Array.from({ length: 4 }, () => ({ muscles: [], done: false })),
-    ];
-    return d;
-  }
-
-  it('crea los músculos sueltos y saca el combinado del catálogo', () => {
-    const d = docConCombinado();
-    m.splitCustomType(d, 'ct1', ['Pecho', 'Bicep']);
-
-    expect(d.gym.customTypes.map((t) => t.name)).toEqual(['Pecho', 'Bicep']);
-  });
-
-  it('el primero hereda el color del combinado, para que el historial no cambie de color', () => {
-    const d = docConCombinado();
-    m.splitCustomType(d, 'ct1', ['Pecho', 'Bicep']);
-
-    expect(d.gym.customTypes.find((t) => t.name === 'Pecho').color).toBe('#FF9B93');
-    expect(d.gym.customTypes.find((t) => t.name === 'Bicep').color).toBeTruthy();
-  });
-
-  it('reescribe TODOS los días que lo usaban, en los dos turnos', () => {
-    const d = docConCombinado();
-    m.splitCustomType(d, 'ct1', ['Pecho', 'Bicep']);
-
-    const plan = d.gym.weekPlans['2026-08-03'];
-    expect(plan[0].muscles).toEqual(['Pecho', 'Bicep']);
-    expect(plan[2].muscles).toEqual(['Pecho', 'Bicep']);
-    expect(plan[2].muscles2).toEqual(['Pecho', 'Bicep']);
-    expect(plan[1].muscles).toEqual([]);   // un día que no lo usaba no se toca
-  });
-
-  it('cada músculo nuevo cuenta por su cuenta en el historial', () => {
-    const d = docConCombinado();
-    m.splitCustomType(d, 'ct1', ['Pecho', 'Bicep']);
-
-    // El día 0 estaba hecho: antes aportaba 1 entrada, ahora aporta 2 (una por músculo).
-    const hist = gymHistory(d).filter((x) => x.date === '2026-08-03');
-    expect(hist.map((x) => x.type).sort()).toEqual(['Bicep', 'Pecho']);
-  });
-
-  it('no duplica un músculo que el día ya tenía marcado por separado', () => {
-    const d = docConCombinado();
-    d.gym.customTypes.push({ id: 'ct2', name: 'Pecho', color: '#fff' });
-    d.gym.weekPlans['2026-08-03'][0].muscles = ['Pecho', 'Pecho y bicep'];
-
-    m.splitCustomType(d, 'ct1', ['Pecho', 'Bicep']);
-    expect(d.gym.weekPlans['2026-08-03'][0].muscles).toEqual(['Pecho', 'Bicep']);
-  });
-
-  it('si un músculo del destino ya existía en el catálogo, no se crea de nuevo', () => {
-    const d = docConCombinado();
-    d.gym.customTypes.push({ id: 'ct2', name: 'Pecho', color: '#123456' });
-
-    m.splitCustomType(d, 'ct1', ['Pecho', 'Bicep']);
-    const pechos = d.gym.customTypes.filter((t) => t.name === 'Pecho');
-    expect(pechos).toHaveLength(1);
-    expect(pechos[0].color).toBe('#123456');   // se respeta el que ya estaba
-  });
-
-  it('dividir en un solo nombre equivale a renombrar, arrastrando el historial', () => {
-    const d = docConCombinado();
-    m.splitCustomType(d, 'ct1', ['Pectorales']);
-
-    expect(d.gym.customTypes.map((t) => t.name)).toEqual(['Pectorales']);
-    expect(d.gym.weekPlans['2026-08-03'][0].muscles).toEqual(['Pectorales']);
-  });
-
-  it('nombres repetidos o vacíos en la lista no ensucian el resultado', () => {
-    const d = docConCombinado();
-    m.splitCustomType(d, 'ct1', ['Pecho', '  ', 'Pecho', 'Bicep']);
-
-    expect(d.gym.customTypes.map((t) => t.name)).toEqual(['Pecho', 'Bicep']);
-    expect(d.gym.weekPlans['2026-08-03'][0].muscles).toEqual(['Pecho', 'Bicep']);
-  });
-
-  it('una lista vacía no hace nada', () => {
-    const d = docConCombinado();
-    expect(m.splitCustomType(d, 'ct1', [])).toBe(false);
-    expect(d.gym.customTypes.map((t) => t.name)).toEqual(['Pecho y bicep']);
-  });
-
-  it('un id que no existe no rompe', () => {
-    const d = docConCombinado();
-    expect(m.splitCustomType(d, 'zzz', ['Pecho'])).toBe(false);
   });
 });
 

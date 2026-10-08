@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { ManageTypesModal } from './ManageTypesModal';
 import { TypeCreateModal } from './TypeCreateModal';
-import { SplitTypeModal } from './SplitTypeModal';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { useData } from '../../hooks/useData';
 import { deleteCustomType } from '../../store/mutations';
@@ -36,21 +35,12 @@ export function TypesManager({ onClose }) {
           onClose={onClose}
           onNew={() => setPaso({ vista: 'form', type: null })}
           onEdit={(t) => setPaso({ vista: 'form', type: t })}
-          onSplit={(t) => setPaso({ vista: 'split', type: t })}
           onDelete={(t) => setBorrando(t)}
         />
       )}
 
       {paso.vista === 'form' && (
         <TypeCreateModal
-          type={paso.type}
-          onClose={() => setPaso({ vista: 'lista' })}
-          onSaved={() => setPaso({ vista: 'lista' })}
-        />
-      )}
-
-      {paso.vista === 'split' && (
-        <SplitTypeModal
           type={paso.type}
           onClose={() => setPaso({ vista: 'lista' })}
           onSaved={() => setPaso({ vista: 'lista' })}

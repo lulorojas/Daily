@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ABS_TYPE, dayAbs, dayTurnos, daysUsingMuscle, describeAbs, gymDayCounts, gymDayTypes, gymHistory, gymRanking, repsLabel, REST, suggestSplit, typeColor } from './gym';
+import { ABS_TYPE, dayAbs, dayTurnos, describeAbs, gymDayCounts, gymDayTypes, gymHistory, gymRanking, repsLabel, REST, typeColor } from './gym';
 import { normalize } from './model';
 import { emptyDoc } from '../test/fixtures';
 
@@ -201,59 +201,6 @@ describe('repsLabel (etapa 7, cargas por ejercicio)', () => {
 
   it('con reps da " × N"', () => {
     expect(repsLabel(5)).toBe(' × 5');
-  });
-});
-
-describe('suggestSplit: interpretar un nombre combinado', () => {
-  it('parte por " y "', () => {
-    expect(suggestSplit('Pecho y bicep')).toEqual(['Pecho', 'Bicep']);
-  });
-
-  it('parte por coma, barra, más y ampersand', () => {
-    expect(suggestSplit('Pecho, bicep')).toEqual(['Pecho', 'Bicep']);
-    expect(suggestSplit('Espalda/triceps')).toEqual(['Espalda', 'Triceps']);
-    expect(suggestSplit('Hombro + brazos')).toEqual(['Hombro', 'Brazos']);
-    expect(suggestSplit('Pecho & triceps')).toEqual(['Pecho', 'Triceps']);
-  });
-
-  it('parte una cadena de tres', () => {
-    expect(suggestSplit('Espalda, bicep y antebrazo')).toEqual(['Espalda', 'Bicep', 'Antebrazo']);
-  });
-
-  it('un nombre simple se devuelve tal cual, en una sola parte', () => {
-    expect(suggestSplit('Piernas')).toEqual(['Piernas']);
-  });
-
-  it('pone mayúscula inicial pero no toca el resto de la palabra', () => {
-    expect(suggestSplit('pecho y bíceps femoral')).toEqual(['Pecho', 'Bíceps femoral']);
-  });
-
-  it('un nombre vacío no propone nada', () => {
-    expect(suggestSplit('')).toEqual([]);
-    expect(suggestSplit(undefined)).toEqual([]);
-  });
-});
-
-describe('daysUsingMuscle', () => {
-  function docCon(dias) {
-    const d = normalize(emptyDoc());
-    d.gym.weekPlans['2026-08-03'] = dias;
-    return d;
-  }
-
-  it('cuenta los días que lo tienen en el turno 1', () => {
-    const d = docCon([{ muscles: ['Pecho'], done: true }, { muscles: ['Pecho'], done: false }, { muscles: [], done: false }]);
-    expect(daysUsingMuscle(d, 'Pecho')).toBe(2);
-  });
-
-  it('cuenta también los del segundo turno, sin contar dos veces el mismo día', () => {
-    const d = docCon([{ muscles: ['Pecho'], done: true, muscles2: ['Pecho'], done2: true }]);
-    expect(daysUsingMuscle(d, 'Pecho')).toBe(1);
-  });
-
-  it('un músculo que no está en ningún día da 0', () => {
-    const d = docCon([{ muscles: ['Pecho'], done: true }]);
-    expect(daysUsingMuscle(d, 'Espalda')).toBe(0);
   });
 });
 
