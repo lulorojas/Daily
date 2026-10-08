@@ -105,7 +105,7 @@ describe('gimnasio', () => {
   it('una semana sin plan devuelve 7 días de descanso', () => {
     const plan = weekPlanFor(normalize(emptyDoc()), 0);
     expect(plan).toHaveLength(7);
-    expect(plan.every((d) => d.type === 'Descanso' && d.done === false)).toBe(true);
+    expect(plan.every((d) => d.muscles.length === 0 && d.done === false)).toBe(true);
   });
 
   it('las claves de las semanas son lunes', () => {

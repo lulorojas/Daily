@@ -16,12 +16,20 @@ Esta carpeta se construye en paralelo, por etapas; al final se evalúa el reempl
 | 3b | Gimnasio (plan semanal, tipos, peso corporal, cargas) y Rutinas | ✅ |
 | 3c | Hábitos y Progreso | ✅ |
 | 4 | Ajustes completo, PWA y onboarding | ✅ |
+| 5-7 | Entrenamientos dobles, abs/movilidad, mapa de entrenamientos, reps por serie | ✅ |
+| 8 | Rediseño visual "Glass + aurora" | ✅ |
+| 9 | Seguimiento por músculo + Comidas (sexta sección) | ✅ |
 
-Las cinco secciones de la barra de abajo están migradas y andando, con Ajustes completo
+Las seis secciones de la barra de abajo están migradas y andando, con Ajustes completo
 (backup, importar/exportar, tutorial, cerrar sesión), PWA (instalable, offline, banner de
-actualización) y el onboarding guiado. Queda la etapa 5: el reemplazo de v3 por v4 en
-producción, con la migración del service worker de quien ya tiene la PWA instalada como
-paso más delicado — ver decisión 4 de `decisiones-tecnicas.md`.
+actualización) y el onboarding guiado.
+
+Desde la etapa 9 el modelo de gimnasio dejó de ser compatible con la app vanilla a
+propósito: un turno pasó de tener UN tipo (`day.type`) a tener una lista de músculos
+(`day.muscles`), para que un día de "espalda, tríceps y hombro" sume frecuencia a los tres
+por separado. `normalize()` migra los documentos viejos solo (ver `src/lib/model.js`), y
+los tests de `src/compat/` que comparaban la FORMA del día contra vanilla se recortaron
+—con su comentario explicando por qué— en vez de borrarse enteros.
 
 ## Correrlo
 
@@ -65,7 +73,8 @@ src/
     ajustes/      el aviso de backup y la sección de exportar/importar
     auth/         las propias de las pantallas de sesión
     calendario/   la grilla del mes y el detalle del día
-    gym/          plan semanal, tipos, peso corporal, cargas por ejercicio
+    comidas/      el plan (franjas y opciones), los extras y la bitácora diaria
+    gym/          plan semanal, músculos, peso corporal, cargas por ejercicio
     habitos/      la fila de hábito (con menú) y su formulario
     hoy/          la tira semanal, el progreso, los hábitos, el entreno
     items/        lo que Hoy y Calendario comparten: filas y formularios de agenda
@@ -115,6 +124,7 @@ poder ir y venir entre las dos versiones. Lo que garantiza eso son los tests de 
 | `/calendario` | Calendario |
 | `/gym` | Gimnasio: plan semanal, peso corporal, cargas por ejercicio |
 | `/gym/rutinas`, `/gym/rutinas/:rutId`, `/gym/rutinas/:rutId/:dayId` | la biblioteca de rutinas, sus tres niveles |
+| `/comidas` | Comidas: el plan, los extras y la bitácora del día |
 | `/habitos` | Hábitos |
 | `/progreso` | Progreso (solo lectura) |
 | `/ajustes` | backup, ayuda y la cuenta (sub-pantalla de Hoy) |

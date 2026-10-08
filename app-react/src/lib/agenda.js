@@ -9,7 +9,6 @@
    En vanilla estas funciones leían el global `state`. Acá lo reciben como primer
    argumento: siguen siendo funciones puras y se pueden testear con un objeto inventado. */
 import { parseISO, iso, dow, mondayOf, sameMonthDay } from './dates';
-import { REST } from './gym';
 
 export function itemById(state, id) {
   return state.items.find((x) => x.id === id);
@@ -53,14 +52,13 @@ export function itemsDe(state, dISO) {
 
 // Entreno planificado para una fecha (solo lectura; el plan lo maneja Gimnasio).
 // Entrenamientos dobles (etapa 6): un día "tiene entreno" si CUALQUIERA de sus dos
-// turnos no es descanso — antes alcanzaba con mirar `type` solo. Devuelve el día
-// completo (con type2/done2 si los tiene); dayTurnos() en lib/gym.js lo desarma en 1 o 2
-// turnos para dibujar.
+// turnos tiene algún músculo marcado. Devuelve el día completo (con muscles2/done2 si
+// los tiene); dayTurnos() en lib/gym.js lo desarma en 1 o 2 turnos para dibujar.
 export function entrenoDe(state, dISO) {
   const d = parseISO(dISO);
   const plan = state.gym.weekPlans[iso(mondayOf(d))];
   const day = plan && plan[dow(d)];
   if (!day) return null;
-  const hayEntreno = day.type !== REST || (day.type2 && day.type2 !== REST);
+  const hayEntreno = day.muscles.length > 0 || (day.muscles2 && day.muscles2.length > 0);
   return hayEntreno ? day : null;
 }

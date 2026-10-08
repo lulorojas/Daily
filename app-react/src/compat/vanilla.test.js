@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { clone, loadVanilla } from '../test/vanilla';
-import { emptyDoc, fullDoc, weirdDocs, TODAY, YESTERDAY, TOMORROW, ago, thisMonday } from '../test/fixtures';
+import { emptyDoc, fullDoc, weirdDocs, TODAY, YESTERDAY, TOMORROW, ago } from '../test/fixtures';
 
 import { normalize, seed } from '../lib/model';
 import * as dates from '../lib/dates';
@@ -36,7 +36,13 @@ function withVanillaState(doc) {
 
 /* ---------------------------------------------------------------- normalize */
 describe('normalize() da lo mismo en las dos implementaciones', () => {
+  // 'completo' (fullDoc()) queda afuera a propósito: es el único con weekPlans con datos,
+  // y el seguimiento por músculo migra day.type (string) a day.muscles (array) SOLO del
+  // lado de React — vanilla nunca va a escribir esa forma. Ver la nota grande al principio
+  // del archivo de memoria del rediseño/seguimiento por músculo: la paridad de FORMA del
+  // día de gimnasio con vanilla se retiró a propósito, no es un bug de este diff.
   const docs = weirdDocs();
+  delete docs.completo;
 
   it.each(Object.keys(docs))('%s', (nombre) => {
     const entrada = docs[nombre];
@@ -85,8 +91,14 @@ describe('un documento puede ir y volver entre las dos versiones', () => {
     expect(V.normalize(clone(escritoPorReact))).toEqual(escritoPorReact);
   });
 
-  it.each(Object.keys(docs))('React lee sin cambiar nada lo que escribe vanilla: %s', (nombre) => {
-    const escritoPorVanilla = V.normalize(clone(docs[nombre]));
+  // 'completo' queda afuera de ESTA dirección nomás: React migra day.type → day.muscles
+  // al leer, a propósito (seguimiento por músculo) — por diseño YA NO lee "sin cambiar
+  // nada" lo que escribe vanilla cuando trae weekPlans. La otra dirección (arriba) sigue
+  // vigente: lo que escribe React, vanilla lo sigue leyendo sin tocarlo.
+  const docsSinCompleto = { ...docs };
+  delete docsSinCompleto.completo;
+  it.each(Object.keys(docsSinCompleto))('React lee sin cambiar nada lo que escribe vanilla: %s', (nombre) => {
+    const escritoPorVanilla = V.normalize(clone(docsSinCompleto[nombre]));
     expect(normalize(clone(escritoPorVanilla))).toEqual(escritoPorVanilla);
   });
 
@@ -156,10 +168,13 @@ describe('agenda', () => {
     }
   });
 
-  it.each(dias)('entrenoDe(%s)', (d) => {
-    withVanillaState(doc);
-    expect(agenda.entrenoDe(normalize(doc), d)).toEqual(V.entrenoDe(d));
-  });
+  /* entrenoDe() devuelve el DÍA completo del plan — con el seguimiento por músculo, React
+     lo devuelve con `muscles`/`muscles2` y vanilla sigue con `type`/`type2`: la forma ya
+     no puede coincidir cuando hay entreno de verdad (si no hay entreno, las dos dan null,
+     que sí coincide — por eso esto no se cae para TODOS los días, solo para el que tiene
+     plan real). Se retira la comparación de forma; lo que sigue importando (que el
+     entreno se detecte en el día correcto) está cubierto por GymPage.test.jsx y
+     HoyPage.test.jsx. */
 
   it('la fecha anual cae por mes+día, sin importar el año', () => {
     withVanillaState(doc);
@@ -286,26 +301,14 @@ describe('gimnasio', () => {
     for (const off of [-2, -1, 0, 1]) expect(gym.weekKey(off)).toBe(V.weekKey(off));
   });
 
-  it('weekPlanFor() devuelve el mismo plan que getWeekPlan()', () => {
-    withVanillaState(doc);
-    expect(gym.weekPlanFor(normalize(doc), 0)).toEqual(V.getWeekPlan(0));
-  });
-
-  it('para una semana sin plan, el contenido es el mismo (7 días de descanso)', () => {
-    const vacio = withVanillaState(emptyDoc());
-    expect(gym.weekPlanFor(normalize(emptyDoc()), 0)).toEqual(V.getWeekPlan(0));
-    expect(vacio.gym.weekPlans[thisMonday]).toBeTruthy();   // vanilla la creó al leerla
-  });
-
-  it('la diferencia acordada: leer NO crea la semana en el documento de React', () => {
-    const react = normalize(emptyDoc());
-    gym.weekPlanFor(react, 0);
-    expect(react.gym.weekPlans).toEqual({});
-
-    // Y vanilla, leyendo ese documento sin la semana, la reconstruye igual.
-    withVanillaState(react);
-    expect(V.getWeekPlan(0)).toEqual(gym.emptyWeekPlan());
-  });
+  /* Las tres comparaciones de FORMA del día de gimnasio (weekPlanFor() vs getWeekPlan(),
+     la semana vacía, "leer no crea la semana") se retiraron: con el seguimiento por
+     músculo, un día de React es `{muscles,done,...}` y uno de vanilla sigue siendo
+     `{type,done,...}` — ya no pueden coincidir campo por campo, por diseño. Lo que sigue
+     probado acá arriba (weekOf()/weekKey()) son las CLAVES de semana, que no cambiaron.
+     Lo que cubrían esos tres tests —que la lectura no mute el documento, que la semana
+     vacía tenga 7 días de descanso— sigue probado en gym.test.js y logic.test.js, con la
+     forma nueva. */
 });
 
 /* ---------------------------------------------------------------- progreso */
@@ -355,7 +358,12 @@ describe('backup', () => {
     const van = V.backupPayload();
     expect(react.app).toBe(van.app);
     expect(react.format).toBe(van.format);
-    expect(react.data).toEqual(van.data);
+    // El resto de `data` sí coincide campo por campo; `gym` queda afuera a propósito: con
+    // el seguimiento por músculo, el día de React es {muscles,...} y el de vanilla sigue
+    // siendo {type,...} — es la misma excepción de forma que en el describe('gimnasio').
+    const { gym: reactGym, ...reactResto } = react.data;
+    const { gym: vanGym, ...vanResto } = van.data;
+    expect(reactResto).toEqual(vanResto);
   });
 
   const archivos = {

@@ -20,6 +20,7 @@ import { PALETTE } from '../lib/theme';
 import { emptyWeekPlan, REST } from '../lib/gym';
 import { moveInArray } from '../lib/arrays';
 import { habitMarks } from '../lib/habits';
+import { matchEntry } from '../lib/meals';
 
 /* ============================ agenda (items) ============================ */
 
@@ -129,11 +130,19 @@ export function ensureWeekPlan(draft, weekKeyISO) {
   return draft.gym.weekPlans[weekKeyISO];
 }
 
-// slot 1 = type/done (siempre existe); slot 2 = type2/done2 (opcional, entrenamientos dobles).
-export function setWeekDayType(draft, weekKeyISO, dayIndex, type, slot = 1) {
+/* slot 1 = muscles/done (siempre existe); slot 2 = muscles2/done2 (opcional, entrenamientos
+   dobles). Multi-select: tocar un músculo lo agrega/saca de la lista del turno — mismo
+   patrón que toggleAbsCategory(). Elegir "Descanso" (REST) es la excepción: no es un
+   músculo más, es la acción de vaciar el turno entero, sin importar qué hubiera marcado. */
+export function toggleWeekDayMuscle(draft, weekKeyISO, dayIndex, muscle, slot = 1) {
   const plan = ensureWeekPlan(draft, weekKeyISO);
-  if (!plan[dayIndex]) return false;
-  plan[dayIndex][slot === 2 ? 'type2' : 'type'] = type;
+  const day = plan[dayIndex];
+  if (!day) return false;
+  const key = slot === 2 ? 'muscles2' : 'muscles';
+  if (!day[key]) return false;
+  if (muscle === REST) { day[key] = []; return true; }
+  const cur = day[key];
+  day[key] = cur.includes(muscle) ? cur.filter((m) => m !== muscle) : [...cur, muscle];
   return true;
 }
 
@@ -146,30 +155,29 @@ export function toggleWeekDayDone(draft, weekKeyISO, dayIndex, slot = 1) {
   return true;
 }
 
-/* Agregar/quitar el segundo turno de un día. REST por default: un turno nuevo sin marcar
-   nada todavía no es ni cardio ni nada — "Descanso" es un estado válido para un turno,
-   igual que ya lo es para el primero. */
+/* Agregar/quitar el segundo turno de un día. Arranca sin músculos (muscles2: []): un
+   turno nuevo sin marcar nada todavía es "Descanso", igual que ya lo es para el primero. */
 export function addSecondTurno(draft, weekKeyISO, dayIndex) {
   const plan = ensureWeekPlan(draft, weekKeyISO);
   const day = plan[dayIndex];
-  if (!day || day.type2) return false;
-  day.type2 = REST;
+  if (!day || day.muscles2) return false;
+  day.muscles2 = [];
   day.done2 = false;
   return true;
 }
 
-// Saca el segundo turno del todo (no lo deja en blanco): un día viejo sin type2 y uno al
+// Saca el segundo turno del todo (no lo deja en blanco): un día sin muscles2 y uno al
 // que se le quitó el segundo turno tienen que quedar exactamente iguales.
 export function removeSecondTurno(draft, weekKeyISO, dayIndex) {
   const plan = ensureWeekPlan(draft, weekKeyISO);
   const day = plan[dayIndex];
-  if (!day || !day.type2) return false;
-  delete day.type2;
+  if (!day || !day.muscles2) return false;
+  delete day.muscles2;
   delete day.done2;
   return true;
 }
 
-/* ============================ gimnasio: tipos ============================ */
+/* ============================ gimnasio: músculos (customTypes) ============================ */
 
 export function addCustomType(draft, { name, color }) {
   const type = { id: uid(), name, color };
@@ -177,9 +185,9 @@ export function addCustomType(draft, { name, color }) {
   return type;
 }
 
-/* Al renombrar un tipo hay que renombrarlo también en cada día del plan, porque los
-   planes guardan el NOMBRE del tipo y no su id. Si no, los entrenos viejos quedarían
-   apuntando a un tipo que ya no existe y perderían su color en toda la app. */
+/* Al renombrar un músculo hay que renombrarlo también en cada día del plan, porque los
+   planes guardan el NOMBRE y no su id. Si no, los entrenos viejos quedarían apuntando a
+   un músculo que ya no existe y perderían su color en toda la app. */
 export function updateCustomType(draft, id, { name, color }) {
   const t = draft.gym.customTypes.find((x) => x.id === id);
   if (!t) return false;
@@ -189,8 +197,8 @@ export function updateCustomType(draft, id, { name, color }) {
   if (old !== name) {
     Object.values(draft.gym.weekPlans).forEach((plan) => {
       plan.forEach((day) => {
-        if (day.type === old) day.type = name;
-        if (day.type2 === old) day.type2 = name;
+        day.muscles = day.muscles.map((m) => (m === old ? name : m));
+        if (day.muscles2) day.muscles2 = day.muscles2.map((m) => (m === old ? name : m));
       });
     });
   }
@@ -425,4 +433,122 @@ export function setOnboardingSeen(draft, seen) {
   draft.onboarding = draft.onboarding || { seen: false };
   draft.onboarding.seen = seen;
   return true;
+}
+
+/* ============================ comidas ============================
+   `meals` no tiene default en normalize() (ver lib/model.js, mismo truco que
+   fcmTokens) — por eso toda mutación de acá para abajo arranca con
+   `draft.meals ||= {...}`: recién se materializa en el documento la primera vez que
+   de verdad se guarda algo. */
+function ensureMeals(draft) {
+  draft.meals ||= { plan: [], extras: [], log: {} };
+  return draft.meals;
+}
+
+/* ---- plan: franjas (Desayuno/Almuerzo/...) y sus opciones ---- */
+export function addMealSlot(draft, { name }) {
+  const meals = ensureMeals(draft);
+  const slot = { id: uid(), name, options: [] };
+  meals.plan.push(slot);
+  return slot;
+}
+
+export function updateMealSlot(draft, slotId, { name }) {
+  const slot = ensureMeals(draft).plan.find((s) => s.id === slotId);
+  if (!slot) return false;
+  slot.name = name;
+  return true;
+}
+
+// Borrar una franja NO toca la bitácora ya escrita: una entrada vieja que había
+// matcheado una opción de esa franja se queda con el id guardado, aunque ya no exista
+// en meals.plan — mismo criterio que borrar un tipo de gym no reescribe el historial.
+export function deleteMealSlot(draft, slotId) {
+  const meals = ensureMeals(draft);
+  const before = meals.plan.length;
+  meals.plan = meals.plan.filter((s) => s.id !== slotId);
+  return meals.plan.length !== before;
+}
+
+export function moveMealSlot(draft, slotId, dir) {
+  const meals = ensureMeals(draft);
+  return moveInArray(meals.plan, meals.plan.findIndex((s) => s.id === slotId), dir);
+}
+
+export function addMealOption(draft, slotId, { text }) {
+  const slot = ensureMeals(draft).plan.find((s) => s.id === slotId);
+  if (!slot) return null;
+  const option = { id: uid(), text };
+  slot.options.push(option);
+  return option;
+}
+
+export function updateMealOption(draft, slotId, optionId, { text }) {
+  const slot = ensureMeals(draft).plan.find((s) => s.id === slotId);
+  const option = slot && slot.options.find((o) => o.id === optionId);
+  if (!option) return false;
+  option.text = text;
+  return true;
+}
+
+export function deleteMealOption(draft, slotId, optionId) {
+  const slot = ensureMeals(draft).plan.find((s) => s.id === slotId);
+  if (!slot) return false;
+  const before = slot.options.length;
+  slot.options = slot.options.filter((o) => o.id !== optionId);
+  return slot.options.length !== before;
+}
+
+/* ---- extras: catálogo libre (café, alcohol, permitidos…), calco de habits ---- */
+export function nextExtraColor(state) {
+  return PALETTE[(state.meals?.extras.length ?? 0) % PALETTE.length];
+}
+
+export function addMealExtra(draft, { name, color, icon }) {
+  const meals = ensureMeals(draft);
+  const extra = { id: uid(), name, color, icon };
+  meals.extras.push(extra);
+  return extra;
+}
+
+export function updateMealExtra(draft, id, { name, color, icon }) {
+  const extra = ensureMeals(draft).extras.find((e) => e.id === id);
+  if (!extra) return false;
+  extra.name = name;
+  extra.color = color;
+  extra.icon = icon;
+  return true;
+}
+
+// Igual que con las franjas: borrar un extra no re-escribe las entradas de la bitácora
+// que ya lo habían matcheado (quedan con un id que ya no está en meals.extras, y las
+// funciones de frecuencia de lib/meals.js simplemente dejan de contarlo).
+export function deleteMealExtra(draft, id) {
+  const meals = ensureMeals(draft);
+  const before = meals.extras.length;
+  meals.extras = meals.extras.filter((e) => e.id !== id);
+  return meals.extras.length !== before;
+}
+
+/* ---- bitácora diaria ---- */
+
+// Corre el "bot" (matchEntry, lib/meals.js) UNA sola vez, contra el plan/extras vigentes
+// en este momento, y guarda el resultado junto con el texto. Editar una opción o un
+// extra después no re-matchea entradas viejas — mismo criterio que el resto de la app.
+export function addMealLogEntry(draft, dISO, text) {
+  const trimmed = (text || '').trim();
+  if (!trimmed) return null;
+  const meals = ensureMeals(draft);
+  const entry = { id: uid(), at: Date.now(), text: trimmed, matches: matchEntry(draft, trimmed) };
+  (meals.log[dISO] ||= []).push(entry);
+  return entry;
+}
+
+export function deleteMealLogEntry(draft, dISO, entryId) {
+  const meals = ensureMeals(draft);
+  const dia = meals.log[dISO];
+  if (!dia) return false;
+  const before = dia.length;
+  meals.log[dISO] = dia.filter((e) => e.id !== entryId);
+  return meals.log[dISO].length !== before;
 }

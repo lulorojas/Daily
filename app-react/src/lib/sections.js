@@ -1,6 +1,6 @@
 import { C } from './theme';
 
-/* ----------------------------- LAS CINCO SECCIONES -----------------------------
+/* ----------------------------- LAS SEIS SECCIONES -----------------------------
    En la app vanilla esto vivía repartido: `ui.tab` guardaba cuál estaba abierta, SECT
    tenía el color de cada una y navbar() tenía la lista con sus etiquetas. Acá es una sola
    tabla, y de ella salen tres cosas que antes se escribían por separado:
@@ -16,13 +16,16 @@ import { C } from './theme';
    app sin ninguna ruta cae donde tiene que caer sin un redirect de por medio. */
 /* `label` es lo que se ve en la barra, abreviado para que entre; `title` es el nombre
    completo, que va como aria-label del link (un lector de pantalla dice "Calendario", no
-   "Cal"). Con la etapa 3c las cinco existen: las tres últimas (Gimnasio, Hábitos,
-   Progreso) llegaron en las etapas 3b y 3c, sobre las rutas que ya tenían reservadas
-   desde la 3a. */
+   "Cal"). Con la etapa 3c las primeras cinco existían: las tres últimas de esa tanda
+   (Gimnasio, Hábitos, Progreso) habían llegado en las etapas 3b y 3c, sobre las rutas que
+   ya tenían reservadas desde la 3a. Comidas es la sexta, sin equivalente en vanilla —
+   violeta porque es el único acento de PALETTE (lib/theme.js) que ninguna sección usaba
+   todavía. Va al lado de Gimnasio a propósito (entreno y dieta, juntos). */
 export const SECTIONS = [
   { key: 'hoy',        path: '/',           label: 'Hoy',      title: 'Hoy',        accent: C.amber },
   { key: 'calendario', path: '/calendario', label: 'Cal',      title: 'Calendario', accent: C.coral },
   { key: 'gym',        path: '/gym',        label: 'Gym',      title: 'Gimnasio',   accent: C.rose },
+  { key: 'comidas',    path: '/comidas',    label: 'Comidas',  title: 'Comidas',    accent: C.violet },
   { key: 'habitos',    path: '/habitos',    label: 'Hábitos',  title: 'Hábitos',    accent: C.green },
   { key: 'progreso',   path: '/progreso',   label: 'Progreso', title: 'Progreso',   accent: C.teal },
 ];

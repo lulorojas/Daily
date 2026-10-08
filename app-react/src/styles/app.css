@@ -360,6 +360,54 @@ a.rcover { display: block; }
 .streakrow-sub { font-size: 12.5px; color: rgba(242, 244, 248, .5); margin-top: 2px; }
 .habicon.sm { width: 36px; height: 36px; }
 
+/* ============================ COMIDAS ============================
+   Sexta sección (sin precedente en vanilla). Casi todo reusa lo que ya existe —
+   .card/.chip/.habrow/.iconwrap/.managerow/.empty—; acá va solo lo propio: el plan de
+   solo lectura, las burbujas de la bitácora y la caja para escribir. */
+
+/* El botón "Editar" de cada sección: misma píldora que usa Hábitos, en violeta y con
+   lugar para el ícono al lado del texto (la variante de Hábitos es solo texto). */
+.pillbtn.comidas {
+  background: #B49BE828; color: var(--violet);
+  display: flex; align-items: center; gap: 6px;
+}
+
+/* ---- el plan, de solo lectura ---- */
+.mealslot { padding: 12px 2px; }
+.mealslot:not(:last-child) { border-bottom: 1px solid rgba(255, 255, 255, .06); }
+.mealslot-name { font-size: 12px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; color: rgba(242, 244, 248, .55); margin-bottom: 9px; }
+.mealslot-vacio { font-size: 13px; color: rgba(242, 244, 248, .4); }
+/* Las opciones son chips de lectura, no botones: sin cursor ni estado "elegido". */
+.chip.mealslot-opt { cursor: default; font-weight: 500; font-size: 13px; padding: 7px 13px; }
+
+/* ---- bitácora ---- */
+.mealbubble {
+  border-radius: 18px; padding: 11px 14px; display: flex; flex-direction: column; gap: 8px;
+  background: var(--glass); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+  box-shadow: inset 0 1px 0 var(--glass-hi), inset 0 0 0 1px var(--glass-brd);
+}
+.mealbubble-top { display: flex; align-items: center; gap: 11px; }
+.mealbubble-time { font-size: 10.5px; color: rgba(242, 244, 248, .45); flex: none; }
+.mealbubble-text { font-size: 14.5px; line-height: 1.4; }
+.mealtags { display: flex; flex-wrap: wrap; gap: 6px; padding-left: 47px; }
+.mealtag { font-size: 11px; font-weight: 600; padding: 4px 9px; border-radius: 99px; background: rgba(255, 255, 255, .06); color: rgba(242, 244, 248, .7); }
+.mealtag.mealtag-plan { background: #B49BE824; color: var(--violet); }
+
+/* ---- la caja para escribir ----
+   Pegada abajo del bloque, no al viewport: la bitácora es una sección más de la página
+   (se scrollea con todo lo demás), así que una barra fija taparía el resto sin motivo. */
+.mealcomposer { display: flex; align-items: flex-end; gap: 9px; margin-top: 2px; }
+/* textarea.inp (styles.css) impone min-height:88px para las descripciones largas de los
+   formularios; acá es una sola línea que crece sola, así que hay que ganarle en
+   especificidad con el mismo selector de elemento + clase. */
+textarea.mealinp { min-height: 0; height: 48px; padding: 13px 16px; line-height: 1.4; resize: none; }
+.mealsend {
+  width: 46px; height: 46px; flex: none; border-radius: 50%; display: grid; place-items: center;
+  background: radial-gradient(circle at 35% 28%, #D9CCF7, var(--violet) 60%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .5), 0 6px 16px rgba(0, 0, 0, .3);
+  cursor: pointer;
+}
+
 /* ============================ PROGRESO ============================ */
 .progselector-wrap { margin-top: 16px; }
 .sectrow-baseline { display: flex; align-items: baseline; justify-content: space-between; margin: 0 2px; }

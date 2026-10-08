@@ -1,23 +1,34 @@
 /* ----------------------------- GIMNASIO -----------------------------
-   Port de la parte de cálculo de app/js/gimnasio.js.
+   Port de la parte de cálculo de app/js/gimnasio.js, con el agregado de seguimiento por
+   músculo (ver más abajo).
 
    El plan semanal se guarda en gym.weekPlans, indexado por el LUNES de cada semana
-   ('YYYY-MM-DD'), con un arreglo de 7 días { type, done }. El "historial" de entrenos no
-   se guarda aparte: se deriva de los días marcados como hechos.
+   ('YYYY-MM-DD'), con un arreglo de 7 días { muscles, done }. El "historial" de entrenos
+   no se guarda aparte: se deriva de los días marcados como hechos.
 
-   Entrenamientos dobles (etapa 6, campo nuevo del modelo, pedido explícito de Lulo):
-   un día puede tener un segundo turno con `type2`/`done2`, mismo significado que
-   `type`/`done` pero para el turno de la tarde. Los dos son OPCIONALES: un día viejo, de
-   antes de este campo, no los tiene — y eso es exactamente "un solo turno", no un error.
+   Seguimiento por músculo (sin equivalente en vanilla ni en etapas anteriores, pedido
+   explícito de Lulo): un turno ya no tiene UN tipo, tiene una LISTA de músculos —
+   `day.muscles` (array de nombres, del mismo catálogo `gym.customTypes` que antes se
+   llamaba "tipos"). Un día de "espalda, tríceps y hombro" es un solo turno con
+   `muscles:['Espalda','Tríceps','Hombro']`, y cada uno de los tres suma frecuencia por su
+   cuenta — ver gymHistory() más abajo, que es donde se desarma la lista en entradas
+   separadas. `muscles:[]` es "Descanso": ya no se guarda el string REST adentro del
+   array, la ausencia de músculos ES el descanso.
+
+   Entrenamientos dobles (campo nuevo del modelo, pedido explícito de Lulo):
+   un día puede tener un segundo turno con `muscles2`/`done2`, mismo significado que
+   `muscles`/`done` pero para el turno de la tarde. Los dos son OPCIONALES: un día sin
+   segundo turno no los tiene — y eso es exactamente "un solo turno", no un error.
    Ninguna función de acá abajo asume que existen; dayTurnos() es el único lugar que los
-   lee, y lo hace con `day.type2` como el chequeo de "¿hay un segundo turno?".
+   lee, y lo hace con `day.muscles2` como el chequeo de "¿hay un segundo turno?" (OJO:
+   gymWeekDoubleDays() también lo lee directo, es la excepción a esa regla — ver ahí).
 
    Abs y movilidad (etapa 6, campos nuevos, pedido explícito de Lulo — reescrito dos veces
    hasta llegar acá: primero se probó como lista aparte (gym.coreLog), después como bloque
    propio dentro del plan semanal, y en las dos Lulo pidió más integración. Esta versión es
    la literal: `absCategories`/`movilidad` son dos campos MÁS del mismo día del plan
-   semanal, al lado de `type`/`done`/`type2`/`done2` — no una lista, no un turno, un campo
-   del día. Se hace UNA vez por día (no varias entradas como se probó antes): elegir de
+   semanal, al lado de `muscles`/`done`/`muscles2`/`done2` — no una lista, no un turno, un
+   campo del día. Se hace UNA vez por día (no varias entradas como se probó antes): elegir de
    nuevo una categoría ya marcada la saca, exactamente como un checkbox.
    `absCategories` ausente o `movilidad` ausente = nada marcado ese día; dayAbs() es el
    único lugar que lee estos dos campos directamente.
@@ -46,8 +57,8 @@ export function weekKey(offset) { return iso(addDays(mondayOf(todayD()), offset 
 // La semana (su lunes) a la que pertenece una fecha.
 export function weekOf(dISO) { return iso(mondayOf(parseISO(dISO))); }
 
-// Una semana recién creada: 7 días de descanso, sin marcar.
-export function emptyWeekPlan() { return DOW_SHORT.map(() => ({ type: REST, done: false })); }
+// Una semana recién creada: 7 días de descanso (sin músculos), sin marcar.
+export function emptyWeekPlan() { return DOW_SHORT.map(() => ({ muscles: [], done: false })); }
 
 /* Diferencia deliberada con la app vanilla: allá getWeekPlan() CREABA la semana dentro de
    `state` con solo mirar Gimnasio, y esa semana vacía quedaba escrita en el próximo
@@ -66,7 +77,9 @@ export function weekPlanAt(state, weekKeyISO) {
   return state.gym.weekPlans[weekKeyISO] || emptyWeekPlan();
 }
 
-/* Los tipos disponibles para elegir: los del usuario + Descanso al final.
+/* Los músculos disponibles para elegir (el catálogo sigue llamándose `customTypes` por
+   compatibilidad con el resto del código — administrarlos no cambió de forma) + Descanso
+   al final, que en el multi-select de WeekPlan es la opción que vacía el turno entero.
    El color de Descanso es un literal rgba y no un hex de la paleta, así que typeColor()
    devuelve algo que tint() no sabe teñir. Está así en la app actual; se replica igual. */
 export function allTypes(state) {
@@ -81,29 +94,31 @@ export function typeColor(state, name) {
   return t ? t.color : C.rose;
 }
 
-// Desarma un día del plan en 1 o 2 turnos, según tenga `type2` o no. Es el único lugar
-// que lee type2/done2 directamente — WeekPlan (Gimnasio) y TrainingRow (Hoy) dibujan
-// sobre esto, no sobre el día crudo.
+// Desarma un día del plan en 1 o 2 turnos, según tenga `muscles2` o no. Es el único lugar
+// que lee muscles2/done2 directamente (salvo gymWeekDoubleDays(), ver más abajo) — WeekPlan
+// (Gimnasio) y TrainingRow (Hoy) dibujan sobre esto, no sobre el día crudo.
 export function dayTurnos(day) {
-  const turnos = [{ slot: 1, type: day.type, done: !!day.done }];
-  if (day.type2) turnos.push({ slot: 2, type: day.type2, done: !!day.done2 });
+  const turnos = [{ slot: 1, muscles: day.muscles, done: !!day.done }];
+  if (day.muscles2) turnos.push({ slot: 2, muscles: day.muscles2, done: !!day.done2 });
   return turnos;
 }
 
-/* El historial de entrenos, derivado del plan: cada TURNO marcado como hecho que no sea
-   descanso — un día con los dos turnos hechos aporta dos entradas, una por tipo, porque
-   son dos entrenamientos distintos (cuentan aparte para el ranking y las rachas por
-   tipo) — MÁS una entrada de tipo ABS_TYPE por cada día con alguna categoría de abs
-   marcada (una sola, sin importar cuántas categorías ni si también hay movilidad: es un
-   solo evento de entreno ese día, no uno por categoría). Movilidad sola, sin categorías,
-   no aporta nada. Ordenado del más nuevo al más viejo. */
+/* El historial de entrenos, derivado del plan: cada TURNO marcado como hecho aporta UNA
+   entrada POR CADA MÚSCULO de su lista — un turno de "espalda, tríceps y hombro" hecho
+   suma tres entradas, una por músculo, porque cada uno entrena por su cuenta (cuentan
+   aparte para el ranking, las rachas y "Cómo venís" de cada uno). Un turno en Descanso
+   tiene `muscles:[]`, así que no aporta nada — no hace falta filtrarlo aparte. MÁS una
+   entrada de tipo ABS_TYPE por cada día con alguna categoría de abs marcada (una sola, sin
+   importar cuántas categorías ni si también hay movilidad: es un solo evento de entreno
+   ese día, no uno por categoría). Movilidad sola, sin categorías, no aporta nada.
+   Ordenado del más nuevo al más viejo. */
 export function gymHistory(state) {
   const out = [];
   Object.keys(state.gym.weekPlans).forEach((k) => {
     const mon = parseISO(k);
     state.gym.weekPlans[k].forEach((day, i) => {
       const date = iso(addDays(mon, i));
-      dayTurnos(day).forEach((t) => { if (t.done && t.type !== REST) out.push({ date, type: t.type }); });
+      dayTurnos(day).forEach((t) => { if (t.done) t.muscles.forEach((m) => out.push({ date, type: m })); });
       if (dayAbs(day).categories.length) out.push({ date, type: ABS_TYPE });
     });
   });
@@ -223,7 +238,7 @@ export function gymWeekTypeCounts(hist) {
 export function gymWeekDoubleDays(state) {
   const out = {};
   Object.keys(state.gym.weekPlans).forEach((k) => {
-    const n = state.gym.weekPlans[k].filter((day) => day.type2 && day.type2 !== REST).length;
+    const n = state.gym.weekPlans[k].filter((day) => day.muscles2 && day.muscles2.length > 0).length;
     if (n) out[k] = n;
   });
   return out;

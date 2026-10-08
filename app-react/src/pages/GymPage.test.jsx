@@ -22,29 +22,53 @@ describe('plan semanal', () => {
     const user = userEvent.setup();
     renderScreen(<GymPage />, { doc: doc() });
 
-    await user.click(screen.getByRole('button', { name: 'Lun: Pecho, cambiar tipo' }));
-    // Los tipos propios más "Descanso", que siempre está.
+    await user.click(screen.getByRole('button', { name: 'Lun: Pecho, cambiar músculos' }));
+    // Los músculos propios más "Descanso", que siempre está.
     expect(screen.getByRole('button', { name: 'Espalda' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Descanso' })).toBeInTheDocument();
   });
 
-  it('elegir un tipo lo guarda en el plan de esa semana', async () => {
+  it('elegir un músculo lo guarda en el plan de esa semana', async () => {
     const user = userEvent.setup();
     const { doc: leer } = renderScreen(<GymPage />, { doc: doc() });
 
-    await user.click(screen.getByRole('button', { name: 'Mar: Descanso, cambiar tipo' }));
+    await user.click(screen.getByRole('button', { name: 'Mar: Descanso, cambiar músculos' }));
     await user.click(screen.getByRole('button', { name: 'Espalda' }));
 
-    expect(leer().gym.weekPlans[weekKey(0)][1].type).toBe('Espalda');
+    expect(leer().gym.weekPlans[weekKey(0)][1].muscles).toEqual(['Espalda']);
   });
 
-  it('marcar hecho lo guarda, sin tocar el tipo', async () => {
+  it('elegir varios músculos en el mismo turno suma a todos', async () => {
+    const user = userEvent.setup();
+    const { doc: leer } = renderScreen(<GymPage />, { doc: doc() });
+
+    await user.click(screen.getByRole('button', { name: 'Mar: Descanso, cambiar músculos' }));
+    await user.click(screen.getByRole('button', { name: 'Espalda' }));
+    await user.click(screen.getByRole('button', { name: 'Pecho' }));
+
+    expect(leer().gym.weekPlans[weekKey(0)][1].muscles).toEqual(['Espalda', 'Pecho']);
+    // El panel sigue abierto: elegir un músculo no cierra, a diferencia de "Descanso".
+    expect(screen.getByRole('button', { name: 'Espalda' })).toBeInTheDocument();
+  });
+
+  it('elegir "Descanso" vacía el turno y cierra el panel', async () => {
+    const user = userEvent.setup();
+    const { doc: leer } = renderScreen(<GymPage />, { doc: doc() });
+
+    await user.click(screen.getByRole('button', { name: 'Lun: Pecho, cambiar músculos' }));
+    await user.click(screen.getByRole('button', { name: 'Descanso' }));
+
+    expect(leer().gym.weekPlans[weekKey(0)][0].muscles).toEqual([]);
+    expect(screen.queryByRole('button', { name: 'Espalda' })).not.toBeInTheDocument();
+  });
+
+  it('marcar hecho lo guarda, sin tocar los músculos', async () => {
     const user = userEvent.setup();
     const { doc: leer } = renderScreen(<GymPage />, { doc: doc() });
 
     await user.click(screen.getByRole('checkbox', { name: 'Mar: Descanso' }));
     expect(leer().gym.weekPlans[weekKey(0)][1].done).toBe(true);
-    expect(leer().gym.weekPlans[weekKey(0)][1].type).toBe('Descanso');
+    expect(leer().gym.weekPlans[weekKey(0)][1].muscles).toEqual([]);
   });
 
   it('las flechas cambian de semana', async () => {
@@ -60,7 +84,7 @@ describe('plan semanal', () => {
     const user = userEvent.setup();
     renderScreen(<GymPage />, { doc: doc() });
 
-    await user.click(screen.getByRole('button', { name: 'Mar: Descanso, cambiar tipo' }));
+    await user.click(screen.getByRole('button', { name: 'Mar: Descanso, cambiar músculos' }));
     expect(screen.getByRole('button', { name: 'Espalda' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Semana anterior' }));
     expect(screen.queryByRole('button', { name: 'Espalda' })).not.toBeInTheDocument();
@@ -78,71 +102,71 @@ describe('plan semanal: segundo turno (etapa 6)', () => {
     const user = userEvent.setup();
     const { doc: leer } = renderScreen(<GymPage />, { doc: doc() });
 
-    const filaLun = screen.getByRole('button', { name: 'Lun: Pecho, cambiar tipo' }).closest('.planday');
+    const filaLun = screen.getByRole('button', { name: 'Lun: Pecho, cambiar músculos' }).closest('.planday');
     await user.click(within(filaLun).getByRole('button', { name: '2do turno' }));
 
     const dia = leer().gym.weekPlans[weekKey(0)][0];
-    expect(dia.type).toBe('Pecho'); // el primer turno no se tocó
-    expect(dia.type2).toBe('Descanso');
+    expect(dia.muscles).toEqual(['Pecho']); // el primer turno no se tocó
+    expect(dia.muscles2).toEqual([]);
     expect(dia.done2).toBe(false);
-    expect(screen.getByRole('button', { name: 'Lun (2do turno): Descanso, cambiar tipo' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Lun (2do turno): Descanso, cambiar músculos' })).toBeInTheDocument();
   });
 
-  it('elegir tipo y marcar hecho en el segundo turno no toca el primero', async () => {
+  it('elegir músculo y marcar hecho en el segundo turno no toca el primero', async () => {
     const user = userEvent.setup();
     const { doc: leer } = renderScreen(<GymPage />, { doc: doc() });
 
-    const filaLun = screen.getByRole('button', { name: 'Lun: Pecho, cambiar tipo' }).closest('.planday');
+    const filaLun = screen.getByRole('button', { name: 'Lun: Pecho, cambiar músculos' }).closest('.planday');
     await user.click(within(filaLun).getByRole('button', { name: '2do turno' }));
-    await user.click(screen.getByRole('button', { name: 'Lun (2do turno): Descanso, cambiar tipo' }));
+    await user.click(screen.getByRole('button', { name: 'Lun (2do turno): Descanso, cambiar músculos' }));
     await user.click(screen.getByRole('button', { name: 'Espalda' }));
     await user.click(screen.getByRole('checkbox', { name: 'Lun (2do turno): Espalda' }));
 
     // Lun ya venía marcado como hecho en el fixture (Pecho, done:true): el punto acá es
     // que agregar y marcar el SEGUNDO turno no lo haya tocado.
     const dia = leer().gym.weekPlans[weekKey(0)][0];
-    expect(dia).toMatchObject({ type: 'Pecho', done: true, type2: 'Espalda', done2: true });
+    expect(dia).toMatchObject({ muscles: ['Pecho'], done: true, muscles2: ['Espalda'], done2: true });
   });
 
   it('quitar el segundo turno lo saca del todo', async () => {
     const user = userEvent.setup();
     const conSegundo = doc();
-    conSegundo.gym.weekPlans[weekKey(0)][0].type2 = 'Espalda';
+    conSegundo.gym.weekPlans[weekKey(0)][0].muscles2 = ['Espalda'];
     conSegundo.gym.weekPlans[weekKey(0)][0].done2 = true;
     const { doc: leer } = renderScreen(<GymPage />, { doc: conSegundo });
 
     await user.click(screen.getByRole('button', { name: 'Quitar el segundo turno de Lun' }));
 
     const dia = leer().gym.weekPlans[weekKey(0)][0];
-    expect('type2' in dia).toBe(false);
+    expect('muscles2' in dia).toBe(false);
     expect('done2' in dia).toBe(false);
     // La fila de Lun vuelve a tener un solo turno (Miércoles sigue con su "Espalda"
     // propio: por eso no alcanza con buscar el texto suelto, hay que mirar SU fila).
-    const filaLun = screen.getByRole('button', { name: 'Lun: Pecho, cambiar tipo' }).closest('.planday');
+    const filaLun = screen.getByRole('button', { name: 'Lun: Pecho, cambiar músculos' }).closest('.planday');
     expect(within(filaLun).queryByRole('button', { name: /Quitar el segundo turno/ })).not.toBeInTheDocument();
-    expect(within(filaLun).getAllByRole('button', { name: /cambiar tipo/ })).toHaveLength(1);
+    expect(within(filaLun).getAllByRole('button', { name: /cambiar músculos/ })).toHaveLength(1);
     // Y vuelve a ofrecerse agregar uno, como en cualquier día de un solo turno.
     expect(within(filaLun).getByRole('button', { name: '2do turno' })).toBeInTheDocument();
   });
 
   it('un día ya con dos turnos no vuelve a ofrecer "2do turno"', () => {
     const conSegundo = doc();
-    conSegundo.gym.weekPlans[weekKey(0)][0].type2 = 'Descanso';
+    conSegundo.gym.weekPlans[weekKey(0)][0].muscles2 = [];
     renderScreen(<GymPage />, { doc: conSegundo });
 
-    const filaLun = screen.getByRole('button', { name: 'Lun: Pecho, cambiar tipo' }).closest('.planday');
+    const filaLun = screen.getByRole('button', { name: 'Lun: Pecho, cambiar músculos' }).closest('.planday');
     expect(within(filaLun).queryByRole('button', { name: '2do turno' })).not.toBeInTheDocument();
   });
 
   it('el contador de la cabecera cuenta turnos, no días', () => {
     const conSegundo = doc();
     // Lun ya está hecho (turno 1); se agrega un turno 2 también hecho.
-    conSegundo.gym.weekPlans[weekKey(0)][0].type2 = 'Espalda';
+    conSegundo.gym.weekPlans[weekKey(0)][0].muscles2 = ['Espalda'];
     conSegundo.gym.weekPlans[weekKey(0)][0].done2 = true;
     renderScreen(<GymPage />, { doc: conSegundo });
 
     // fullDoc() ya tenía "2 de 3" con un solo turno por día; con un turno más hecho y un
-    // tipo más que cuenta, pasa a "3 de 4".
+    // músculo más que cuenta, pasa a "3 de 4".
     expect(screen.getByText('3 de 4 entrenamientos esta semana')).toBeInTheDocument();
   });
 });
@@ -185,7 +209,7 @@ describe('tipos de entrenamiento', () => {
     await user.click(screen.getByRole('button', { name: 'Guardar' }));
 
     const lunes = leer().gym.weekPlans[weekKey(0)][0];
-    expect(lunes.type).toBe('Pecho y hombro');
+    expect(lunes.muscles).toEqual(['Pecho y hombro']);
   });
 
   it('borrar un tipo pide confirmación con aviso de cascada', async () => {
@@ -199,9 +223,9 @@ describe('tipos de entrenamiento', () => {
 
     await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Eliminar' }));
     expect(leer().gym.customTypes.some((t) => t.name === 'Espalda')).toBe(false);
-    // El plan ya marcado con ese tipo no se toca: el historial no se reescribe.
+    // El plan ya marcado con ese músculo no se toca: el historial no se reescribe.
     const miercoles = leer().gym.weekPlans[weekKey(0)][2];
-    expect(miercoles.type).toBe('Espalda');
+    expect(miercoles.muscles).toEqual(['Espalda']);
   });
 
   it('"Descanso" no se puede borrar: no tiene botones de administración', async () => {
@@ -515,19 +539,19 @@ describe('abs y movilidad (etapa 6, como un renglón más de cada día)', () => 
     await user.click(screen.getByRole('button', { name: 'Core' }));
 
     const lun = leer().gym.weekPlans[weekKey(0)][0];
-    expect(lun.type).toBe('Pecho'); // fullDoc(): Lun ya viene con Pecho hecho
+    expect(lun.muscles).toEqual(['Pecho']); // fullDoc(): Lun ya viene con Pecho hecho
     expect(lun.done).toBe(true);
     expect(lun.absCategories).toEqual(['core']);
   });
 
-  it('abrir el tipo de un turno cierra el desplegable de abs, y viceversa', async () => {
+  it('abrir los músculos de un turno cierra el desplegable de abs, y viceversa', async () => {
     const user = userEvent.setup();
     renderScreen(<GymPage />, { doc: doc() });
 
     await user.click(screen.getByRole('button', { name: 'Abs y movilidad de Lun' }));
     expect(screen.getByRole('button', { name: 'Movilidad' })).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Lun: Pecho, cambiar tipo' }));
+    await user.click(screen.getByRole('button', { name: 'Lun: Pecho, cambiar músculos' }));
     expect(screen.queryByRole('button', { name: 'Movilidad' })).not.toBeInTheDocument();
   });
 

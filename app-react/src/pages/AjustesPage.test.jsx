@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { AjustesPage } from './AjustesPage';
 import { renderScreen } from '../test/utils';
 import { emptyDoc, fullDoc } from '../test/fixtures';
+import { normalize } from '../lib/model';
 import { KEY_BACKUP_META, backupPayload } from '../lib/backup';
 import { resetBackupMetaForTests } from '../hooks/useBackupMeta';
 
@@ -32,7 +33,7 @@ function importFile(doc, exportedAt = '2026-01-01T00:00:00.000Z') {
 describe('backup: round-trip completo', () => {
   it('exportar y después importar ESE MISMO archivo deja el documento idéntico', async () => {
     const user = userEvent.setup();
-    const original = fullDoc();
+    const original = normalize(fullDoc());
     const { doc: leer, store } = renderScreen(<AjustesPage />, { doc: original, withOnboarding: true });
 
     // Exportar: dispara la descarga y guarda la fecha en localStorage (no en Firestore).
@@ -56,7 +57,7 @@ describe('backup: round-trip completo', () => {
 
   it('un import inválido avisa y no toca ni un dato existente', async () => {
     const user = userEvent.setup();
-    const original = fullDoc();
+    const original = normalize(fullDoc());
     const { doc: leer } = renderScreen(<AjustesPage />, { doc: original, withOnboarding: true });
 
     const badFile = new File(['esto no es json'], 'daily-backup.json', { type: 'application/json' });
@@ -72,7 +73,7 @@ describe('backup: round-trip completo', () => {
 
   it('un backup de otro formato también avisa y no toca nada', async () => {
     const user = userEvent.setup();
-    const original = fullDoc();
+    const original = normalize(fullDoc());
     const { doc: leer } = renderScreen(<AjustesPage />, { doc: original, withOnboarding: true });
 
     const payload = backupPayload(original);
@@ -87,7 +88,7 @@ describe('backup: round-trip completo', () => {
 
   it('importar sin confirmar (Cancelar) tampoco toca nada', async () => {
     const user = userEvent.setup();
-    const original = fullDoc();
+    const original = normalize(fullDoc());
     const { doc: leer } = renderScreen(<AjustesPage />, { doc: original, withOnboarding: true });
 
     const file = importFile(emptyDoc());

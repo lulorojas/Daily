@@ -214,19 +214,19 @@ describe('plan semanal', () => {
   it('marcar un día lo crea si la semana no existía', () => {
     const d = vacio();
     m.toggleWeekDayDone(d, '2026-08-03', 0);
-    expect(d.gym.weekPlans['2026-08-03'][0]).toEqual({ type: 'Descanso', done: true });
+    expect(d.gym.weekPlans['2026-08-03'][0]).toEqual({ muscles: [], done: true });
   });
 
   it('marcar y desmarcar vuelve al estado inicial', () => {
     const d = vacio();
     m.toggleWeekDayDone(d, '2026-08-03', 3);
     m.toggleWeekDayDone(d, '2026-08-03', 3);
-    expect(d.gym.weekPlans['2026-08-03'][3]).toEqual({ type: 'Descanso', done: false });
+    expect(d.gym.weekPlans['2026-08-03'][3]).toEqual({ muscles: [], done: false });
   });
 
   it('un índice de día inválido no rompe', () => {
     const d = vacio();
-    expect(m.setWeekDayType(d, '2026-08-03', 99, 'Pecho')).toBe(false);
+    expect(m.toggleWeekDayMuscle(d, '2026-08-03', 99, 'Pecho')).toBe(false);
     expect(m.toggleWeekDayDone(d, '2026-08-03', -1)).toBe(false);
   });
 
@@ -238,42 +238,73 @@ describe('plan semanal', () => {
   });
 });
 
-/* Entrenamientos dobles (etapa 6): type2/done2 son opcionales, así que un día sin ellos
-   tiene que leerse EXACTAMENTE como si el campo nunca hubiera existido — no un type2:''
-   ni un done2:false de más, que un backup viejo (o la vanilla, si algún día volviera a
-   escribir) jamás va a mandar. */
+describe('plan semanal: multi-select de músculos', () => {
+  it('tocar un músculo lo agrega a la lista', () => {
+    const d = vacio();
+    m.toggleWeekDayMuscle(d, '2026-08-03', 0, 'Pecho');
+    expect(d.gym.weekPlans['2026-08-03'][0].muscles).toEqual(['Pecho']);
+  });
+
+  it('tocar dos músculos distintos los junta, sin pisar el primero', () => {
+    const d = vacio();
+    m.toggleWeekDayMuscle(d, '2026-08-03', 0, 'Espalda');
+    m.toggleWeekDayMuscle(d, '2026-08-03', 0, 'Tríceps');
+    m.toggleWeekDayMuscle(d, '2026-08-03', 0, 'Hombro');
+    expect(d.gym.weekPlans['2026-08-03'][0].muscles).toEqual(['Espalda', 'Tríceps', 'Hombro']);
+  });
+
+  it('tocar un músculo ya elegido lo saca (toggle)', () => {
+    const d = vacio();
+    m.toggleWeekDayMuscle(d, '2026-08-03', 0, 'Pecho');
+    m.toggleWeekDayMuscle(d, '2026-08-03', 0, 'Espalda');
+    m.toggleWeekDayMuscle(d, '2026-08-03', 0, 'Pecho');
+    expect(d.gym.weekPlans['2026-08-03'][0].muscles).toEqual(['Espalda']);
+  });
+
+  it('elegir "Descanso" vacía el turno entero, aunque haya varios músculos marcados', () => {
+    const d = vacio();
+    m.toggleWeekDayMuscle(d, '2026-08-03', 0, 'Pecho');
+    m.toggleWeekDayMuscle(d, '2026-08-03', 0, 'Espalda');
+    m.toggleWeekDayMuscle(d, '2026-08-03', 0, 'Descanso');
+    expect(d.gym.weekPlans['2026-08-03'][0].muscles).toEqual([]);
+  });
+});
+
+/* Entrenamientos dobles (etapa 6): muscles2/done2 son opcionales, así que un día sin ellos
+   tiene que leerse EXACTAMENTE como si el campo nunca hubiera existido — no un muscles2:[]
+   ni un done2:false de más, que un backup viejo jamás va a mandar. */
 describe('plan semanal: segundo turno', () => {
   it('un día nuevo no tiene segundo turno', () => {
     const d = vacio();
     m.toggleWeekDayDone(d, '2026-08-03', 0);
-    expect(d.gym.weekPlans['2026-08-03'][0].type2).toBeUndefined();
+    expect(d.gym.weekPlans['2026-08-03'][0].muscles2).toBeUndefined();
   });
 
   it('agregarlo lo deja en Descanso sin marcar, sin tocar el primero', () => {
     const d = vacio();
-    m.setWeekDayType(d, '2026-08-03', 0, 'Pecho');
+    m.toggleWeekDayMuscle(d, '2026-08-03', 0, 'Pecho');
     m.toggleWeekDayDone(d, '2026-08-03', 0);
     m.addSecondTurno(d, '2026-08-03', 0);
-    expect(d.gym.weekPlans['2026-08-03'][0]).toEqual({ type: 'Pecho', done: true, type2: 'Descanso', done2: false });
+    expect(d.gym.weekPlans['2026-08-03'][0]).toEqual({ muscles: ['Pecho'], done: true, muscles2: [], done2: false });
   });
 
   it('agregarlo dos veces no pisa el segundo turno ya elegido', () => {
     const d = vacio();
     m.addSecondTurno(d, '2026-08-03', 0);
-    m.setWeekDayType(d, '2026-08-03', 0, 'Espalda', 2);
+    m.toggleWeekDayMuscle(d, '2026-08-03', 0, 'Espalda', 2);
     expect(m.addSecondTurno(d, '2026-08-03', 0)).toBe(false);
-    expect(d.gym.weekPlans['2026-08-03'][0].type2).toBe('Espalda');
+    expect(d.gym.weekPlans['2026-08-03'][0].muscles2).toEqual(['Espalda']);
   });
 
-  it('setWeekDayType y toggleWeekDayDone con slot 2 tocan type2/done2, no el turno 1', () => {
+  it('toggleWeekDayMuscle y toggleWeekDayDone con slot 2 tocan muscles2/done2, no el turno 1', () => {
     const d = vacio();
     m.addSecondTurno(d, '2026-08-03', 0);
-    m.setWeekDayType(d, '2026-08-03', 0, 'Cardio', 2);
+    m.toggleWeekDayMuscle(d, '2026-08-03', 0, 'Cardio', 2);
     m.toggleWeekDayDone(d, '2026-08-03', 0, 2);
     const day = d.gym.weekPlans['2026-08-03'][0];
-    expect(day.type2).toBe('Cardio');
+    expect(day.muscles2).toEqual(['Cardio']);
     expect(day.done2).toBe(true);
-    expect(day.type).toBe('Descanso');
+    expect(day.muscles).toEqual([]);
     expect(day.done).toBe(false);
   });
 
@@ -282,9 +313,9 @@ describe('plan semanal: segundo turno', () => {
     m.addSecondTurno(d, '2026-08-03', 0);
     m.removeSecondTurno(d, '2026-08-03', 0);
     const day = d.gym.weekPlans['2026-08-03'][0];
-    expect('type2' in day).toBe(false);
+    expect('muscles2' in day).toBe(false);
     expect('done2' in day).toBe(false);
-    expect(day).toEqual({ type: 'Descanso', done: false });
+    expect(day).toEqual({ muscles: [], done: false });
   });
 
   it('quitar un segundo turno que no existe no rompe', () => {
@@ -292,12 +323,12 @@ describe('plan semanal: segundo turno', () => {
     expect(m.removeSecondTurno(d, '2026-08-03', 0)).toBe(false);
   });
 
-  it('renombrar un tipo también renombra el segundo turno si lo usaba', () => {
+  it('renombrar un músculo también lo renombra en el segundo turno si lo usaba', () => {
     const d = doc(); // ct1 = 'Pecho'
     m.addSecondTurno(d, Object.keys(d.gym.weekPlans)[0], 0);
-    m.setWeekDayType(d, Object.keys(d.gym.weekPlans)[0], 0, 'Pecho', 2);
+    m.toggleWeekDayMuscle(d, Object.keys(d.gym.weekPlans)[0], 0, 'Pecho', 2);
     m.updateCustomType(d, 'ct1', { name: 'Torso', color: '#fff' });
-    expect(d.gym.weekPlans[Object.keys(d.gym.weekPlans)[0]][0].type2).toBe('Torso');
+    expect(d.gym.weekPlans[Object.keys(d.gym.weekPlans)[0]][0].muscles2).toEqual(['Torso']);
   });
 });
 
@@ -357,14 +388,14 @@ describe('abs y movilidad (campos del día, no una lista aparte)', () => {
     expect(day.movilidad).toBe(true);
   });
 
-  it('no toca el type/done del día ni los turnos', () => {
+  it('no toca los músculos/done del día ni los turnos', () => {
     const d = vacio();
-    m.setWeekDayType(d, '2026-08-03', 0, 'Pecho');
+    m.toggleWeekDayMuscle(d, '2026-08-03', 0, 'Pecho');
     m.toggleWeekDayDone(d, '2026-08-03', 0);
     m.toggleAbsCategory(d, '2026-08-03', 0, 'core');
     m.toggleMovilidad(d, '2026-08-03', 0);
     const day = d.gym.weekPlans['2026-08-03'][0];
-    expect(day.type).toBe('Pecho');
+    expect(day.muscles).toEqual(['Pecho']);
     expect(day.done).toBe(true);
   });
 });
@@ -447,6 +478,9 @@ describe('después de cualquier escritura, el documento sigue siendo válido', (
     'agregar día de rutina': (d) => m.addRoutineDay(d, 'r1', { name: 'x' }),
     'agregar ejercicio de rutina': (d) => m.addExercise(d, 'r1', 'd1', { name: 'x', detail: '' }),
     'marcar onboarding': (d) => m.setOnboardingSeen(d, true),
+    'agregar franja de comidas': (d) => m.addMealSlot(d, { name: 'Desayuno' }),
+    'agregar extra de comidas': (d) => m.addMealExtra(d, { name: 'Café', color: '#fff', icon: 'agua' }),
+    'agregar entrada a la bitácora de comidas': (d) => m.addMealLogEntry(d, TODAY, 'tomé un café'),
   };
 
   it.each(Object.keys(operaciones))('%s: normalize() no le cambia nada', (nombre) => {
@@ -460,5 +494,154 @@ describe('después de cualquier escritura, el documento sigue siendo válido', (
     const d = doc();
     operaciones[nombre](d);
     expect(JSON.parse(JSON.stringify(d))).toEqual(d);
+  });
+});
+
+describe('comidas', () => {
+  it('meals no existe hasta la primera escritura (mismo truco que fcmTokens)', () => {
+    const d = vacio();
+    expect(d.meals).toBeUndefined();
+    m.addMealSlot(d, { name: 'Desayuno' });
+    expect(d.meals).toBeTruthy();
+  });
+
+  describe('plan: franjas y opciones', () => {
+    it('agregar una franja la suma al final', () => {
+      const d = vacio();
+      m.addMealSlot(d, { name: 'Desayuno' });
+      m.addMealSlot(d, { name: 'Almuerzo' });
+      expect(d.meals.plan.map((s) => s.name)).toEqual(['Desayuno', 'Almuerzo']);
+      expect(d.meals.plan[0].options).toEqual([]);
+    });
+
+    it('renombrar una franja', () => {
+      const d = vacio();
+      const slot = m.addMealSlot(d, { name: 'Desayuno' });
+      m.updateMealSlot(d, slot.id, { name: 'Mañana' });
+      expect(d.meals.plan[0].name).toBe('Mañana');
+    });
+
+    it('borrar una franja la saca de la lista', () => {
+      const d = vacio();
+      const slot = m.addMealSlot(d, { name: 'Desayuno' });
+      expect(m.deleteMealSlot(d, slot.id)).toBe(true);
+      expect(d.meals.plan).toEqual([]);
+    });
+
+    it('borrar una franja que no existe da false', () => {
+      const d = vacio();
+      m.addMealSlot(d, { name: 'Desayuno' });
+      expect(m.deleteMealSlot(d, 'zzz')).toBe(false);
+    });
+
+    it('mover una franja cambia el orden', () => {
+      const d = vacio();
+      const a = m.addMealSlot(d, { name: 'A' });
+      m.addMealSlot(d, { name: 'B' });
+      m.moveMealSlot(d, a.id, 1);
+      expect(d.meals.plan.map((s) => s.name)).toEqual(['B', 'A']);
+    });
+
+    it('agregar/editar/borrar una opción dentro de una franja', () => {
+      const d = vacio();
+      const slot = m.addMealSlot(d, { name: 'Almuerzo' });
+      const opt = m.addMealOption(d, slot.id, { text: 'Milanesa con ensalada' });
+      expect(d.meals.plan[0].options).toEqual([{ id: opt.id, text: 'Milanesa con ensalada' }]);
+
+      m.updateMealOption(d, slot.id, opt.id, { text: 'Milanesa con puré' });
+      expect(d.meals.plan[0].options[0].text).toBe('Milanesa con puré');
+
+      expect(m.deleteMealOption(d, slot.id, opt.id)).toBe(true);
+      expect(d.meals.plan[0].options).toEqual([]);
+    });
+
+    it('una franja admite varias opciones a la vez', () => {
+      const d = vacio();
+      const slot = m.addMealSlot(d, { name: 'Almuerzo' });
+      m.addMealOption(d, slot.id, { text: 'Milanesa' });
+      m.addMealOption(d, slot.id, { text: 'Pollo' });
+      expect(d.meals.plan[0].options.map((o) => o.text)).toEqual(['Milanesa', 'Pollo']);
+    });
+  });
+
+  describe('extras (catálogo libre)', () => {
+    it('agregar un extra', () => {
+      const d = vacio();
+      const extra = m.addMealExtra(d, { name: 'Café', color: '#EAC06A', icon: 'agua' });
+      expect(d.meals.extras).toEqual([extra]);
+    });
+
+    it('nextExtraColor rota por PALETTE según la cantidad actual', () => {
+      const d = vacio();
+      m.addMealExtra(d, { name: 'Café', color: m.nextExtraColor(d), icon: 'agua' });
+      // El color del segundo extra no puede ser igual al criterio de "cantidad 0" otra vez.
+      expect(m.nextExtraColor(d)).not.toBe(m.nextExtraColor(vacio()));
+    });
+
+    it('editar y borrar un extra', () => {
+      const d = vacio();
+      const extra = m.addMealExtra(d, { name: 'Café', color: '#fff', icon: 'agua' });
+      m.updateMealExtra(d, extra.id, { name: 'Mate', color: '#000', icon: 'agua' });
+      expect(d.meals.extras[0]).toMatchObject({ name: 'Mate', color: '#000' });
+
+      expect(m.deleteMealExtra(d, extra.id)).toBe(true);
+      expect(d.meals.extras).toEqual([]);
+    });
+
+    it('borrar un extra no re-escribe la bitácora ya guardada que lo había matcheado', () => {
+      const d = vacio();
+      const extra = m.addMealExtra(d, { name: 'Café', color: '#fff', icon: 'agua' });
+      m.addMealLogEntry(d, TODAY, 'un café');
+      expect(d.meals.log[TODAY][0].matches.extras).toEqual([extra.id]);
+
+      m.deleteMealExtra(d, extra.id);
+      // La entrada vieja se queda con el id tal cual, aunque el extra ya no exista.
+      expect(d.meals.log[TODAY][0].matches.extras).toEqual([extra.id]);
+      expect(d.meals.extras).toEqual([]);
+    });
+  });
+
+  describe('bitácora diaria', () => {
+    it('agregar una entrada corre el matching y lo guarda junto con el texto', () => {
+      const d = vacio();
+      const slot = m.addMealSlot(d, { name: 'Almuerzo' });
+      m.addMealOption(d, slot.id, { text: 'Milanesa con ensalada' });
+      const entry = m.addMealLogEntry(d, TODAY, 'Comí milanesa con ensalada');
+
+      expect(entry.text).toBe('Comí milanesa con ensalada');
+      expect(entry.matches.options).toEqual([{ slotId: slot.id, optionId: d.meals.plan[0].options[0].id }]);
+      expect(d.meals.log[TODAY]).toEqual([entry]);
+    });
+
+    it('un texto vacío (o solo espacios) no agrega nada', () => {
+      const d = vacio();
+      expect(m.addMealLogEntry(d, TODAY, '   ')).toBeNull();
+      expect(d.meals).toBeUndefined();
+    });
+
+    it('recorta los espacios de los bordes', () => {
+      const d = vacio();
+      const entry = m.addMealLogEntry(d, TODAY, '  tomé agua  ');
+      expect(entry.text).toBe('tomé agua');
+    });
+
+    it('varias entradas el mismo día se acumulan, en orden', () => {
+      const d = vacio();
+      m.addMealLogEntry(d, TODAY, 'primera');
+      m.addMealLogEntry(d, TODAY, 'segunda');
+      expect(d.meals.log[TODAY].map((e) => e.text)).toEqual(['primera', 'segunda']);
+    });
+
+    it('borrar una entrada la saca de la bitácora de ese día', () => {
+      const d = vacio();
+      const entry = m.addMealLogEntry(d, TODAY, 'algo');
+      expect(m.deleteMealLogEntry(d, TODAY, entry.id)).toBe(true);
+      expect(d.meals.log[TODAY]).toEqual([]);
+    });
+
+    it('borrar de un día sin entradas da false', () => {
+      const d = vacio();
+      expect(m.deleteMealLogEntry(d, TODAY, 'zzz')).toBe(false);
+    });
   });
 });

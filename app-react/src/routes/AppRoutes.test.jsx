@@ -157,10 +157,10 @@ describe('con sesión verificada', () => {
     expect(enHoy()).toBeInTheDocument();
   });
 
-  it('la barra de abajo tiene las cinco secciones', () => {
+  it('la barra de abajo tiene las seis secciones', () => {
     renderWithAuth(<AppRoutes />, { auth, route: '/' });
     // El nombre accesible es el completo (aria-label), no la abreviatura que se ve.
-    for (const label of ['Hoy', 'Calendario', 'Gimnasio', 'Hábitos', 'Progreso']) {
+    for (const label of ['Hoy', 'Calendario', 'Gimnasio', 'Comidas', 'Hábitos', 'Progreso']) {
       expect(screen.getByRole('link', { name: label })).toBeInTheDocument();
     }
   });

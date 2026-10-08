@@ -185,7 +185,7 @@ describe('secciones', () => {
     expect(accentForPath('/login')).toBe(C.amber);
   });
 
-  it('son cinco, en el orden de la barra: todas listas desde la etapa 3c', () => {
-    expect(SECTIONS.map((s) => s.key)).toEqual(['hoy', 'calendario', 'gym', 'habitos', 'progreso']);
+  it('son seis, en el orden de la barra: Comidas se suma al lado de Gimnasio', () => {
+    expect(SECTIONS.map((s) => s.key)).toEqual(['hoy', 'calendario', 'gym', 'comidas', 'habitos', 'progreso']);
   });
 });

@@ -15,7 +15,7 @@ describe('las cinco secciones', () => {
   it('están todas, en orden', () => {
     renderScreen(<NavBar />);
     const nombres = screen.getAllByRole('link').map((a) => a.getAttribute('aria-label'));
-    expect(nombres).toEqual(['Hoy', 'Calendario', 'Gimnasio', 'Hábitos', 'Progreso']);
+    expect(nombres).toEqual(['Hoy', 'Calendario', 'Gimnasio', 'Comidas', 'Hábitos', 'Progreso']);
   });
 
   it('la abreviatura es lo que se ve', () => {

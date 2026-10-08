@@ -13,10 +13,10 @@ import { WeeklyFrequency } from '../components/gym/WeeklyFrequency';
 import { Section } from '../components/ui/Section';
 import { BookIcon } from '../components/ui/Icons';
 import { useData } from '../hooks/useData';
-import { REST, dayAbs, dayTurnos, weekKey, weekPlanFor } from '../lib/gym';
+import { dayAbs, dayTurnos, weekKey, weekPlanFor } from '../lib/gym';
 import { gymSubtitle, weekOffsetForDay, weekRangeLabel } from '../lib/gymView';
 import { isValidISO } from '../hooks/useSelectedDay';
-import { addSecondTurno, removeSecondTurno, setWeekDayType, toggleAbsCategory, toggleMovilidad, toggleWeekDayDone } from '../store/mutations';
+import { addSecondTurno, removeSecondTurno, toggleAbsCategory, toggleMovilidad, toggleWeekDayDone, toggleWeekDayMuscle } from '../store/mutations';
 import { C, tint } from '../lib/theme';
 
 /* ============================================================================
@@ -50,12 +50,12 @@ export function GymPage() {
   const plan = weekPlanFor(data, offset);
   // Entrenamientos dobles: se cuentan TURNOS, no días — un día con sus dos turnos hechos
   // son dos entrenamientos, no uno. dayTurnos() ya sabe leer type2/done2 si existen.
-  const turnos = plan.flatMap(dayTurnos).filter((t) => t.type !== REST);
+  const turnos = plan.flatMap(dayTurnos).filter((t) => t.muscles.length > 0);
   const doneCount = turnos.filter((t) => t.done).length;
   // Las tres stats del plan semanal (rediseño "Glass + aurora", sin precedente en vanilla):
   // turnos hechos sobre el total, días con doble turno real (no cuenta un 2do turno en
   // Descanso) y días con algo de abs/movilidad marcado.
-  const diasDobles = plan.filter((d) => dayTurnos(d).some((t) => t.slot === 2 && t.type !== REST)).length;
+  const diasDobles = plan.filter((d) => dayTurnos(d).some((t) => t.slot === 2 && t.muscles.length > 0)).length;
   const diasAbs = plan.filter((d) => { const a = dayAbs(d); return a.categories.length > 0 || a.movilidad; }).length;
   const weekLabel = weekRangeLabel(offset);
 
@@ -84,7 +84,7 @@ export function GymPage() {
           expandido={expandido}
           onExpandir={setExpandido}
           onSemana={changeWeek}
-          onTipo={(i, slot, type) => update((draft) => setWeekDayType(draft, weekKey(offset), i, type, slot))}
+          onToggleMusculo={(i, slot, muscle) => update((draft) => toggleWeekDayMuscle(draft, weekKey(offset), i, muscle, slot))}
           onHecho={(i, slot) => update((draft) => toggleWeekDayDone(draft, weekKey(offset), i, slot))}
           onAddTurno={(i) => update((draft) => addSecondTurno(draft, weekKey(offset), i))}
           onRemoveTurno={(i) => { setExpandido(null); update((draft) => removeSecondTurno(draft, weekKey(offset), i)); }}

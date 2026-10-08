@@ -227,6 +227,10 @@ const SECTION_PATHS = {
   hoy: 'M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0M12 2.6v2M12 19.4v2M4.6 4.6 6 6M18 18l1.4 1.4M2.6 12h2M19.4 12h2M4.6 19.4 6 18M18 6l1.4-1.4',
   calendario: 'M7.5 3v4M16.5 3v4M3.4 10.5h17.2M6.5 5h11a3.5 3.5 0 0 1 3.5 3.5v9A3.5 3.5 0 0 1 17.5 21h-11A3.5 3.5 0 0 1 3 17.5v-9A3.5 3.5 0 0 1 6.5 5Z',
   gym: 'M6.5 8.5v7M3.8 10.5v3M17.5 8.5v7M20.2 10.5v3M6.5 12h11',
+  // Tenedor (izquierda: tres puntas que se juntan en un solo mango) + cuchillo (derecha:
+  // filo curvo + mango). Simple a propósito, mismo lenguaje que el resto (trazo, sin
+  // relleno) — primera aproximación, se puede ajustar a ojo en el navegador.
+  comidas: 'M6 2v6M8.5 2v6M11 2v6M8.5 8v14M16.5 2c-1.8.6-3 2.6-3 5s1.5 3.5 3 3.5M16.5 2v18',
   habitos: 'M13 2.8c.4 3-1.2 4.4-2.6 5.8C8.8 10.2 7 11.7 7 14.4a5 5 0 0 0 10 0c0-2.3-1.2-3.7-2-4.7-.3 1.2-1.1 1.9-1.8 2.1.6-3-1.5-5.3-.2-9Z',
   progreso: 'M4 20h16M7 20v-5.5M12 20V8.5M17 20v-9',
 };

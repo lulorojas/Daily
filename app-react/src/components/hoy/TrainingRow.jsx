@@ -17,7 +17,7 @@ export function TrainingRow({ training, color, day }) {
         <DumbbellIcon />
       </div>
       <div className="grow">
-        <div className="evname">{training.type}</div>
+        <div className="evname">{training.muscles.join(', ')}</div>
         <div className="evsub">{training.done ? 'Entrenado' : 'Planificado'}</div>
       </div>
       <span className="evtime" style={{ color }}>Gym</span>

@@ -29,10 +29,17 @@ import { C, tint } from '../../lib/theme';
    (varias a la vez, cada click prende/apaga UNA) en vez de single-select como el tipo de
    entreno, así que el panel de abajo no cierra solo al elegir — se cierra tocando el chip
    de arriba de nuevo, como cualquier desplegable. No cuenta como turno: no aporta a
-   dayTurnos()/gymHistory(), es información aparte que vive en el mismo día. */
+   dayTurnos()/gymHistory(), es información aparte que vive en el mismo día.
+
+   Seguimiento por músculo (sin precedente en vanilla ni en etapas anteriores, pedido
+   explícito de Lulo): el panel de un turno DEJÓ de ser single-select. Pasa a usar
+   exactamente el mismo patrón que ya tenía abs — multi-select, el panel no se cierra
+   solo al tocar un músculo — con una sola excepción: tocar "Descanso" vacía el turno
+   entero Y cierra el panel, porque es una acción terminal (como elegir single-select
+   antes), no un músculo más para sumar. */
 export function WeekPlan({
   data, plan, weekLabel, turnosHechos, turnosTotal, diasDobles, diasAbs, isCurrentWeek,
-  expandido, onExpandir, onSemana, onTipo, onHecho,
+  expandido, onExpandir, onSemana, onToggleMusculo, onHecho,
   onAddTurno, onRemoveTurno, onAdministrar, onToggleAbsCat, onToggleMovilidad,
 }) {
   const hoyIdx = dow(todayD());
@@ -62,8 +69,9 @@ export function WeekPlan({
           return (
             <div className="planday" key={i}>
               {turnos.map((t) => {
-                const rest = t.type === REST;
-                const col = typeColor(data, t.type);
+                const rest = t.muscles.length === 0;
+                const label = rest ? REST : t.muscles.join(', ');
+                const col = typeColor(data, t.muscles[0]);
                 const abierto = !!expandido && expandido.day === i && expandido.slot === t.slot;
 
                 return (
@@ -79,11 +87,11 @@ export function WeekPlan({
                       type="button"
                       className={`gchip${rest ? ' rest' : ''}`}
                       style={rest ? undefined : { background: tint(col, '24'), color: col }}
-                      aria-label={`${DOW_SHORT[i]}${t.slot === 2 ? ' (2do turno)' : ''}: ${t.type}, cambiar tipo`}
+                      aria-label={`${DOW_SHORT[i]}${t.slot === 2 ? ' (2do turno)' : ''}: ${label}, cambiar músculos`}
                       aria-expanded={abierto}
                       onClick={() => onExpandir(abierto ? null : { day: i, slot: t.slot })}
                     >
-                      {t.type}{' '}
+                      {label}{' '}
                       <ChipChevronIcon open={abierto} />
                     </button>
 
@@ -95,7 +103,7 @@ export function WeekPlan({
                       style={t.done ? { background: col, borderColor: col } : undefined}
                       role="checkbox"
                       aria-checked={t.done}
-                      aria-label={`${DOW_SHORT[i]}${t.slot === 2 ? ' (2do turno)' : ''}: ${t.type}`}
+                      aria-label={`${DOW_SHORT[i]}${t.slot === 2 ? ' (2do turno)' : ''}: ${label}`}
                       onClick={() => onHecho(i, t.slot)}
                     >
                       <HabitCheckIcon />
@@ -119,7 +127,9 @@ export function WeekPlan({
                 <div className="optchips">
                   {allTypes(data).map((opt) => {
                     const turnoActivo = turnos.find((t) => t.slot === expandido.slot);
-                    const activo = opt.name === turnoActivo?.type;
+                    // "Descanso" se muestra activo cuando el turno no tiene ningún
+                    // músculo; cualquier otro chip, cuando está en la lista.
+                    const activo = opt.rest ? turnoActivo?.muscles.length === 0 : !!turnoActivo?.muscles.includes(opt.name);
                     return (
                       <button
                         type="button"
@@ -131,7 +141,12 @@ export function WeekPlan({
                           border: `1.5px solid ${activo ? 'transparent' : tint(opt.color, '55')}`,
                         }}
                         aria-pressed={activo}
-                        onClick={() => onTipo(i, expandido.slot, opt.name)}
+                        onClick={() => {
+                          onToggleMusculo(i, expandido.slot, opt.name);
+                          // Elegir Descanso vacía el turno Y cierra el panel (acción
+                          // terminal) — los demás chips togglean sin cerrar, como abs.
+                          if (opt.rest) onExpandir(null);
+                        }}
                       >
                         {opt.name}
                       </button>

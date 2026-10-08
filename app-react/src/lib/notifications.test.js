@@ -20,7 +20,7 @@ function docCon({ tareas = [], citas = [], habits = [], habitLog = {}, entrenoHo
   d.habits = habits;
   d.habitLog = habitLog;
   if (entrenoHoy) {
-    const plan = Array.from({ length: 7 }, () => ({ type: 'Descanso', done: false }));
+    const plan = Array.from({ length: 7 }, () => ({ muscles: [], done: false }));
     plan[hoyIdx] = entrenoHoy;
     d.gym.weekPlans[thisMonday] = plan;
   }
@@ -65,22 +65,22 @@ describe('pendingCounts', () => {
   });
 
   it('turnos de hoy sin marcar cuentan; un día de descanso no aporta nada', () => {
-    const d = docCon({ entrenoHoy: { type: 'Pecho', done: false } });
+    const d = docCon({ entrenoHoy: { muscles: ['Pecho'], done: false } });
     expect(pendingCounts(d, TODAY).entreno).toBe(1);
   });
 
   it('un turno ya hecho no cuenta como pendiente', () => {
-    const d = docCon({ entrenoHoy: { type: 'Pecho', done: true } });
+    const d = docCon({ entrenoHoy: { muscles: ['Pecho'], done: true } });
     expect(pendingCounts(d, TODAY).entreno).toBe(0);
   });
 
   it('entrenamientos dobles: cada turno sin hacer suma su propio pendiente', () => {
-    const d = docCon({ entrenoHoy: { type: 'Pecho', done: true, type2: 'Cardio', done2: false } });
+    const d = docCon({ entrenoHoy: { muscles: ['Pecho'], done: true, muscles2: ['Cardio'], done2: false } });
     expect(pendingCounts(d, TODAY).entreno).toBe(1);
   });
 
   it('un día de descanso (sin marcar) no cuenta como entreno pendiente', () => {
-    const d = docCon({ entrenoHoy: { type: 'Descanso', done: false } });
+    const d = docCon({ entrenoHoy: { muscles: [], done: false } });
     expect(pendingCounts(d, TODAY).entreno).toBe(0);
   });
 });

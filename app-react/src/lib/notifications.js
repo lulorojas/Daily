@@ -14,7 +14,7 @@
    (turnos de hoy sin marcar como hechos, ver dayTurnos() en gym.js — cuenta cada turno,
    no el día, por la misma razón que gymHistory: dos turnos son dos entrenamientos). */
 import { agendaDe, entrenoDe, tareasDe } from './agenda';
-import { dayTurnos, REST } from './gym';
+import { dayTurnos } from './gym';
 import { habitDone } from './habits';
 
 // Cuántos ítems sin marcar hay hoy, por fuente. No incluye NADA de lo ya hecho.
@@ -23,7 +23,7 @@ export function pendingCounts(state, dISO) {
   const agenda = agendaDe(state, dISO).length; // citas/anuales: ocurren, no se "marcan".
   const habitos = state.habits.filter((h) => !habitDone(state, h.id, dISO)).length;
   const entrenoDia = entrenoDe(state, dISO);
-  const entreno = entrenoDia ? dayTurnos(entrenoDia).filter((t) => t.type !== REST && !t.done).length : 0;
+  const entreno = entrenoDia ? dayTurnos(entrenoDia).filter((t) => t.muscles.length > 0 && !t.done).length : 0;
   return { tareas, agenda, habitos, entreno };
 }
 

@@ -37,6 +37,13 @@ const PRESETS = {
     { color: C.violet, size: 300, top: 260, right: -130, opacity: 0.18, anim: 'aurora2', dur: '13s' },
     { color: C.green, size: 280, bottom: 40, left: -80, opacity: 0.12, anim: 'aurora2', dur: '15s' },
   ],
+  // Comidas (violeta): el acento que no estaba en el handoff original, armado con el
+  // mismo criterio que los otros cinco — el acento adelante, dos acompañantes atrás.
+  [C.violet]: [
+    { color: C.violet, size: 340, top: -90, left: -90, opacity: 0.22, anim: 'aurora1', dur: '11s' },
+    { color: C.coral, size: 300, top: 220, right: -130, opacity: 0.16, anim: 'aurora2', dur: '13s' },
+    { color: C.teal, size: 280, bottom: 40, left: -80, opacity: 0.12, anim: 'aurora2', dur: '15s' },
+  ],
 };
 
 export function auroraBlobs(accent) {

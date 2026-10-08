@@ -260,27 +260,27 @@ describe('gimnasio', () => {
     const doc = {
       gym: {
         customTypes: [{ id: 't1', name: 'Pecho', color: '#fff' }],
-        weekPlans: { '2026-08-03': [{ type: 'Pecho', done: true }, { type: 'Descanso', done: false }] },
+        weekPlans: { '2026-08-03': [{ muscles: ['Pecho'], done: true }, { muscles: [], done: false }] },
       },
     };
     const react = normalize(clone(doc));
     m.updateCustomType(react, 't1', { name: 'Pectorales', color: '#fff' });
 
-    expect(react.gym.weekPlans['2026-08-03'][0].type).toBe('Pectorales');
-    expect(react.gym.weekPlans['2026-08-03'][1].type).toBe('Descanso');
+    expect(react.gym.weekPlans['2026-08-03'][0].muscles).toEqual(['Pectorales']);
+    expect(react.gym.weekPlans['2026-08-03'][1].muscles).toEqual([]);
   });
 
   it('borrar un tipo NO reescribe el historial de entrenos', () => {
     const react = normalize({
       gym: {
         customTypes: [{ id: 't1', name: 'Pecho', color: '#fff' }],
-        weekPlans: { '2026-08-03': [{ type: 'Pecho', done: true }] },
+        weekPlans: { '2026-08-03': [{ muscles: ['Pecho'], done: true }] },
       },
     });
     m.deleteCustomType(react, 't1');
 
     expect(react.gym.customTypes).toEqual([]);
-    expect(react.gym.weekPlans['2026-08-03'][0].type).toBe('Pecho');
+    expect(react.gym.weekPlans['2026-08-03'][0].muscles).toEqual(['Pecho']);
   });
 
   it('nuevo ejercicio con carga: mismo objeto que el formulario de la app actual', () => {
@@ -345,21 +345,17 @@ describe('gimnasio', () => {
     const react = normalize(emptyDoc());
     expect(react.gym.weekPlans).toEqual({});
 
-    m.setWeekDayType(react, '2026-08-03', 2, 'Pecho');
+    m.toggleWeekDayMuscle(react, '2026-08-03', 2, 'Pecho');
     expect(react.gym.weekPlans['2026-08-03']).toHaveLength(7);
-    expect(react.gym.weekPlans['2026-08-03'][2]).toEqual({ type: 'Pecho', done: false });
-    expect(react.gym.weekPlans['2026-08-03'][0]).toEqual({ type: 'Descanso', done: false });
+    expect(react.gym.weekPlans['2026-08-03'][2]).toEqual({ muscles: ['Pecho'], done: false });
+    expect(react.gym.weekPlans['2026-08-03'][0]).toEqual({ muscles: [], done: false });
   });
 
-  it('la semana creada por React es idéntica a la que crea la app actual', () => {
-    const react = normalize(emptyDoc());
-    m.ensureWeekPlan(react, V.weekKey(0));
-
-    V.setState(V.normalize(clone(emptyDoc())));
-    V.getWeekPlan(0);
-
-    expect(react.gym.weekPlans).toEqual(V.getState().gym.weekPlans);
-  });
+  /* 'la semana creada por React es idéntica a la que crea la app actual' se retiró: con
+     el seguimiento por músculo, ensureWeekPlan() crea días {muscles:[],done:false} y
+     getWeekPlan() de vanilla sigue creando {type:'Descanso',done:false} — misma excepción
+     de forma que el resto del describe('gimnasio') de vanilla.test.js. Que React no
+     materialice la semana hasta que cambia algo sigue probado arriba. */
 });
 
 /* ---------------------------------------------------------------- rutinas */

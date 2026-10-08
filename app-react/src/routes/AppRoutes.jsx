@@ -10,6 +10,7 @@ import { VerifyEmailPage } from '../pages/VerifyEmailPage';
 import { HoyPage } from '../pages/HoyPage';
 import { CalendarioPage } from '../pages/CalendarioPage';
 import { GymPage } from '../pages/GymPage';
+import { ComidasPage } from '../pages/ComidasPage';
 import { RutinasListPage } from '../pages/rutinas/RutinasListPage';
 import { RutinaDetailPage } from '../pages/rutinas/RutinaDetailPage';
 import { RutinaDayPage } from '../pages/rutinas/RutinaDayPage';
@@ -60,6 +61,7 @@ export function AppRoutes() {
             <Route path="/gym/rutinas" element={<RutinasListPage />} />
             <Route path="/gym/rutinas/:rutId" element={<RutinaDetailPage />} />
             <Route path="/gym/rutinas/:rutId/:dayId" element={<RutinaDayPage />} />
+            <Route path="/comidas" element={<ComidasPage />} />
             <Route path="/habitos" element={<HabitosPage />} />
             <Route path="/progreso" element={<ProgresoPage />} />
             {/* Ajustes no es una sección: es una sub-pantalla de Hoy, a la que se llega

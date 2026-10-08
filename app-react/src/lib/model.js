@@ -1,11 +1,14 @@
 /* ============================================================================
    MODELO DE DATOS — users/{uid}
 
-   Port literal de normalize() y seed() de app/js/utils.js. Este archivo es el que más
-   cuidado pide de toda la migración: hay gente usando la app hoy, y su documento tiene
-   que poder ir y venir entre la versión vanilla y la React sin que cambie ni un campo.
+   Port de normalize() y seed() de app/js/utils.js — con UNA diferencia a propósito desde
+   el seguimiento por músculo: la app vanilla (`app/`) quedó de baja, así que el documento
+   YA NO tiene que poder ir y venir entre las dos versiones. `weekPlans[semana][día].type`
+   (un solo tipo por turno) pasó a `.muscles` (varios músculos por turno) — ver la
+   migración más abajo y el comentario de dayTurnos()/gymHistory() en lib/gym.js. Todo lo
+   demás de este archivo sigue el mismo criterio de siempre.
 
-   Forma del documento (la misma desde la v3):
+   Forma del documento:
 
      {
        v: 2,
@@ -17,19 +20,24 @@
        habits: [ { id, name, detail, color, icon, timesPerDay } ],
        habitLog: { 'YYYY-MM-DD': { [habitId]: cantidadDeMarcas } },
        gym: {
-         customTypes:    [ { id, name, color } ],
-         weekPlans:      { 'YYYY-MM-DD(lunes)': [ { type, done, type2?, done2?, absCategories?, movilidad? }, ...x7 ] },
+         customTypes:    [ { id, name, color } ],   // catálogo de músculos (ex "tipos")
+         weekPlans:      { 'YYYY-MM-DD(lunes)': [ { muscles:[], done, muscles2?, done2?, absCategories?, movilidad? }, ...x7 ] },
          lifts:          [ { id, name, unit, color, history:[ { date, weight, reps? } ] } ],
          routines:       [ { id, name, days:[ { id, name, exercises:[ { id, name, detail } ] } ] } ],
          bodyWeights:    [ { id, kg, date } ],
        },
        onboarding: { seen: boolean },
        fcmTokens?:  [ 'token de FCM de cada dispositivo que activó notificaciones' ],
+       meals?: {                      // seguidor de comidas, ver abajo — campo opcional
+         plan: [ { id, name, options:[ { id, text } ] } ],
+         extras: [ { id, name, color, icon } ],
+         log: { 'YYYY-MM-DD': [ { id, at, text, matches:{ options:[], extras:[] } } ] },
+       },
        migratedFrom?, migratedAt?,     // solo en cuentas que vienen de daily.v1
      }
 
-   `weekPlans[semana][día].type2/done2/absCategories/movilidad`, `lifts[].history[].reps`
-   y `fcmTokens` son de las etapas 6-7 (React), sin equivalente en la app vanilla: no hay
+   `weekPlans[semana][día].muscles2/done2/absCategories/movilidad`, `lifts[].history[].reps`,
+   `fcmTokens` y `meals` son de etapas de React sin equivalente en la app vanilla: no hay
    contra qué comparar en src/compat/, así que se prueban directo. Todos son compatibles
    hacia atrás por construcción: opcionales, ausentes en un día/registro viejo (ver
    dayTurnos()/dayAbs() en lib/gym.js; repsLabel() para reps).
@@ -62,6 +70,7 @@
    2. Las transformaciones se replican tal cual, incluidas las que parecen bugs.
       Están marcadas una por una más abajo.
    ============================================================================ */
+import { REST } from './gym';
 
 /* Copia profunda. structuredClone conserva todo (incluso claves con undefined); el
    fallback por JSON es para entornos viejos. Se clona porque en React el estado tiene
@@ -81,6 +90,30 @@ export function seed() {
     habitLog: {},
     onboarding: { seen: false },
   };
+}
+
+/* Migración única, seguimiento por músculo: un día viejo tenía `type`/`type2` (un solo
+   músculo por turno, string); pasa a `muscles`/`muscles2` (varios, array). Idempotente —
+   un día que YA tiene `muscles` no se vuelve a tocar, así que correr esto en cada
+   normalize() de cada sesión no hace nada la segunda vez. "Descanso" (o un turno sin
+   marcar) se vuelve `[]`: la ausencia de músculos ES el descanso, ya no hace falta
+   guardar el string REST adentro del array. */
+function migrateDayToMuscles(day) {
+  if ('type' in day) {
+    day.muscles = (day.type && day.type !== REST) ? [day.type] : [];
+    delete day.type;
+  }
+  if ('type2' in day) {
+    day.muscles2 = (day.type2 && day.type2 !== REST) ? [day.type2] : [];
+    delete day.type2;
+  }
+  /* Un día que no tiene ni `type` ni `muscles` (un backup editado a mano, una escritura a
+     medias) tiene que quedar leíble igual: dayTurnos() recorre la lista sin preguntar si
+     existe, y antes de esto un día así reventaba la pantalla entera en vez de contarse
+     como descanso. Mismo criterio para un `muscles2` que no sea una lista: se descarta el
+     segundo turno en vez de arrastrar el dato roto. */
+  if (!Array.isArray(day.muscles)) day.muscles = [];
+  if ('muscles2' in day && !Array.isArray(day.muscles2)) delete day.muscles2;
 }
 
 export function normalize(input) {
@@ -122,6 +155,16 @@ export function normalize(input) {
   s.gym.lifts ||= [];
   s.gym.routines ||= [];
   s.gym.bodyWeights ||= [];
+  Object.values(s.gym.weekPlans).forEach((plan) => plan.forEach(migrateDayToMuscles));
+
+  // `meals` sigue el mismo truco que `fcmTokens`: SIN default acá. Una cuenta que nunca
+  // abrió Comidas no gana un campo nuevo en su documento (writes.test.js no se entera).
+  // Si ya existe (por mínimo que sea), se sanean sus sub-campos por las dudas.
+  if (s.meals) {
+    s.meals.plan ||= [];
+    s.meals.extras ||= [];
+    s.meals.log ||= {};
+  }
 
   /* Onboarding. Lo único que se persiste es `seen`: si ya se respondió el "¿primera vez?".
      Migra también el esquema viejo (welcomeSeen). Una cuenta que YA tenía datos no ve nada.
