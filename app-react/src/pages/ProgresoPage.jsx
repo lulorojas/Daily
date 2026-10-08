@@ -10,7 +10,7 @@ import { ProgCargas } from '../components/progreso/ProgCargas';
 import { ProgGymStreaks } from '../components/progreso/ProgGymStreaks';
 import { Section } from '../components/ui/Section';
 import { useData } from '../hooks/useData';
-import { gymHistory } from '../lib/gym';
+import { gymSessions } from '../lib/gym';
 import { habitDayMarks, habitDayPossible } from '../lib/habits';
 import { inPeriod, progStart } from '../lib/progress';
 import { todayISO } from '../lib/dates';
@@ -50,7 +50,9 @@ export function ProgresoPage() {
   const start = progStart(period);
 
   const resumen = useMemo(() => ({
-    entrenos: gymHistory(data).filter((x) => inPeriod(x.date, start)).length,
+    // Sesiones, no entradas por músculo: un turno de bícep + tríceps + hombro es UN
+    // entreno (ver gymSessions() en lib/gym.js).
+    entrenos: gymSessions(data).filter((x) => inPeriod(x.date, start)).length,
     tareas: data.items.filter((x) => x.kind === 'tarea' && x.done).length,
     hoyOk: habitDayMarks(data, todayISO()),
     hoyTot: habitDayPossible(data),

@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { normalize } from './model';
 import { habitBestStreak, habitDayMarks, habitDayPossible, habitDone, habitStreak } from './habits';
-import { gymHistory, gymRanking, gymTypeStreaks, liftGains, bodyList, weekPlanFor } from './gym';
+import { gymHistory, gymRanking, gymSessions, gymTypeStreaks, liftGains, bodyList, weekPlanFor } from './gym';
 import { agendaDe, pendVisible, pendientes, tareasDe } from './agenda';
 import { dayProgress, progStart, inPeriod } from './progress';
+import { addDays, iso, parseISO, todayD } from './dates';
 import { TODAY, YESTERDAY, TOMORROW, ago, thisMonday, mondayAgo, fullDoc, emptyDoc } from '../test/fixtures';
 
 /* Los tests de compat/ prueban que React da lo MISMO que la app vanilla. Estos prueban
@@ -78,6 +79,44 @@ describe('gimnasio', () => {
     const rachas = gymTypeStreaks(doc());
     expect(rachas.find((r) => r.type === 'Espalda').weeks).toBe(3);
     expect(rachas.find((r) => r.type === 'Pecho').weeks).toBe(2);
+  });
+
+  /* Pedido explícito: "si un día hago bicep y tricep y hombro eso es un entreno, no 3".
+     gymHistory() cuenta por MÚSCULO (correcto para el ranking, las rachas, "Cómo venís");
+     gymSessions() cuenta SESIONES (correcto para "cuántas veces entrené") — un mismo turno
+     con 3 músculos suma 3 en el primero y 1 en el segundo. Dos turnos el mismo día (uno a
+     la mañana, otro a la tarde) SÍ son 2 sesiones: eso no cambió desde la etapa 6. */
+  describe('gymSessions: un turno con varios músculos es UN entreno', () => {
+    function docMultiMusculo() {
+      const d = normalize(emptyDoc());
+      d.gym.weekPlans[thisMonday] = [
+        { muscles: ['Bicep', 'Tricep', 'Hombro'], done: true },
+        { muscles: [], done: false },
+        { muscles: ['Pecho'], done: true, muscles2: ['Espalda'], done2: true },
+        ...Array.from({ length: 4 }, () => ({ muscles: [], done: false })),
+      ];
+      return d;
+    }
+
+    it('un turno de 3 músculos aporta 3 entradas a gymHistory() pero 1 a gymSessions()', () => {
+      const d = docMultiMusculo();
+      const lunes = gymHistory(d).filter((x) => x.date === thisMonday);
+      const sesionesLunes = gymSessions(d).filter((x) => x.date === thisMonday);
+      expect(lunes).toHaveLength(3);
+      expect(sesionesLunes).toHaveLength(1);
+    });
+
+    it('dos turnos el mismo día siguen siendo 2 sesiones (no se funden en 1)', () => {
+      const d = docMultiMusculo();
+      const miercoles = gymSessions(d).filter((x) => x.date === iso(addDays(parseISO(thisMonday), 2)));
+      expect(miercoles).toHaveLength(2);
+    });
+
+    it('el total de sesiones de la semana es 3 (lunes 1 + miércoles 2), no 5 músculos', () => {
+      const d = docMultiMusculo();
+      const total = gymSessions(d).filter((x) => x.date >= thisMonday && x.date <= iso(addDays(parseISO(thisMonday), 6)));
+      expect(total).toHaveLength(3);
+    });
   });
 
   it('la racha se ordena de mayor a menor', () => {
@@ -166,13 +205,23 @@ describe('progreso del día', () => {
   });
 });
 
-describe('períodos', () => {
-  it('"semana" arranca 6 días atrás: la ventana incluye hoy', () => {
-    expect(progStart('semana')).toBe(ago(6));
+/* Alineados al calendario (pedido explícito: "la semana se cuenta como los lunes"), no a
+   ventana móvil — "semana" es ESTA semana, no los últimos 7 días corridos. Mismo criterio
+   que ya usaba "Cómo venís" (comoVenisColumns en este mismo archivo, más abajo), así que
+   el número de Progreso y el de "Cómo venís" miden exactamente lo mismo período. */
+describe('períodos (alineados al lunes)', () => {
+  it('"semana" arranca el lunes de esta semana', () => {
+    expect(progStart('semana')).toBe(thisMonday);
   });
 
-  it('"mes" arranca 29 días atrás', () => {
-    expect(progStart('mes')).toBe(ago(29));
+  it('"mes" arranca el lunes de hace 3 semanas (4 semanas completas, incluida la actual)', () => {
+    expect(progStart('mes')).toBe(mondayAgo(3));
+  });
+
+  it('"año" arranca el 1º del mes, hace 11 meses (12 meses completos, incluido el actual)', () => {
+    const t = todayD();
+    const inicio = new Date(t.getFullYear(), t.getMonth() - 11, 1);
+    expect(progStart('ano')).toBe(iso(inicio));
   });
 
   it('"todo" no tiene fecha de inicio', () => {
@@ -183,8 +232,8 @@ describe('períodos', () => {
     expect(inPeriod(ago(9999), null)).toBe(true);
   });
 
-  it('el borde de la ventana entra', () => {
-    expect(inPeriod(ago(6), progStart('semana'))).toBe(true);
-    expect(inPeriod(ago(7), progStart('semana'))).toBe(false);
+  it('el borde de la ventana entra: el lunes sí, el domingo anterior no', () => {
+    expect(inPeriod(thisMonday, progStart('semana'))).toBe(true);
+    expect(inPeriod(iso(addDays(parseISO(thisMonday), -1)), progStart('semana'))).toBe(false);
   });
 });

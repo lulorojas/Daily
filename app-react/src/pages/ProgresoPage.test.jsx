@@ -22,17 +22,17 @@ describe('el período recorta la pantalla', () => {
     expect(screen.getByRole('button', { name: 'Mes' })).toHaveAttribute('aria-pressed', 'true');
   });
 
-  it('"Semana" y "Todo" muestran una cantidad de sesiones distinta con los mismos datos', async () => {
+  it('"Semana" y "Todo" muestran una cantidad de entrenos distinta con los mismos datos', async () => {
     // El historial de entrenos de fullDoc() se extiende varias semanas atrás, así que
-    // recortar a "los últimos 7 días" tiene que dejar afuera sesiones que "Todo" sí cuenta.
+    // recortar a "esta semana" tiene que dejar afuera entrenos que "Todo" sí cuenta.
     const user = userEvent.setup();
     renderScreen(<ProgresoPage />, { doc: fullDoc() });
 
     await user.click(screen.getByRole('button', { name: 'Semana' }));
-    const conSemana = screen.getByText(/sesiones · semana/).textContent;
+    const conSemana = screen.getByText(/entrenos? · semana/).textContent;
 
     await user.click(screen.getByRole('button', { name: 'Todo' }));
-    const conTodo = screen.getByText(/sesiones · todo/).textContent;
+    const conTodo = screen.getByText(/entrenos? · todo/).textContent;
 
     expect(conSemana).not.toBe(conTodo.replace('todo', 'semana'));
   });

@@ -1,5 +1,5 @@
 import { parseISO } from '../../lib/dates';
-import { ABS_TYPE, allTypes, gymHistory, gymWeekDoubleDays, gymWeekTypeCounts, typeColor, weekKey } from '../../lib/gym';
+import { ABS_TYPE, allTypes, gymHistory, gymSessions, gymWeekCounts, gymWeekDoubleDays, gymWeekTypeCounts, typeColor, weekKey } from '../../lib/gym';
 
 /* ----------------------------- FRECUENCIA SEMANAL -----------------------------
    Nueva en el rediseño "Glass + aurora" (handoff Glass Gimnasio v4.dc.html): barras
@@ -19,9 +19,15 @@ export function WeeklyFrequency({ data }) {
   const tipos = allTypes(data).filter((t) => !t.rest).concat([{ name: ABS_TYPE, color: typeColor(data, ABS_TYPE) }]);
 
   const weeks = Array.from({ length: 8 }, (_, i) => weekKey(i - 7));
+  // Altura de las barras: por MÚSCULO (cada segmento es un músculo distinto, así se ve
+  // qué entrenaste). El número grande de arriba es otra cosa — ver el comentario abajo.
   const totals = weeks.map((w) => tipos.reduce((a, t) => a + (byWeek[w]?.[t.name] || 0), 0));
   const max = Math.max(1, ...totals);
-  const totalPeriodo = totals.reduce((a, n) => a + n, 0);
+  // "N entrenos" tiene que contar SESIONES, no músculos: un turno de bícep + tríceps +
+  // hombro es un solo entreno, aunque sume 3 en la pila de la barra (gymSessions(), no
+  // sumar `totals`).
+  const sesionesPorSemana = gymWeekCounts(gymSessions(data));
+  const totalPeriodo = weeks.reduce((a, w) => a + (sesionesPorSemana[w] || 0), 0);
   const diasDoblesPeriodo = weeks.reduce((a, w) => a + (doublesByWeek[w] || 0), 0);
 
   const legend = tipos

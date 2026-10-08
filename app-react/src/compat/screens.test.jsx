@@ -257,6 +257,27 @@ function progresoReact(doc) {
   return texto(container);
 }
 
+/* Dos diferencias de texto esperadas, las dos a propósito, las dos se quitan de los dos
+   lados antes de comparar (así el resto —nombres, números, qué sección aparece— sigue
+   bajo la misma red de seguridad que tenía):
+
+   1. La nota de período ("en los últimos 30 días…"): los períodos de Progreso pasaron de
+      ventana móvil a ventana alineada al calendario (pedido explícito — "la semana se
+      cuenta como los lunes"), y vanilla sigue con la ventana vieja.
+
+   2. "N sesiones" → "N entrenos" en el encabezado de "Entrenamientos por tipo": contaba
+      MÚSCULOS, no entrenos (un turno de bícep+tríceps+hombro sumaba 3), otro pedido
+      explícito de Lulo. Con fullDoc() —un solo músculo por turno— el NÚMERO coincide
+      igual; lo que cambió es la palabra. */
+const NOTAS_PERIODO = [
+  'enlosúltimos7días', 'enlosúltimos30días', 'enelúltimoaño',
+  'estasemana', 'enlasúltimas4semanas', 'enlosúltimos12meses',
+];
+function sinNotaPeriodo(s) {
+  return NOTAS_PERIODO.reduce((acc, n) => acc.replaceAll(n, ''), s)
+    .replace(/(\d+)(entrenos?|sesiones?)·/, '$1·');
+}
+
 describe('Progreso dice exactamente lo mismo que la app vanilla', () => {
   const casos = {
     'cuenta nueva, sin nada': emptyDoc(),
@@ -264,7 +285,7 @@ describe('Progreso dice exactamente lo mismo que la app vanilla', () => {
   };
 
   it.each(Object.keys(casos))('%s', (nombre) => {
-    expect(progresoReact(casos[nombre])).toBe(progresoVanilla(casos[nombre]));
+    expect(sinNotaPeriodo(progresoReact(casos[nombre]))).toBe(sinNotaPeriodo(progresoVanilla(casos[nombre])));
   });
 });
 

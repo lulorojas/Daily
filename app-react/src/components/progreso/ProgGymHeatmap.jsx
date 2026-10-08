@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { EmptyCard, Section } from '../ui/Section';
-import { gymDayCounts, gymDayTypes, gymHistory } from '../../lib/gym';
+import { gymDayCounts, gymDayTypes, gymHistory, gymSessions } from '../../lib/gym';
 import { progWeekWindow } from '../../lib/progress';
 import { DOW_MINI, MONTHS, addDays, iso, shortDate, todayISO } from '../../lib/dates';
 import { C, tint } from '../../lib/theme';
@@ -38,15 +38,17 @@ export function ProgGymHeatmap({ data, per }) {
       {hist.length === 0 ? (
         <EmptyCard size="tight">Marcá entrenamientos para ver tu mapa.</EmptyCard>
       ) : (
-        <GymHeatmapCard hist={hist} per={per} />
+        <GymHeatmapCard hist={hist} sessions={gymSessions(data)} per={per} />
       )}
     </Section>
   );
 }
 
-function GymHeatmapCard({ hist, per }) {
+function GymHeatmapCard({ hist, sessions, per }) {
   const win = progWeekWindow(per, [hist[hist.length - 1].date]);
-  const counts = gymDayCounts(hist);
+  // La intensidad del color es por SESIÓN (un turno de 3 músculos sigue siendo 1), pero
+  // el globito al tocar la celda sigue mostrando los músculos — eso sí sale de `hist`.
+  const counts = gymDayCounts(sessions);
   const types = gymDayTypes(hist);
   const tISO = todayISO();
   const [abierto, setAbierto] = useState(null); // fecha ISO de la celda con el globito abierto

@@ -126,19 +126,47 @@ export function gymHistory(state) {
   return out;
 }
 
-// Entrenos por semana: { lunesISO: cantidad }. Recibe el historial ya filtrado.
-export function gymWeekCounts(hist) {
-  const out = {};
-  hist.forEach((x) => { const k = weekOf(x.date); out[k] = (out[k] || 0) + 1; });
+/* Las SESIONES de entreno: una por cada turno hecho (sin importar cuántos músculos tenga)
+   más una por cada día con abs marcado. Es lo que la app llama "un entreno".
+
+   La diferencia con gymHistory() es justo el pedido de Lulo: un turno de bícep + tríceps +
+   hombro es UN entreno, no tres — los músculos de un mismo turno no multiplican. Dos
+   turnos el mismo día SÍ son dos (pedido explícito de la etapa 6, que sigue en pie).
+
+   Las dos listas se usan para preguntas distintas y no son intercambiables:
+     gymHistory()  → "¿cuánto entrené CADA MÚSCULO?" (ranking, rachas, Cómo venís)
+     gymSessions() → "¿cuántas veces entrené?" (el número de entrenos, el mapa de calor)
+
+   Las dos devuelven objetos con `date`, así que gymWeekCounts()/gymDayCounts() sirven
+   para cualquiera de las dos — lo que cambia es QUÉ se está contando. */
+export function gymSessions(state) {
+  const out = [];
+  Object.keys(state.gym.weekPlans).forEach((k) => {
+    const mon = parseISO(k);
+    state.gym.weekPlans[k].forEach((day, i) => {
+      const date = iso(addDays(mon, i));
+      dayTurnos(day).forEach((t) => { if (t.done && t.muscles.length) out.push({ date, slot: t.slot }); });
+      if (dayAbs(day).categories.length) out.push({ date, slot: 'abs' });
+    });
+  });
+  out.sort((a, b) => (a.date < b.date ? 1 : -1));
   return out;
 }
 
-// Entrenos por día exacto: { fechaISO: cantidad }. Recibe el historial ya filtrado. Un
-// día con los dos turnos hechos más abs marcado suma 3 — mismo `hist` de gymHistory(),
-// nada nuevo que calcular. La usa ProgGymHeatmap (etapa 7) para el mapa de calor.
-export function gymDayCounts(hist) {
+// Por semana: { lunesISO: cantidad }. Recibe una lista de {date} ya filtrada —
+// gymHistory() para contar por músculo, gymSessions() para contar entrenos.
+export function gymWeekCounts(lista) {
   const out = {};
-  hist.forEach((x) => { out[x.date] = (out[x.date] || 0) + 1; });
+  lista.forEach((x) => { const k = weekOf(x.date); out[k] = (out[k] || 0) + 1; });
+  return out;
+}
+
+// Por día exacto: { fechaISO: cantidad }. Mismo criterio que gymWeekCounts: lo que cuenta
+// depende de la lista que se le pase. El mapa de calor (ProgGymHeatmap) le pasa las
+// SESIONES, para que un turno de tres músculos no pinte el día como si fueran tres.
+export function gymDayCounts(lista) {
+  const out = {};
+  lista.forEach((x) => { out[x.date] = (out[x.date] || 0) + 1; });
   return out;
 }
 

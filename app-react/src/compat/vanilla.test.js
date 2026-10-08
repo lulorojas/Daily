@@ -316,9 +316,12 @@ describe('progreso', () => {
   const doc = fullDoc();
   const periodos = ['semana', 'mes', 'ano', 'todo'];
 
-  it.each(periodos)('progStart(%s)', (p) => expect(progress.progStart(p)).toBe(V.progStart(p)));
+  /* progStart()/progPeriodNote() dejaron de compararse contra vanilla: los períodos de
+     Progreso pasaron de ventana móvil (últimos N días corridos) a ventana alineada al
+     calendario (la semana arranca el lunes, "mes" son las últimas 4 semanas completas) —
+     pedido explícito, para que midan lo mismo que "Cómo venís". Vanilla se quedó con la
+     ventana vieja. Quedan probados con números a mano en logic.test.js. */
   it.each(periodos)('progLabel(%s)', (p) => expect(progress.progLabel(p)).toBe(V.progLabel(p)));
-  it.each(periodos)('progPeriodNote(%s)', (p) => expect(progress.progPeriodNote(p)).toBe(V.progPeriodNote(p)));
 
   it.each(periodos)('progWeekWindow(%s)', (p) => {
     withVanillaState(doc);

@@ -4,18 +4,33 @@
 import { addDays, dow, iso, mondayOf, parseISO, todayD, todayISO, MONTHS } from './dates';
 import { habitDayMarks, habitDayPossible, habitFirstISO } from './habits';
 import { tareasDe } from './agenda';
-import { ABS_TYPE, allTypes, gymHistory, typeColor } from './gym';
+import { ABS_TYPE, allTypes, gymHistory, gymSessions, typeColor } from './gym';
 import { C } from './theme';
 
-// [clave, etiqueta, días de la ventana]. null = todo el historial.
-export const PROG_PERIODS = [['semana', 'Semana', 7], ['mes', 'Mes', 30], ['ano', 'Año', 365], ['todo', 'Todo', null]];
+// [clave, etiqueta]. El inicio de cada ventana lo calcula progStart(), más abajo.
+export const PROG_PERIODS = [['semana', 'Semana'], ['mes', 'Mes'], ['ano', 'Año'], ['todo', 'Todo']];
 
 function periodOf(key) { return PROG_PERIODS.find((x) => x[0] === key) || PROG_PERIODS[1]; }
 
-// Primer día de la ventana, o null para "todo". Ojo el -(n-1): la ventana INCLUYE hoy.
+/* Primer día de la ventana, o null para "todo".
+
+   Las ventanas están ALINEADAS AL CALENDARIO, no son móviles (pedido explícito de Lulo):
+   "Semana" es ESTA semana —de lunes a domingo, no los últimos 7 días corridos—, "Mes" son
+   las últimas 4 semanas completas contando la actual, y "Año" son los últimos 12 meses
+   desde el 1º del mes. Antes eran ventanas móviles (7/30/365 días hacia atrás), que daban
+   números distintos a los de "Cómo venís" —que siempre fue por semanas de lunes— para el
+   mismo período elegido. Ahora las dos cosas miden lo mismo.
+
+   Las semanas arrancan el lunes en toda la app: es la misma mondayOf() que indexa
+   gym.weekPlans, así que "la semana del 5" es exactamente la del plan semanal. */
 export function progStart(key) {
-  const p = periodOf(key);
-  return p[2] == null ? null : iso(addDays(todayD(), -(p[2] - 1)));
+  const t = todayD();
+  switch (periodOf(key)[0]) {
+    case 'semana': return iso(mondayOf(t));
+    case 'mes': return iso(addDays(mondayOf(t), -21));           // esta semana + las 3 anteriores
+    case 'ano': return iso(new Date(t.getFullYear(), t.getMonth() - 11, 1));
+    default: return null;                                         // 'todo'
+  }
 }
 
 export function progLabel(key) { return periodOf(key)[1]; }
@@ -23,7 +38,7 @@ export function progLabel(key) { return periodOf(key)[1]; }
 export function inPeriod(dISO, startISO) { return !startISO || dISO >= startISO; }
 
 export function progPeriodNote(key) {
-  return { semana: 'en los últimos 7 días', mes: 'en los últimos 30 días', ano: 'en el último año', todo: 'todavía' }[key] || '';
+  return { semana: 'esta semana', mes: 'en las últimas 4 semanas', ano: 'en los últimos 12 meses', todo: 'todavía' }[key] || '';
 }
 
 /* Ventana en semanas para los gráficos de barras y el heatmap: nunca menos de 8 ni más
@@ -191,7 +206,12 @@ export function comoVenis(state, per) {
     return { ...t, cells, total, trail, allOn, previas: previas.length, avg: previas.length ? (previas.reduce((a, c) => a + c.v, 0) / previas.length) : 0, status };
   });
 
-  const totalGeneral = rows.reduce((a, r) => a + r.total, 0);
+  /* OJO: `totalGeneral` NO es la suma de las filas. Las filas cuentan MÚSCULOS (un turno
+     de bícep + tríceps + hombro suma 1 en cada una de las tres), y "ENTRENOS" tiene que
+     decir cuántas veces entrenaste — ese mismo turno es UN entreno. Por eso sale de
+     gymSessions(), no de sumar la matriz. */
+  const desde = cols[0].from, hasta = cols[cols.length - 1].to;
+  const totalGeneral = gymSessions(state).filter((s) => s.date >= desde && s.date <= hasta).length;
   const nC = cols.length;
   const activeCols = cols.filter((c, i) => !c.futuro && tipos.some((t) => rows.find((r) => r.name === t.name).cells[i].v > 0)).length;
   const absRow = rows.find((r) => r.name === ABS_TYPE);
