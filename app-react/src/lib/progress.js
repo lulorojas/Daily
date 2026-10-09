@@ -59,6 +59,23 @@ export function progWeekWindow(per, dates) {
   return { from: addDays(curMon, -(n - 1) * 7), weeks: n };
 }
 
+/* Ventana del mapa de entrenamientos, pedido explícito: tiene que medir lo MISMO que
+   "Cómo venís" para el período elegido (antes usaba progWeekWindow(), con su propio
+   recorte de 8-26 semanas — "semana" quedaba estirada a 8 y "año" recortada a 26, ninguna
+   de las dos coincidía). Arranca en el lunes de la primera columna de comoVenisColumns()
+   y llega hasta hoy: para 'semana'/'mes' es exactamente la misma ventana (ya empiezan en
+   lunes); para 'año'/'todo', cuyas columnas son meses/trimestres, se redondea al lunes de
+   esa semana para no partir una semana del heatmap por la mitad — unos días de más antes
+   del inicio real, nunca de menos. progWeekWindow() queda igual (otros usos, comparación
+   con vanilla). */
+export function progHeatmapWindow(per) {
+  const { cols } = comoVenisColumns(per);
+  const curMon = mondayOf(todayD());
+  const from = mondayOf(parseISO(cols[0].from));
+  const weeks = Math.round((curMon - from) / (7 * 86400000)) + 1;
+  return { from, weeks };
+}
+
 /* Los "baldes" del gráfico de cumplimiento: un día por barra en semana/mes, una semana
    por barra en año, un mes por barra en todo. Nunca incluye días futuros. */
 export function progHabitBuckets(state, per) {
@@ -130,7 +147,12 @@ export function dayProgress(state, dISO) {
 // ISO (inclusive) más una etiqueta corta. La última columna es siempre "la actual" —
 // salvo en 'semana', donde el día en curso es HOY y los días después quedan en blanco
 // (todavía no pasaron, no es que no se entrenó).
-function comoVenisColumns(per) {
+//
+// Exportada (ya no es privada de comoVenis()): progHeatmapWindow() la reusa para que el
+// mapa de entrenamientos mida exactamente la misma ventana que "Cómo venís" en vez de su
+// propio recorte de 8-26 semanas — pedido explícito: "todos los gráficos deben tomar la
+// misma medida de tiempo que como venís".
+export function comoVenisColumns(per) {
   const t = todayD();
   if (per === 'semana') {
     const mon = mondayOf(t);
@@ -174,6 +196,19 @@ const DOW_1 = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 // entra en una tile de 20px, "sem" sí. La prosa de los avisos usa la palabra completa.
 const UNIT_ABBR = { día: 'día', semana: 'sem', mes: 'mes', trimestre: 'trim' };
 
+/* Regularidad por músculo (pedido explícito, segunda vuelta: "buscale otro termino a cada
+   regularidad" — 4 de 4 columnas anteriores activas = Regular, 3 de 4 = Aceptable, 2 de 4
+   = Irregular, 1 de 4 = Insuficiente). Para ventanas con más de 4 columnas (semana: hasta
+   6 previas, año: hasta 11, todo: hasta 5) se generaliza por proporción: activas/previas
+   se multiplica por 4 y se redondea, así "9 de 11" sigue cayendo en el mismo balde que
+   "4 de 4" en vez de necesitar que sean TODAS para contar como Regular. */
+const REGULARIDAD = {
+  4: { label: 'REGULAR', color: C.green },
+  3: { label: 'ACEPTABLE', color: C.teal },
+  2: { label: 'IRREGULAR', color: C.amber },
+  1: { label: 'INSUFICIENTE', color: C.danger },
+};
+
 export function comoVenis(state, per) {
   const { cols, current, unit, unitPl, winLabel } = comoVenisColumns(per);
   const unitAbbr = UNIT_ABBR[unit] || unit;
@@ -181,6 +216,14 @@ export function comoVenis(state, per) {
   const tipos = allTypes(state).filter((x) => !x.rest).map((x) => ({ name: x.name, color: x.color }))
     .concat([{ name: ABS_TYPE, color: typeColor(state, ABS_TYPE) }]);
   const tISO = todayISO();
+
+  // Semanas que abarca la ventana completa (incluida la columna actual): la base de
+  // "veces por semana" de ProgWeeklyFreq — pedido explícito, tabla NUEVA y separada de
+  // "Cómo venís" ("quiero una tabla de frecuencia semanal de cada cosa, es decir, la
+  // cantidad de veces por semana"). No es lo mismo que `avg` de cada fila (que promedia
+  // por COLUMNA de la matriz — un día en 'semana', un mes en 'año' — no por semana).
+  const desde = cols[0].from, hasta = cols[cols.length - 1].to;
+  const semanasVentana = ((parseISO(hasta) - parseISO(desde)) / 86400000 + 1) / 7;
 
   const rows = tipos.map((t) => {
     const counts = hist.filter((x) => x.type === t.name).reduce((acc, x) => { acc[x.date] = (acc[x.date] || 0) + 1; return acc; }, {});
@@ -195,22 +238,26 @@ export function comoVenis(state, per) {
     let trail = 0;
     for (let i = previas.length - 1; i >= 0 && previas[i].v === 0; i--) trail++;
     const allOn = previas.length > 0 && previas.every((c) => c.v > 0);
+    const activasPrevias = previas.filter((c) => c.v > 0).length;
 
     let status;
     if (previas.length === 0) status = { label: 'SIN DATOS', color: 'rgba(242,244,248,.4)' };
-    else if (!total) status = { label: 'SIN ENTRENAR', color: C.danger };
-    else if (trail >= 2) status = { label: `SIN HACER ${trail} ${unitAbbr.toUpperCase()}${trail > 1 ? 'S' : ''}`, color: C.amber };
-    else if (allOn) status = { label: 'CONSTANTE', color: C.green };
-    else status = { label: 'IRREGULAR', color: 'rgba(242,244,248,.5)' };
+    else if (!total || activasPrevias === 0) status = { label: 'SIN ENTRENAR', color: C.danger };
+    else status = REGULARIDAD[Math.min(4, Math.max(1, Math.round((activasPrevias / previas.length) * 4)))];
 
-    return { ...t, cells, total, trail, allOn, previas: previas.length, avg: previas.length ? (previas.reduce((a, c) => a + c.v, 0) / previas.length) : 0, status };
+    return {
+      ...t, cells, total, trail, allOn, previas: previas.length,
+      avg: previas.length ? (previas.reduce((a, c) => a + c.v, 0) / previas.length) : 0,
+      rate: total / semanasVentana,
+      status,
+    };
   });
 
   /* OJO: `totalGeneral` NO es la suma de las filas. Las filas cuentan MÚSCULOS (un turno
      de bícep + tríceps + hombro suma 1 en cada una de las tres), y "ENTRENOS" tiene que
      decir cuántas veces entrenaste — ese mismo turno es UN entreno. Por eso sale de
-     gymSessions(), no de sumar la matriz. */
-  const desde = cols[0].from, hasta = cols[cols.length - 1].to;
+     gymSessions(), no de sumar la matriz. Tampoco cuenta abs (pedido explícito: "los
+     abdominales no cuentan como entrenamientos") — eso ya lo filtra gymSessions(). */
   const totalGeneral = gymSessions(state).filter((s) => s.date >= desde && s.date <= hasta).length;
   const nC = cols.length;
   const activeCols = cols.filter((c, i) => !c.futuro && tipos.some((t) => rows.find((r) => r.name === t.name).cells[i].v > 0)).length;

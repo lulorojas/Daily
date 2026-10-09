@@ -3,7 +3,7 @@ import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ProgresoPage } from './ProgresoPage';
 import { renderScreen } from '../test/utils';
-import { emptyDoc, fullDoc } from '../test/fixtures';
+import { emptyDoc, fullDoc, thisMonday } from '../test/fixtures';
 
 /* ============================================================================
    PROGRESO
@@ -49,6 +49,10 @@ describe('el período recorta la pantalla', () => {
 });
 
 describe('Progreso no escribe nada', () => {
+  // Timeout largo a propósito: "Año" y "Todo" hacen que el mapa de entrenamientos
+  // dibuje su ventana completa (50-70 columnas desde que mide lo mismo que "Cómo venís"
+  // en vez de un recorte fijo de 8-26 semanas, pedido explícito) y jsdom tarda en
+  // montar esa cantidad de celdas — un navegador real no tiene este problema.
   it('recorrer los cuatro períodos no guarda ningún cambio', async () => {
     const user = userEvent.setup();
     const { firestore } = renderScreen(<ProgresoPage />, { doc: fullDoc(), uid: 'uid-test' });
@@ -58,7 +62,7 @@ describe('Progreso no escribe nada', () => {
     }
 
     expect(firestore.setsOf('uid-test')).toHaveLength(0);
-  });
+  }, 15000);
 
   it('tocar un punto del gráfico de peso tampoco escribe (solo abre el globito)', async () => {
     const user = userEvent.setup();
@@ -80,22 +84,12 @@ describe('Progreso no escribe nada', () => {
 });
 
 describe('resumen', () => {
-  it('muestra entrenamientos, tareas hechas y hábitos de hoy', () => {
+  // Pedido explícito: "la pantalla resumen no sirve" — se sacó entero, no queda ninguna
+  // sección "Resumen" en Progreso (ver ProgresoPage.jsx y el corte correspondiente en
+  // src/compat/screens.test.jsx, que ahora excluye "Resumen" del lado vanilla).
+  it('no muestra la sección "Resumen" (se sacó, pedido explícito)', () => {
     renderScreen(<ProgresoPage />, { doc: fullDoc() });
-    expect(screen.getByText('Entrenamientos')).toBeInTheDocument();
-    expect(screen.getByText('Tareas hechas')).toBeInTheDocument();
-    expect(screen.getByText('Hábitos hoy')).toBeInTheDocument();
-  });
-
-  it('las tareas hechas NO se filtran por período (a propósito, como en vanilla)', async () => {
-    const user = userEvent.setup();
-    renderScreen(<ProgresoPage />, { doc: fullDoc() });
-
-    const tareasEnMes = within(screen.getByText('Tareas hechas').closest('.tile')).getByText(/^\d+$/).textContent;
-    await user.click(screen.getByRole('button', { name: 'Semana' }));
-    const tareasEnSemana = within(screen.getByText('Tareas hechas').closest('.tile')).getByText(/^\d+$/).textContent;
-
-    expect(tareasEnSemana).toBe(tareasEnMes);
+    expect(screen.queryByText('Resumen')).not.toBeInTheDocument();
   });
 });
 
@@ -163,6 +157,37 @@ describe('las otras secciones', () => {
     const celda = container.querySelector(`.heatcell[data-date="${lunes}"]`);
     expect(celda).toBeTruthy();
     expect(celda.style.background).not.toBe('rgba(255, 255, 255, 0.05)');
+  });
+
+  it('abs solo (sin turno de músculo) no cuenta como entreno ni pinta el mapa, aunque sigue en la matriz (pedido explícito)', () => {
+    const doc = emptyDoc();
+    doc.gym.weekPlans[thisMonday] = [
+      { muscles: [], done: false, absCategories: ['core'] },
+      ...Array.from({ length: 6 }, () => ({ muscles: [], done: false })),
+    ];
+    const { container } = renderScreen(<ProgresoPage />, { doc });
+
+    const tileEntrenos = screen.getByText('ENTRENOS').closest('.tile');
+    expect(within(tileEntrenos).getByText('0')).toBeInTheDocument();
+    expect(screen.getAllByText('Abs').length).toBeGreaterThan(0);
+
+    const celda = container.querySelector(`.heatcell[data-date="${thisMonday}"]`);
+    expect(celda.style.background).toBe('rgba(255, 255, 255, 0.05)');
+  });
+
+  it('"Cómo venís" es horizontal: los músculos son columnas, el total va en una fila al final', () => {
+    const { container } = renderScreen(<ProgresoPage />, { doc: fullDoc() });
+    const cabecera = container.querySelector('.comovenis-headrow');
+    expect(within(cabecera).getByText('Pecho')).toBeInTheDocument();
+    expect(within(cabecera).getByText('Espalda')).toBeInTheDocument();
+    expect(container.querySelector('.comovenis-totalrow')).toBeTruthy();
+  });
+
+  it('la frecuencia semanal es una sección nueva, separada de "Cómo venís"', () => {
+    renderScreen(<ProgresoPage />, { doc: fullDoc() });
+    const sect = screen.getByText('Frecuencia semanal').closest('.sect');
+    expect(sect).toBeTruthy();
+    expect(within(sect).getAllByText(/\/sem$/).length).toBeGreaterThan(0);
   });
 
   it('tocar una celda del mapa despliega el globito con qué se entrenó ese día, y tocar afuera lo cierra', async () => {

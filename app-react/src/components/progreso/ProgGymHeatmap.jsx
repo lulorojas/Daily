@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { EmptyCard, Section } from '../ui/Section';
 import { gymDayCounts, gymDayTypes, gymHistory, gymSessions } from '../../lib/gym';
-import { progWeekWindow } from '../../lib/progress';
+import { progHeatmapWindow } from '../../lib/progress';
 import { DOW_MINI, MONTHS, addDays, iso, shortDate, todayISO } from '../../lib/dates';
 import { C, tint } from '../../lib/theme';
 
@@ -25,7 +25,12 @@ import { C, tint } from '../../lib/theme';
    LineChart (ui/LineChart.jsx) para el globito de un punto — clic/toque abre, clic afuera
    cierra — pero anclado a la celda en vez de a coordenadas de un SVG, porque acá no hay
    un canvas único: cada celda es su propio `position:relative` y el globito es su hijo
-   absoluto, así no hace falta convertir columna de grilla a porcentaje de nada. */
+   absoluto, así no hace falta convertir columna de grilla a porcentaje de nada.
+
+   Tercera vuelta, pedido explícito ("todos los gráficos deben tomar la misma medida de
+   tiempo que como venís"): la ventana sale de progHeatmapWindow() (lib/progress.js), que
+   arranca en la misma columna que "Cómo venís" para el período elegido, en vez del
+   recorte propio de 8-26 semanas que tenía antes. */
 const STEPS = ['4D', 'B3', 'FF']; // 1, 2, 3+ sesiones ese día
 
 function stepFor(n) { return n > 0 ? STEPS[Math.min(2, n - 1)] : null; }
@@ -34,7 +39,7 @@ export function ProgGymHeatmap({ data, per }) {
   const hist = gymHistory(data);
 
   return (
-    <Section label="Mapa de entrenamientos">
+    <Section label="Mapa de entrenamientos" wide>
       {hist.length === 0 ? (
         <EmptyCard size="tight">Marcá entrenamientos para ver tu mapa.</EmptyCard>
       ) : (
@@ -45,7 +50,7 @@ export function ProgGymHeatmap({ data, per }) {
 }
 
 function GymHeatmapCard({ hist, sessions, per }) {
-  const win = progWeekWindow(per, [hist[hist.length - 1].date]);
+  const win = progHeatmapWindow(per);
   // La intensidad del color es por SESIÓN (un turno de 3 músculos sigue siendo 1), pero
   // el globito al tocar la celda sigue mostrando los músculos — eso sí sale de `hist`.
   const counts = gymDayCounts(sessions);

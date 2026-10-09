@@ -227,12 +227,14 @@ describe('Hábitos dice exactamente lo mismo que la app vanilla', () => {
 });
 
 /* ---------------------------------------------------------------- Progreso */
-// Secciones de hábitos que vanilla sigue teniendo pero React ya no (etapas 6 y 7,
-// pedido explícito de Lulo de que Progreso gire en torno a entrenamientos: primero se
-// recortó a "Cumplimiento de hábitos" nomás, después se sacó ese también). Comparación
-// EXACTA de texto, no startsWith: "Rachas de entrenamiento" (Gimnasio, no se toca)
-// también arranca con la palabra "Rachas" y no tiene que caer en el mismo corte.
-const SIN_EQUIVALENTE_EN_REACT = ['Mapa de hábitos', 'Rachas', 'Frecuencia de entrenamiento', 'Cumplimiento de hábitos'];
+// Secciones que vanilla sigue teniendo pero React ya no. Las de hábitos son de las
+// etapas 6 y 7 (pedido explícito de Lulo de que Progreso gire en torno a entrenamientos:
+// primero se recortó a "Cumplimiento de hábitos" nomás, después se sacó ese también).
+// "Resumen" es más nueva (pedido explícito: "la pantalla resumen no sirve") — React sacó
+// el bloque entero, vanilla lo sigue teniendo. Comparación EXACTA de texto, no startsWith:
+// "Rachas de entrenamiento" (Gimnasio, no se toca) también arranca con la palabra "Rachas"
+// y no tiene que caer en el mismo corte.
+const SIN_EQUIVALENTE_EN_REACT = ['Mapa de hábitos', 'Rachas', 'Frecuencia de entrenamiento', 'Cumplimiento de hábitos', 'Resumen'];
 
 function progresoVanilla(doc, per = 'mes') {
   V.setState(V.normalize(clone(doc)));
@@ -245,9 +247,10 @@ function progresoVanilla(doc, per = 'mes') {
   return texto(cont);
 }
 
-// "Cómo venís" (rediseño "Glass + aurora") y "Mapa de entrenamientos" (etapa 7) son 100%
-// React, vanilla no las tiene, así que se sacan de este lado antes de comparar.
-const SIN_EQUIVALENTE_EN_VANILLA = ['Cómo venís', 'Mapa de entrenamientos'];
+// "Cómo venís" (rediseño "Glass + aurora"), "Mapa de entrenamientos" (etapa 7) y
+// "Frecuencia semanal" (pedido explícito, tabla nueva y separada de "Cómo venís") son
+// 100% React, vanilla no las tiene, así que se sacan de este lado antes de comparar.
+const SIN_EQUIVALENTE_EN_VANILLA = ['Cómo venís', 'Mapa de entrenamientos', 'Frecuencia semanal'];
 
 function progresoReact(doc) {
   const { container } = renderScreen(<ProgresoPage />, { doc: clone(doc) });

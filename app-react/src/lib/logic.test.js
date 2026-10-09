@@ -3,8 +3,8 @@ import { normalize } from './model';
 import { habitBestStreak, habitDayMarks, habitDayPossible, habitDone, habitStreak } from './habits';
 import { gymHistory, gymRanking, gymSessions, gymTypeStreaks, liftGains, bodyList, weekPlanFor } from './gym';
 import { agendaDe, pendVisible, pendientes, tareasDe } from './agenda';
-import { dayProgress, progStart, inPeriod } from './progress';
-import { addDays, iso, parseISO, todayD } from './dates';
+import { comoVenis, comoVenisColumns, dayProgress, progHeatmapWindow, progStart, inPeriod } from './progress';
+import { addDays, iso, mondayOf, parseISO, todayD } from './dates';
 import { TODAY, YESTERDAY, TOMORROW, ago, thisMonday, mondayAgo, fullDoc, emptyDoc } from '../test/fixtures';
 
 /* Los tests de compat/ prueban que React da lo MISMO que la app vanilla. Estos prueban
@@ -116,6 +116,32 @@ describe('gimnasio', () => {
       const d = docMultiMusculo();
       const total = gymSessions(d).filter((x) => x.date >= thisMonday && x.date <= iso(addDays(parseISO(thisMonday), 6)));
       expect(total).toHaveLength(3);
+    });
+  });
+
+  /* Pedido explícito, segunda vuelta: "los abdominales no cuentan como entrenamientos".
+     gymHistory() sigue sumando abs como un músculo más (ranking, Cómo venís, frecuencia
+     por músculo no cambian), pero gymSessions() —la cuenta de "cuántas veces entrené"— ya
+     no lo incluye. */
+  describe('gymSessions: abs no cuenta como entreno', () => {
+    it('un día con solo abs marcado no aporta ninguna sesión', () => {
+      const d = normalize(emptyDoc());
+      d.gym.weekPlans[thisMonday] = [
+        { muscles: [], done: false, absCategories: ['core'] },
+        ...Array.from({ length: 6 }, () => ({ muscles: [], done: false })),
+      ];
+      expect(gymSessions(d)).toEqual([]);
+      expect(gymHistory(d)).toHaveLength(1); // sigue contando para lo demás
+    });
+
+    it('un día con turno de músculo Y abs aporta una sola sesión (la del turno)', () => {
+      const d = normalize(emptyDoc());
+      d.gym.weekPlans[thisMonday] = [
+        { muscles: ['Pecho'], done: true, absCategories: ['core'] },
+        ...Array.from({ length: 6 }, () => ({ muscles: [], done: false })),
+      ];
+      expect(gymSessions(d)).toHaveLength(1);
+      expect(gymHistory(d)).toHaveLength(2); // Pecho + Abs, los dos por separado
     });
   });
 
@@ -235,5 +261,76 @@ describe('períodos (alineados al lunes)', () => {
   it('el borde de la ventana entra: el lunes sí, el domingo anterior no', () => {
     expect(inPeriod(thisMonday, progStart('semana'))).toBe(true);
     expect(inPeriod(iso(addDays(parseISO(thisMonday), -1)), progStart('semana'))).toBe(false);
+  });
+
+  /* Pedido explícito: "todos los gráficos deben tomar la misma medida de tiempo que como
+     venís" — el mapa de entrenamientos ya no recorta su propia ventana de 8-26 semanas
+     (progWeekWindow), arranca en la misma columna que "Cómo venís" para cada período. */
+  describe('progHeatmapWindow mide lo mismo que "Cómo venís"', () => {
+    it('"mes" son 4 semanas, no el mínimo de 8 que usaba antes', () => {
+      expect(progHeatmapWindow('mes').weeks).toBe(4);
+    });
+
+    it('"semana" es 1 sola semana', () => {
+      expect(progHeatmapWindow('semana').weeks).toBe(1);
+    });
+
+    it('arranca en el lunes de la primera columna de comoVenisColumns, para cualquier período', () => {
+      ['semana', 'mes', 'ano', 'todo'].forEach((per) => {
+        const { cols } = comoVenisColumns(per);
+        expect(iso(progHeatmapWindow(per).from)).toBe(iso(mondayOf(parseISO(cols[0].from))));
+      });
+    });
+  });
+});
+
+/* Regularidad por ratio (pedido explícito, segunda vuelta: "buscale otro termino a cada
+   regularidad" — Regular/Aceptable/Irregular/Insuficiente en vez de
+   Constante/Irregular/"Sin hacer N ..."). Se prueba con per='todo': sus 6 columnas
+   (trimestres de calendario) y su "current" (siempre el índice 5) no dependen de qué día
+   es hoy, así que da exactamente 5 columnas previas siempre — a diferencia de 'semana'
+   (varía con el día de la semana) o 'mes' (siempre 3, muy pocas para cubrir los 4 baldes). */
+describe('comoVenis: regularidad por ratio', () => {
+  function docConPechoEn(indices) {
+    const d = normalize(emptyDoc());
+    d.gym.customTypes = [{ id: 'ct1', name: 'Pecho', color: '#FF9B93' }];
+    const { cols } = comoVenisColumns('todo');
+    indices.forEach((i) => {
+      const mitad = addDays(parseISO(cols[i].from), 15); // bien adentro de la columna, nunca al borde
+      const semana = iso(mondayOf(mitad));
+      d.gym.weekPlans[semana] = [{ muscles: ['Pecho'], done: true }, ...Array.from({ length: 6 }, () => ({ muscles: [], done: false }))];
+    });
+    return d;
+  }
+
+  function statusDePecho(indices) {
+    return comoVenis(docConPechoEn(indices), 'todo').rows.find((r) => r.name === 'Pecho').status.label;
+  }
+
+  it('0 de 5 períodos anteriores (nunca entrenado) → "SIN ENTRENAR"', () => {
+    expect(statusDePecho([])).toBe('SIN ENTRENAR');
+  });
+
+  it('1 de 5 → "INSUFICIENTE"', () => {
+    expect(statusDePecho([0])).toBe('INSUFICIENTE');
+  });
+
+  it('2 o 3 de 5 → "IRREGULAR"', () => {
+    expect(statusDePecho([0, 1])).toBe('IRREGULAR');
+    expect(statusDePecho([0, 1, 2])).toBe('IRREGULAR');
+  });
+
+  it('4 de 5 → "ACEPTABLE"', () => {
+    expect(statusDePecho([0, 1, 2, 3])).toBe('ACEPTABLE');
+  });
+
+  it('5 de 5 (todas las columnas anteriores activas) → "REGULAR"', () => {
+    expect(statusDePecho([0, 1, 2, 3, 4])).toBe('REGULAR');
+  });
+
+  it('entrenar solo en la columna actual (ninguna anterior) también da "SIN ENTRENAR"', () => {
+    // La columna actual (índice 5 en 'todo') no es una "previa" — entrenar solo ahí no
+    // cuenta para la regularidad, es justo lo que ya pasaba con CONSTANTE/IRREGULAR antes.
+    expect(statusDePecho([5])).toBe('SIN ENTRENAR');
   });
 });

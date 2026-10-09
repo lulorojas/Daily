@@ -9,7 +9,7 @@ import { inPeriod, progLabel, progPeriodNote } from '../../lib/progress';
 
    El encabezado es otra cosa: tiene que decir cuántas veces fuiste al gimnasio, no la
    suma de las filas (que cuenta un turno de 3 músculos tres veces) — mismo criterio que
-   el Resumen y Frecuencia semanal, ver gymSessions() en lib/gym.js. */
+   usa "Cómo venís" para su tile ENTRENOS, ver gymSessions() en lib/gym.js. */
 export function ProgRanking({ data, per, start }) {
   const hist = gymHistory(data).filter((x) => inPeriod(x.date, start));
   const ranked = gymRanking(hist);

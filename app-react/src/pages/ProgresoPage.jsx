@@ -1,19 +1,15 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { PeriodSelector } from '../components/progreso/PeriodSelector';
 import { ProgComoVenis } from '../components/progreso/ProgComoVenis';
-import { ResumenTiles } from '../components/progreso/ResumenTiles';
+import { ProgWeeklyFreq } from '../components/progreso/ProgWeeklyFreq';
 import { ProgBodyWeight } from '../components/progreso/ProgBodyWeight';
 import { ProgRanking } from '../components/progreso/ProgRanking';
 import { ProgBalance } from '../components/progreso/ProgBalance';
 import { ProgGymHeatmap } from '../components/progreso/ProgGymHeatmap';
 import { ProgCargas } from '../components/progreso/ProgCargas';
 import { ProgGymStreaks } from '../components/progreso/ProgGymStreaks';
-import { Section } from '../components/ui/Section';
 import { useData } from '../hooks/useData';
-import { gymSessions } from '../lib/gym';
-import { habitDayMarks, habitDayPossible } from '../lib/habits';
-import { inPeriod, progStart } from '../lib/progress';
-import { todayISO } from '../lib/dates';
+import { progStart } from '../lib/progress';
 
 /* ============================================================================
    PROGRESO
@@ -34,29 +30,25 @@ import { todayISO } from '../lib/dates';
 
    Etapa 7, misma dirección: se sacaron "Frecuencia de entrenamiento" (barras semanales)
    y el "Cumplimiento de hábitos" que había quedado de la etapa 6 — Progreso queda sin
-   NINGÚN bloque de hábitos (el tile "Hábitos hoy" del Resumen no cuenta: es una foto del
-   día, no un bloque de seguimiento). En el lugar de Frecuencia va ProgGymHeatmap, un
-   mapa de calor día por día de las sesiones de entreno — mismo dibujo que tenía el "Mapa
-   de hábitos" de la etapa 6, pero contando gimnasio en vez de hábitos. Ninguna de estas
-   piezas tiene equivalente en vanilla — no hay contra qué comparar acá, así que
+   NINGÚN bloque de hábitos. En el lugar de Frecuencia va ProgGymHeatmap, un mapa de calor
+   día por día de las sesiones de entreno — mismo dibujo que tenía el "Mapa de hábitos" de
+   la etapa 6, pero contando gimnasio en vez de hábitos. Ninguna de estas piezas tiene
+   equivalente en vanilla — no hay contra qué comparar acá, así que
    src/compat/screens.test.jsx compensa sacando de vanilla las cuatro secciones que ya no
    están en React ("Mapa de hábitos", "Rachas", "Frecuencia de entrenamiento",
-   "Cumplimiento de hábitos") y sacando de React la que vanilla no tiene ("Mapa de
-   entrenamientos").
-   ============================================================================ */
+   "Cumplimiento de hábitos") y sacando de React las que vanilla no tiene ("Cómo venís",
+   "Frecuencia semanal", "Mapa de entrenamientos").
+
+   Segunda vuelta de este rediseño, pedido explícito ("la pantalla resumen no sirve"): se
+   sacó el bloque "Resumen" (ResumenTiles) entero — ya no queda ninguna sección que se
+   calcule aparte y se superponga con lo que ya cuentan "Cómo venís"/"Entrenamientos por
+   tipo". Por el mismo pedido, "Resumen" entra a la lista de arriba que
+   src/compat/screens.test.jsx le saca a vanilla antes de comparar texto (vanilla sigue
+   teniéndolo, React ya no). */
 export function ProgresoPage() {
   const { data } = useData();
   const [period, setPeriod] = useState('mes');
   const start = progStart(period);
-
-  const resumen = useMemo(() => ({
-    // Sesiones, no entradas por músculo: un turno de bícep + tríceps + hombro es UN
-    // entreno (ver gymSessions() en lib/gym.js).
-    entrenos: gymSessions(data).filter((x) => inPeriod(x.date, start)).length,
-    tareas: data.items.filter((x) => x.kind === 'tarea' && x.done).length,
-    hoyOk: habitDayMarks(data, todayISO()),
-    hoyTot: habitDayPossible(data),
-  }), [data, start]);
 
   return (
     <div className="view">
@@ -69,11 +61,8 @@ export function ProgresoPage() {
       </div>
 
       <div className="body prog2">
-        <Section label="Resumen">
-          <ResumenTiles {...resumen} />
-        </Section>
-
         <ProgComoVenis data={data} per={period} />
+        <ProgWeeklyFreq data={data} per={period} />
 
         <ProgBodyWeight data={data} per={period} start={start} />
         <ProgRanking data={data} per={period} start={start} />

@@ -15,9 +15,18 @@
    (el conteo, el ícono) queda afuera de ese span, como hermano. Si "sectlabel" quedara en el
    contenedor entero, el conteo heredaría el mayúsculas/letter-spacing del título y se vería
    distinto ("3 EJERCICIOS" en vez de "3 ejercicios"). Por eso acá también el título vive en
-   su propio <span class="sectlabel"> adentro de una fila sin esa clase. */
-export function Section({ label, note, action, inlineNote, children }) {
+   su propio <span class="sectlabel"> adentro de una fila sin esa clase.
+
+   `wide` (pedido explícito: "quiero que todo quede bien acoplado porq hay espacios
+   vacios"): en la grilla de 2 columnas de Progreso (.body.prog2, desktop), algunas
+   secciones son demasiado anchas para compartir fila sin dejar un hueco vacío al lado —
+   "Cómo venís" (hasta 10+ columnas de músculo) y el mapa de entrenamientos (hasta 50+
+   columnas de semana en 'año'/'todo', desde que se sacó el tope de 8-26). Esas dos piden
+   `wide` para ocupar las DOS columnas en vez de compartir una con lo que venga al lado.
+   No afecta el resto de las pantallas: `.sect-wide` solo hace algo dentro de `.prog2`. */
+export function Section({ label, note, action, inlineNote, wide, children }) {
   const titulo = <>{label}{note && <>{' '}<span className="muted">· {note}</span></>}</>;
+  const claseSect = `sect${wide ? ' sect-wide' : ''}`;
 
   /* `action !== undefined` (no "if (action)") a propósito: en Peso corporal y en el
      ranking de Progreso, vanilla envuelve el título en la MISMA fila con flex exista o
@@ -27,7 +36,7 @@ export function Section({ label, note, action, inlineNote, children }) {
      (si no, el título pierde el margen del span interno y se corre 2px a la izquierda). */
   if (action !== undefined) {
     return (
-      <div className="sect">
+      <div className={claseSect}>
         <div className="sectrow-baseline">
           <span className="sectlabel">{titulo}</span>
           {action}
@@ -39,7 +48,7 @@ export function Section({ label, note, action, inlineNote, children }) {
 
   if (inlineNote) {
     return (
-      <div className="sect">
+      <div className={claseSect}>
         <div className="sectrow-baseline-inline">
           <span className="sectlabel">{titulo}</span>
           <span className="sectlabel-note">{inlineNote}</span>
@@ -50,7 +59,7 @@ export function Section({ label, note, action, inlineNote, children }) {
   }
 
   return (
-    <div className="sect">
+    <div className={claseSect}>
       <div className="sectlabel">{titulo}</div>
       {children}
     </div>

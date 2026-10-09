@@ -548,6 +548,9 @@ textarea.inp{min-height:88px;line-height:1.5;resize:vertical}
   /* Progreso: grilla de 2 columnas aprovechando el ancho. */
   .view:not(.auth) .body.prog2{display:grid;grid-template-columns:1fr 1fr;gap:16px 18px;align-items:start}
   .body.prog2 .sect{min-width:0}
+  /* Las secciones demasiado anchas para compartir fila (ver el comentario de `wide` en
+     ui/Section.jsx) ocupan las dos columnas en vez de dejar un hueco vacío al lado. */
+  .body.prog2 .sect-wide{grid-column:1 / -1}
 
   /* Auth / bienvenida / carga: sin barra, centrados y sin estirarse. */
   .view.auth .head,.view.auth .body{max-width:440px;margin-left:auto;margin-right:auto}

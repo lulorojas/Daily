@@ -33,13 +33,18 @@
    `absCategories` ausente o `movilidad` ausente = nada marcado ese día; dayAbs() es el
    único lugar que lee estos dos campos directamente.
 
-   Abs cuenta como entreno para Progreso, movilidad no (pedido explícito de Lulo, cuarta
-   vuelta sobre el mismo tema): un día con alguna categoría marcada aporta UNA entrada al
-   historial (gymHistory), con type ABS_TYPE — así entra solo en el ranking, el balance,
-   las rachas y la frecuencia de Progreso, exactamente "como cualquier tipo que creo",
-   sin que Abs sea un tipo elegible de verdad en Administrar tipos (no compite por turno,
-   sigue siendo su propio renglón). Movilidad, aunque esté marcada, NUNCA aporta una
-   entrada: es la distinción explícita que pidió Lulo. */
+   Abs cuenta como un músculo más para Progreso, movilidad no (pedido explícito de Lulo,
+   cuarta vuelta sobre el mismo tema): un día con alguna categoría marcada aporta UNA
+   entrada al historial (gymHistory), con type ABS_TYPE — así entra solo en el ranking, el
+   balance, las rachas y la frecuencia por músculo, exactamente "como cualquier tipo que
+   creo", sin que Abs sea un tipo elegible de verdad en Administrar tipos (no compite por
+   turno, sigue siendo su propio renglón). Movilidad, aunque esté marcada, NUNCA aporta una
+   entrada: es la distinción explícita que pidió Lulo.
+
+   Quinta vuelta, pedido explícito ("los abdominales no cuentan como entrenamientos"): abs
+   dejó de sumar a gymSessions() — no cuenta para "cuántas veces entrené" (el número de
+   ENTRENOS de Progreso, el mapa de calor, "N entrenos" de Gimnasio), aunque siga sumando a
+   gymHistory() para todo lo demás. Ver gymSessions() más abajo. */
 import { addDays, iso, mondayOf, parseISO, todayD, DOW_SHORT } from './dates';
 import { C } from './theme';
 
@@ -126,12 +131,16 @@ export function gymHistory(state) {
   return out;
 }
 
-/* Las SESIONES de entreno: una por cada turno hecho (sin importar cuántos músculos tenga)
-   más una por cada día con abs marcado. Es lo que la app llama "un entreno".
+/* Las SESIONES de entreno: una por cada turno hecho (sin importar cuántos músculos tenga).
+   Es lo que la app llama "un entreno".
 
    La diferencia con gymHistory() es justo el pedido de Lulo: un turno de bícep + tríceps +
    hombro es UN entreno, no tres — los músculos de un mismo turno no multiplican. Dos
    turnos el mismo día SÍ son dos (pedido explícito de la etapa 6, que sigue en pie).
+
+   Abs NO aporta una sesión (pedido explícito, segunda vuelta sobre el tema: "los
+   abdominales no cuentan como entrenamientos") — a diferencia de gymHistory(), donde abs
+   sigue siendo su propio renglón para el ranking/Cómo venís/frecuencia por músculo.
 
    Las dos listas se usan para preguntas distintas y no son intercambiables:
      gymHistory()  → "¿cuánto entrené CADA MÚSCULO?" (ranking, rachas, Cómo venís)
@@ -146,7 +155,6 @@ export function gymSessions(state) {
     state.gym.weekPlans[k].forEach((day, i) => {
       const date = iso(addDays(mon, i));
       dayTurnos(day).forEach((t) => { if (t.done && t.muscles.length) out.push({ date, slot: t.slot }); });
-      if (dayAbs(day).categories.length) out.push({ date, slot: 'abs' });
     });
   });
   out.sort((a, b) => (a.date < b.date ? 1 : -1));
