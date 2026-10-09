@@ -286,51 +286,52 @@ describe('períodos (alineados al lunes)', () => {
 
 /* Regularidad por ratio (pedido explícito, segunda vuelta: "buscale otro termino a cada
    regularidad" — Regular/Aceptable/Irregular/Insuficiente en vez de
-   Constante/Irregular/"Sin hacer N ..."). Se prueba con per='todo': sus 6 columnas
-   (trimestres de calendario) y su "current" (siempre el índice 5) no dependen de qué día
-   es hoy, así que da exactamente 5 columnas previas siempre — a diferencia de 'semana'
-   (varía con el día de la semana) o 'mes' (siempre 3, muy pocas para cubrir los 4 baldes). */
-describe('comoVenis: regularidad por ratio', () => {
-  function docConPechoEn(indices) {
+   Constante/Irregular/"Sin hacer N ..."). Se prueba con per='mes': sus 4 columnas
+   semanales (mondayAgo(3..0), la última siempre la semana actual) coinciden letra por
+   letra con el ejemplo que dio Lulo ("hice 2/4 y eso es irregular").
+
+   Tercera vuelta, pedido explícito ("el seguimiento en como vas tambien debe tomar esta
+   semana porq hay algunos que hice 2/4 y eso es irregular"): la semana actual (mondayAgo(0))
+   CUENTA para el ratio — antes se excluía ("está en curso"), y por eso un 2/4 real daba
+   un balde más optimista (o directamente "SIN ENTRENAR" si las 2 veces incluían la
+   actual) hasta que la semana terminara. */
+describe('comoVenis: regularidad por ratio (cuenta la semana actual)', () => {
+  function docConPechoEnSemanas(semanasAtras) {
     const d = normalize(emptyDoc());
     d.gym.customTypes = [{ id: 'ct1', name: 'Pecho', color: '#FF9B93' }];
-    const { cols } = comoVenisColumns('todo');
-    indices.forEach((i) => {
-      const mitad = addDays(parseISO(cols[i].from), 15); // bien adentro de la columna, nunca al borde
-      const semana = iso(mondayOf(mitad));
-      d.gym.weekPlans[semana] = [{ muscles: ['Pecho'], done: true }, ...Array.from({ length: 6 }, () => ({ muscles: [], done: false }))];
+    semanasAtras.forEach((n) => {
+      d.gym.weekPlans[mondayAgo(n)] = [{ muscles: ['Pecho'], done: true }, ...Array.from({ length: 6 }, () => ({ muscles: [], done: false }))];
     });
     return d;
   }
 
-  function statusDePecho(indices) {
-    return comoVenis(docConPechoEn(indices), 'todo').rows.find((r) => r.name === 'Pecho').status.label;
+  function statusDePecho(semanasAtras) {
+    return comoVenis(docConPechoEnSemanas(semanasAtras), 'mes').rows.find((r) => r.name === 'Pecho').status.label;
   }
 
-  it('0 de 5 períodos anteriores (nunca entrenado) → "SIN ENTRENAR"', () => {
+  it('0 de 4 semanas (ninguna, ni la actual) → "SIN ENTRENAR"', () => {
     expect(statusDePecho([])).toBe('SIN ENTRENAR');
   });
 
-  it('1 de 5 → "INSUFICIENTE"', () => {
+  it('entrenar SOLO esta semana (1 de 4) ya da "INSUFICIENTE", no "SIN ENTRENAR"', () => {
+    // Este es justo el caso que reportó Lulo: antes, la semana en curso no entraba en la
+    // cuenta, así que entrenar solo hoy/esta semana todavía se veía como "sin entrenar".
     expect(statusDePecho([0])).toBe('INSUFICIENTE');
   });
 
-  it('2 o 3 de 5 → "IRREGULAR"', () => {
+  it('2 de 4, contando esta semana → "IRREGULAR"', () => {
     expect(statusDePecho([0, 1])).toBe('IRREGULAR');
-    expect(statusDePecho([0, 1, 2])).toBe('IRREGULAR');
   });
 
-  it('4 de 5 → "ACEPTABLE"', () => {
-    expect(statusDePecho([0, 1, 2, 3])).toBe('ACEPTABLE');
+  it('2 de 4 sin la semana actual (las dos anteriores) también da "IRREGULAR" — es el mismo ratio', () => {
+    expect(statusDePecho([1, 2])).toBe('IRREGULAR');
   });
 
-  it('5 de 5 (todas las columnas anteriores activas) → "REGULAR"', () => {
-    expect(statusDePecho([0, 1, 2, 3, 4])).toBe('REGULAR');
+  it('3 de 4 → "ACEPTABLE"', () => {
+    expect(statusDePecho([0, 1, 2])).toBe('ACEPTABLE');
   });
 
-  it('entrenar solo en la columna actual (ninguna anterior) también da "SIN ENTRENAR"', () => {
-    // La columna actual (índice 5 en 'todo') no es una "previa" — entrenar solo ahí no
-    // cuenta para la regularidad, es justo lo que ya pasaba con CONSTANTE/IRREGULAR antes.
-    expect(statusDePecho([5])).toBe('SIN ENTRENAR');
+  it('4 de 4 (las cuatro semanas, incluida la actual) → "REGULAR"', () => {
+    expect(statusDePecho([0, 1, 2, 3])).toBe('REGULAR');
   });
 });

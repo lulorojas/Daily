@@ -197,11 +197,19 @@ const DOW_1 = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 const UNIT_ABBR = { día: 'día', semana: 'sem', mes: 'mes', trimestre: 'trim' };
 
 /* Regularidad por músculo (pedido explícito, segunda vuelta: "buscale otro termino a cada
-   regularidad" — 4 de 4 columnas anteriores activas = Regular, 3 de 4 = Aceptable, 2 de 4
-   = Irregular, 1 de 4 = Insuficiente). Para ventanas con más de 4 columnas (semana: hasta
-   6 previas, año: hasta 11, todo: hasta 5) se generaliza por proporción: activas/previas
-   se multiplica por 4 y se redondea, así "9 de 11" sigue cayendo en el mismo balde que
-   "4 de 4" en vez de necesitar que sean TODAS para contar como Regular. */
+   regularidad" — 4 de 4 columnas activas = Regular, 3 de 4 = Aceptable, 2 de 4 =
+   Irregular, 1 de 4 = Insuficiente). Para ventanas con más de 4 columnas (semana: hasta 7,
+   año: 12, todo: 6) se generaliza por proporción: activas/vigentes se multiplica por 4 y
+   se redondea, así "9 de 11" sigue cayendo en el mismo balde que "4 de 4" en vez de
+   necesitar que sean TODAS para contar como Regular.
+
+   Tercera vuelta, pedido explícito ("el seguimiento en como vas tambien debe tomar esta
+   semana"): la columna ACTUAL entra en la cuenta, ya no se excluye. Antes se dejaba
+   afuera porque "está en curso, todavía no terminó de contarse" — pero eso hacía que un
+   2/4 real (contando esta semana) no se viera como Irregular hasta que la semana
+   terminara. "Vigentes" (antes "previas") son todas las columnas no futuras, INCLUIDA la
+   actual — la única excepción sigue siendo 'semana', donde los días después de hoy son
+   futuro de verdad (todavía no pasaron) y ahí sí se excluyen. */
 const REGULARIDAD = {
   4: { label: 'REGULAR', color: C.green },
   3: { label: 'ACEPTABLE', color: C.teal },
@@ -234,20 +242,21 @@ export function comoVenis(state, per) {
       return { v, futuro: false, current: i === current };
     });
     const total = cells.reduce((a, c) => a + (c.futuro ? 0 : c.v), 0);
-    const previas = cells.filter((c) => !c.current && !c.futuro);
+    const vigentes = cells.filter((c) => !c.futuro);
     let trail = 0;
-    for (let i = previas.length - 1; i >= 0 && previas[i].v === 0; i--) trail++;
-    const allOn = previas.length > 0 && previas.every((c) => c.v > 0);
-    const activasPrevias = previas.filter((c) => c.v > 0).length;
+    for (let i = vigentes.length - 1; i >= 0 && vigentes[i].v === 0; i--) trail++;
+    const allOn = vigentes.length > 0 && vigentes.every((c) => c.v > 0);
+    const activas = vigentes.filter((c) => c.v > 0).length;
 
-    let status;
-    if (previas.length === 0) status = { label: 'SIN DATOS', color: 'rgba(242,244,248,.4)' };
-    else if (!total || activasPrevias === 0) status = { label: 'SIN ENTRENAR', color: C.danger };
-    else status = REGULARIDAD[Math.min(4, Math.max(1, Math.round((activasPrevias / previas.length) * 4)))];
+    // `activas === 0` y `!total` son lo mismo (total suma exactamente las vigentes), pero
+    // se deja `activas` porque es la cuenta que ya hace falta para el ratio de abajo.
+    const status = activas === 0
+      ? { label: 'SIN ENTRENAR', color: C.danger }
+      : REGULARIDAD[Math.min(4, Math.max(1, Math.round((activas / vigentes.length) * 4)))];
 
     return {
-      ...t, cells, total, trail, allOn, previas: previas.length,
-      avg: previas.length ? (previas.reduce((a, c) => a + c.v, 0) / previas.length) : 0,
+      ...t, cells, total, trail, allOn, vigentes: vigentes.length, activas,
+      avg: vigentes.length ? (vigentes.reduce((a, c) => a + c.v, 0) / vigentes.length) : 0,
       rate: total / semanasVentana,
       status,
     };
@@ -288,7 +297,7 @@ export function comoVenis(state, per) {
     });
     alerts.push(absRow.allOn
       ? { icon: '✓', text: `Abs: todas las ${unitPl} sin cortar`, color: C.green }
-      : { icon: '!', text: `Abs: ${absRow.previas ? absRow.cells.filter((c) => !c.current && !c.futuro && c.v > 0).length : 0} de ${absRow.previas} ${unitPl}`, color: C.amber });
+      : { icon: '!', text: `Abs: ${absRow.activas} de ${absRow.vigentes} ${unitPl}`, color: C.amber });
     const top = rows.slice().sort((a, b) => b.total - a.total)[0];
     if (top && top.total) alerts.push({ icon: '↑', text: `Lo que más entrenaste: ${top.name} (${top.total})`, color: C.teal });
   }
