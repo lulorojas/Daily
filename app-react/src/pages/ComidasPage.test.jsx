@@ -66,10 +66,28 @@ describe('administrar el plan', () => {
     await user.click(within(screen.getByText('Plan de comidas').closest('.sect')).getByRole('button', { name: /Editar/ }));
     await user.click(screen.getByRole('button', { name: 'Almuerzo' }));   // abre sus opciones
     await user.click(screen.getByRole('button', { name: 'Nueva opción' }));
-    await user.type(screen.getByLabelText(/Opción de Almuerzo/), 'Pollo con arroz');
+    // El modo "Texto libre" es el default; el campo de texto se llama "Texto" (el rótulo
+    // "Opción de Almuerzo" quedó arriba, en el selector de modo texto/ítems).
+    await user.type(screen.getByLabelText(/^Texto/), 'Pollo con arroz');
     await user.click(screen.getByRole('button', { name: 'Agregar' }));
 
     expect(activePlan(leer()).slots[0].options.map((o) => o.text)).toEqual(['Milanesa con ensalada', 'Pollo con arroz']);
+  });
+
+  it('agregar una opción con ítems de cantidad (pedido explícito: medir lo que comí)', async () => {
+    const user = userEvent.setup();
+    const { doc: leer } = renderScreen(<ComidasPage />, { doc: docConPlan() });
+
+    await user.click(within(screen.getByText('Plan de comidas').closest('.sect')).getByRole('button', { name: /Editar/ }));
+    await user.click(screen.getByRole('button', { name: 'Almuerzo' }));
+    await user.click(screen.getByRole('button', { name: 'Nueva opción' }));
+    await user.click(screen.getByRole('button', { name: 'Con cantidades' }));
+    await user.click(screen.getByRole('button', { name: 'Agregar ítem' }));
+    await user.type(screen.getByPlaceholderText('Alimento (ej: tostadas)'), 'tostadas');
+    await user.click(screen.getByRole('button', { name: 'Agregar' }));
+
+    const opt = activePlan(leer()).slots[0].options[1];
+    expect(opt.items).toEqual([{ id: expect.any(String), name: 'tostadas', qty: 1, tipo: undefined }]);
   });
 
   it('borrar una franja pide confirmación', async () => {
@@ -214,5 +232,29 @@ describe('bitácora', () => {
 
     await user.click(screen.getByRole('button', { name: 'Borrar "un café"' }));
     expect(leer().meals.log[todayISO()]).toEqual([]);
+  });
+
+  it('una entrada que matchea una opción cuantificada muestra el desglose "2/3" debajo (pedido explícito: medir lo que comí)', () => {
+    const doc = {
+      ...emptyDoc(),
+      meals: {
+        plans: [{
+          id: 'p1',
+          startISO: todayISO(),
+          endISO: null,
+          slots: [{ id: 's1', name: 'Desayuno', options: [{ id: 'o1', items: [{ id: 'i1', name: 'tostadas', qty: 3 }, { id: 'i2', name: 'huevos', qty: 3 }] }] }],
+        }],
+        extras: [],
+        log: {
+          [todayISO()]: [
+            { id: 'x1', at: Date.now(), text: 'comí 2 tostadas y 3 huevos', matches: { options: [{ slotId: 's1', optionId: 'o1', items: [{ itemId: 'i1', qty: 2 }, { itemId: 'i2', qty: 3 }] }], extras: [] } },
+          ],
+        },
+      },
+    };
+    renderScreen(<ComidasPage />, { doc });
+
+    expect(screen.getByText('2/3 tostadas')).toBeInTheDocument();
+    expect(screen.getByText('3/3 huevos')).toBeInTheDocument();
   });
 });

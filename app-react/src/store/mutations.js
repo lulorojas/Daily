@@ -490,19 +490,30 @@ export function moveMealSlot(draft, slotId, dir) {
   return moveInArray(plan.slots, plan.slots.findIndex((s) => s.id === slotId), dir);
 }
 
-export function addMealOption(draft, slotId, { text }) {
+/* Una opción es O BIEN texto libre O BIEN una lista de ítems con cantidad — nunca las dos
+   cosas (pedido explícito: "quiero que las opciones de cada comida y lo que yo comí
+   importe", ver comoComes()/matchEntry() en lib/meals.js). `fields.items` manda sobre
+   `fields.text` si vienen los dos: así cambiar de modo en el formulario (MealOptionFormModal)
+   reemplaza limpio, nunca deja un campo viejo colgado del modo anterior. */
+function normalizeOptionFields({ text, items }) {
+  return (items && items.length) ? { items } : { text };
+}
+
+export function addMealOption(draft, slotId, fields) {
   const slot = ensureActivePlan(draft).slots.find((s) => s.id === slotId);
   if (!slot) return null;
-  const option = { id: uid(), text };
+  const option = { id: uid(), ...normalizeOptionFields(fields) };
   slot.options.push(option);
   return option;
 }
 
-export function updateMealOption(draft, slotId, optionId, { text }) {
+export function updateMealOption(draft, slotId, optionId, fields) {
   const slot = ensureActivePlan(draft).slots.find((s) => s.id === slotId);
   const option = slot && slot.options.find((o) => o.id === optionId);
   if (!option) return false;
-  option.text = text;
+  delete option.text;
+  delete option.items;
+  Object.assign(option, normalizeOptionFields(fields));
   return true;
 }
 

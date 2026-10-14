@@ -214,6 +214,31 @@ describe('las otras secciones', () => {
     expect(within(sect).getByText(/Alcohol: 1 vez en este período/)).toBeInTheDocument();
   });
 
+  it('"Cómo comés" desglosa el cumplimiento por macro cuando hay ítems clasificados (pedido explícito: "con qué soy más regular")', () => {
+    const doc = fullDoc();
+    doc.meals = {
+      plans: [{
+        id: 'p1',
+        startISO: thisMonday,
+        endISO: null,
+        slots: [{ id: 's1', name: 'Desayuno', options: [{ id: 'o1', items: [{ id: 'i1', name: 'tostadas', qty: 4, tipo: 'carbo' }, { id: 'i2', name: 'huevos', qty: 2, tipo: 'proteina' }] }] }],
+      }],
+      extras: [],
+      log: {
+        [thisMonday]: [
+          { id: 'x1', at: 0, text: 'comí 4 tostadas y 1 huevo', matches: { options: [{ slotId: 's1', optionId: 'o1', items: [{ itemId: 'i1', qty: 4 }, { itemId: 'i2', qty: 1 }] }], extras: [] } },
+        ],
+      },
+    };
+    renderScreen(<ProgresoPage />, { doc });
+
+    const sect = screen.getByText('Cómo comés').closest('.sect');
+    expect(within(sect).getByText('Carbohidratos')).toBeInTheDocument();
+    expect(within(sect).getByText('100%')).toBeInTheDocument();
+    expect(within(sect).getByText('Proteínas')).toBeInTheDocument();
+    expect(within(sect).getByText('50%')).toBeInTheDocument();
+  });
+
   it('tocar una celda del mapa despliega el globito con qué se entrenó ese día, y tocar afuera lo cierra', async () => {
     const user = userEvent.setup();
     const doc = fullDoc();

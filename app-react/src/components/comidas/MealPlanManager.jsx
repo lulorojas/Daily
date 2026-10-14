@@ -5,7 +5,7 @@ import { ManageMealOptionsModal } from './ManageMealOptionsModal';
 import { MealOptionFormModal } from './MealOptionFormModal';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { useData } from '../../hooks/useData';
-import { activePlan } from '../../lib/meals';
+import { activePlan, optionLabel } from '../../lib/meals';
 import { deleteMealOption, deleteMealSlot, moveMealSlot, startNewMealPlan } from '../../store/mutations';
 
 /* ----------------------------- FLUJO DE "ADMINISTRAR EL PLAN" -----------------------------
@@ -106,7 +106,7 @@ export function MealPlanManager({ onClose }) {
 
       {borrandoOpcion && (
         <ConfirmDialog
-          title={`¿Eliminar "${borrandoOpcion.text}"?`}
+          title={`¿Eliminar "${optionLabel(borrandoOpcion)}"?`}
           description="Deja de reconocerse en la bitácora de ahora en adelante; lo ya escrito no se modifica."
           okLabel="Eliminar"
           onConfirm={handleDeleteOpcion}

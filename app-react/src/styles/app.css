@@ -379,6 +379,14 @@ a.rcover { display: block; }
 .qualitypick { display: flex; gap: 8px; }
 .qbtn { flex: 1; height: 38px; border-radius: 12px; border: 1.5px solid var(--line); background: rgba(255, 255, 255, .03); font-size: 12.5px; font-weight: 600; color: rgba(242, 244, 248, .5); cursor: pointer; }
 
+/* Constructor de ítems con cantidad de una opción (MealOptionFormModal) — una fila por
+   alimento: nombre (crece), cantidad (angosta), macro (select nativo, compacto). */
+.mealitems-build { display: flex; flex-direction: column; gap: 8px; }
+.mealitemrow { display: flex; align-items: center; gap: 6px; }
+.mealitem-name { flex: 1; min-width: 0; }
+.mealitem-qty { width: 56px; flex: none; text-align: center; padding-left: 0; padding-right: 0; }
+.mealitem-tipo { width: 128px; flex: none; }
+
 /* ---- el plan, de solo lectura ---- */
 .mealslot { padding: 12px 2px; }
 .mealslot:not(:last-child) { border-bottom: 1px solid rgba(255, 255, 255, .06); }
@@ -399,6 +407,10 @@ a.rcover { display: block; }
 .mealtags { display: flex; flex-wrap: wrap; gap: 6px; padding-left: 47px; }
 .mealtag { font-size: 11px; font-weight: 600; padding: 4px 9px; border-radius: 99px; background: rgba(255, 255, 255, .06); color: rgba(242, 244, 248, .7); }
 .mealtag.mealtag-plan { background: #B49BE824; color: var(--violet); }
+/* El desglose "2/3 Tostadas" de una opción cuantificada (ver itemColor en
+   MealLogBubble.jsx) — chico y debajo de las píldoras, no compite con ellas. */
+.mealitems-detalle { display: flex; flex-wrap: wrap; gap: 4px 10px; padding-left: 47px; margin-top: 4px; }
+.mealitem-detalle { font-size: 10.5px; font-weight: 600; }
 
 /* ---- la caja para escribir ----
    Pegada abajo del bloque, no al viewport: la bitácora es una sección más de la página

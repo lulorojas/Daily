@@ -9,7 +9,12 @@ import { tint } from '../../lib/theme';
    clases `comovenis-*`) pero alimentado por comoComes() (lib/meals.js) — reusa la misma
    ventana de tiempo y los mismos 4 baldes de regularidad que "Cómo venís" ("todos los
    gráficos deben tomar la misma medida de tiempo"), así que las dos tablas se leen con la
-   misma vara aunque midan cosas distintas. */
+   misma vara aunque midan cosas distintas.
+
+   Segunda vuelta, pedido explícito ("las mediciones podrian hacerse en carbohidratos y
+   proteinas para tambien tener un registro de con que soy mas regular"): si el plan tiene
+   ítems con cantidad clasificados por macro, se suma una lista chica de % de cumplimiento
+   por macro — mismo patrón visual que ProgWeeklyFreq (reusa `.cargas-resto`). */
 function cellStyle(cell, color) {
   if (cell.futuro) return { background: 'transparent' };
   if (cell.v === 0) return { background: 'rgba(255,255,255,.04)' };
@@ -38,6 +43,17 @@ export function ProgComoComes({ data, per }) {
                 </div>
               ))}
             </div>
+
+            {v.macros.length > 0 && (
+              <div className="card cargas-resto">
+                {v.macros.map((m) => (
+                  <div className="cargas-restrow" key={m.tipo}>
+                    <span className="cargas-restname">{m.label}</span>
+                    <span className="mono cargas-restgain">{m.pct}%</span>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {hayDatos ? (
               <>

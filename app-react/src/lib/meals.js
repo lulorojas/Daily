@@ -9,10 +9,27 @@
    de verdad, y a propósito: no hace falta más para "me va a llevar el registro".
 
    state.meals = {
-     plans:  [ { id, startISO, endISO: string|null, slots:[ { id, name, options:[{id,text}] } ] } ],
+     plans:  [ { id, startISO, endISO: string|null, slots:[ { id, name, options:[
+       { id, text } |                                              // opción de texto libre
+       { id, items:[ { id, name, qty, tipo?: 'carbo'|'proteina'|'grasa' } ] },  // opción cuantificada
+     ] } ] } ],
      extras: [ { id, name, color, icon, quality?: 'bueno'|'malo' } ],  // catálogo libre, shape como habits
-     log:    { 'YYYY-MM-DD': [ { id, at, text, matches:{ options:[{slotId,optionId}], extras:[id] } } ] },
+     log:    { 'YYYY-MM-DD': [ { id, at, text, matches:{
+       options:[ { slotId, optionId, items?:[{itemId,qty}] } ],
+       extras:[id],
+     } } ] },
    }
+
+   Opción cuantificada (pedido explícito: "quiero que las opciones de cada comida y lo
+   que yo comí importe... que haya una medición de bien o mal... si ese día comí 2
+   tostadas y 3 huevos"): una opción es O BIEN texto libre (`text`, como hasta ahora) O
+   BIEN una lista de ítems con cantidad (`items`) — nunca las dos cosas a la vez, ver
+   normalizeOptionFields() en store/mutations.js. Cada ítem puede además marcarse con un
+   `tipo` de macro (carbohidrato/proteína/grasa) — pedido explícito, segunda vuelta: "las
+   mediciones podrian hacerse en carbohidratos y proteinas para tambien tener un registro
+   de con que soy mas regular" — así comoComes() puede sumar el cumplimiento por macro
+   además de por ítem. Sin `tipo`, el ítem se mide igual (cantidad comida/cantidad del
+   plan) pero no entra a ningún total de macro.
 
    Igual que fcmTokens, `meals` NO tiene default en normalize() (ver lib/model.js): una
    cuenta que nunca abrió Comidas no gana un campo de más en su documento. Por eso todo
@@ -49,22 +66,88 @@ export function normalizeText(s) {
     .trim();
 }
 
+// Para construir el patrón de un ítem sin que sus caracteres especiales rompan la regex
+// (el nombre lo escribe el usuario, no se puede asumir que sea texto "seguro").
+function escapeRegex(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/* Cuánto de cada ítem de una opción cuantificada aparece en el texto ya normalizado.
+   Pedido explícito sobre cómo escribe Lulo: "número pegado al alimento" — "2 tostadas"
+   cuenta como 2. El nombre del ítem SIN número adelante ("comí tostadas y huevos", sin
+   decir cuántas) se toma como "comí la cantidad del plan entera" — options.items[].qty.
+   Si el nombre no aparece para nada, esa cantidad es 0. Devuelve un array del mismo largo
+   que `items` (nunca se omite un ítem, así "2 de 3" se puede mostrar siempre), o `null`
+   si NINGÚN ítem apareció — ahí la opción no está referenciada en este texto. */
+function matchItems(items, norm) {
+  const out = items.map((item) => {
+    const name = normalizeText(item.name);
+    if (!name) return { itemId: item.id, qty: 0 };
+    const conNumero = norm.match(new RegExp(`(\\d+)\\s*${escapeRegex(name)}`));
+    if (conNumero) return { itemId: item.id, qty: parseInt(conNumero[1], 10) };
+    if (norm.includes(name)) return { itemId: item.id, qty: item.qty };
+    return { itemId: item.id, qty: 0 };
+  });
+  return out.some((x) => x.qty > 0) ? out : null;
+}
+
 /* El "bot": busca, dentro del texto que el usuario escribió, cualquier opción del plan o
    cualquier extra cuyo nombre aparezca como substring. Puede matchear varios de cada uno
    a la vez (“café con un permitido” matchea el extra Café Y el extra Permitidos). Si no
-   matchea nada, la entrada se guarda igual — solo que no suma a ninguna frecuencia. */
+   matchea nada, la entrada se guarda igual — solo que no suma a ninguna frecuencia.
+
+   Una opción CUANTIFICADA (option.items, ver arriba) no se busca por texto entero: basta
+   con que aparezca el nombre de AL MENOS UNO de sus ítems (matchItems se encarga). Una
+   opción de texto libre sigue exactamente igual que siempre. */
 export function matchEntry(state, text) {
   const norm = normalizeText(text);
   const options = [];
   (activePlan(state)?.slots ?? []).forEach((slot) => {
     slot.options.forEach((opt) => {
-      if (norm.includes(normalizeText(opt.text))) options.push({ slotId: slot.id, optionId: opt.id });
+      if (opt.items?.length) {
+        const items = matchItems(opt.items, norm);
+        if (items) options.push({ slotId: slot.id, optionId: opt.id, items });
+      } else if (opt.text && norm.includes(normalizeText(opt.text))) {
+        options.push({ slotId: slot.id, optionId: opt.id });
+      }
     });
   });
   const extras = (state.meals?.extras ?? [])
     .filter((ex) => norm.includes(normalizeText(ex.name)))
     .map((ex) => ex.id);
   return { options, extras };
+}
+
+// La etiqueta para mostrar una opción: su texto tal cual si es libre, o sus ítems
+// armados ("3 Tostadas, 3 Huevos") si es cuantificada — nunca se guarda un texto
+// derivado en el documento, se arma acá cada vez para no arrastrar una copia vieja si
+// cambian las cantidades.
+export function optionLabel(option) {
+  if (option.items?.length) return option.items.map((i) => `${i.qty} ${i.name}`).join(', ');
+  return option.text ?? '';
+}
+
+// El detalle ítem por ítem de lo que matcheó una opción cuantificada, para mostrar "2/3
+// Tostadas" en la bitácora — un elemento por cada ítem DEL PLAN (no solo los que
+// aparecieron), así el que falta se ve con 0 en vez de desaparecer de la lista.
+export function itemsBreakdown(option, matchedItems) {
+  return option.items.map((item) => {
+    const m = matchedItems.find((x) => x.itemId === item.id);
+    return { id: item.id, name: item.name, tipo: item.tipo, got: m ? m.qty : 0, expected: item.qty };
+  });
+}
+
+// Cuánto de una opción cuantificada se cumplió, 0 a 1 (comer de más no suma puntos
+// extra: se recorta a lo que pedía el plan). expected 0 (opción sin ítems con cantidad
+// real) da 1 — no hay nada que incumplir.
+export function itemsCompliance(option, matchedItems) {
+  let got = 0, expected = 0;
+  option.items.forEach((item) => {
+    const m = matchedItems.find((x) => x.itemId === item.id);
+    got += Math.min(m ? m.qty : 0, item.qty);
+    expected += item.qty;
+  });
+  return expected ? got / expected : 1;
 }
 
 /* ------------------------------ FRECUENCIA DE EXTRAS ------------------------------
@@ -112,25 +195,61 @@ export function extraCount(state, extraId, startISO) {
    Una franja cuenta un día si ALGUNA entrada de ese día matcheó una de sus opciones — sin
    importar en qué franja la escribiste (pedido explícito: comer fruta en la merienda en
    vez del desayuno igual suma, porque lo que cuenta es el slotId que matcheó el bot, no en
-   qué franja de la bitácora quedó anotada la entrada). */
+   qué franja de la bitácora quedó anotada la entrada). Para una opción CUANTIFICADA, ese
+   "matcheó" no alcanza solo: tiene que haber comido al menos la mitad de lo que pedía el
+   plan (UMBRAL_CUMPLIMIENTO) — pedido explícito: "quiero que las opciones... importen" y
+   "una medición de bien o mal", no solo un sí/no de si la tocaste. */
+const UMBRAL_CUMPLIMIENTO = 0.5;
+
+// Nombres largos para el desglose por macro (pedido explícito, segunda vuelta: "con qué
+// soy más regular" entre carbohidratos/proteínas/grasas).
+const MACRO_LABELS = { carbo: 'Carbohidratos', proteina: 'Proteínas', grasa: 'Grasas' };
+
 export function comoComes(state, per) {
   const slots = activePlan(state)?.slots ?? [];
+  const optionsById = {};
+  slots.forEach((slot) => slot.options.forEach((opt) => { optionsById[opt.id] = opt; }));
+
   const { cols, current, unit, unitPl, winLabel } = comoVenisColumns(per);
   const unitAbbr = UNIT_ABBR[unit] || unit;
   const tISO = todayISO();
   const desde = cols[0].from, hasta = cols[cols.length - 1].to;
 
-  // Por franja, el conjunto de fechas (sin repetir) donde algo matcheó una de sus
-  // opciones — un recorrido del log entero, una sola vez, en vez de uno por franja.
-  const matchedBySlot = {};
+  /* Un solo recorrido del log entero: por franja, las fechas que cuentan como "activas"
+     (ver UMBRAL_CUMPLIMIENTO arriba); de paso, sobre la ventana [desde,hasta] nomás, la
+     suma de cumplimiento por macro y el promedio de cumplimiento general. */
+  const activeDatesBySlot = {};
+  const macroTotales = {}; // tipo -> { got, expected }, ambos ya recortados por item.qty
+  let sumaCumplimiento = 0, entradasConItems = 0;
+
   Object.keys(state.meals?.log ?? {}).forEach((d) => {
-    (state.meals.log[d] ?? []).forEach((e) => {
-      e.matches.options.forEach(({ slotId }) => { (matchedBySlot[slotId] ||= new Set()).add(d); });
+    (state.meals.log[d] ?? []).forEach((entry) => {
+      entry.matches.options.forEach(({ slotId, optionId, items }) => {
+        const option = optionsById[optionId];
+        if (!option) return; // la opción se pudo haber borrado después
+        let activa = true;
+        if (items) {
+          const ratio = itemsCompliance(option, items);
+          activa = ratio >= UMBRAL_CUMPLIMIENTO;
+          if (d >= desde && d <= hasta) {
+            sumaCumplimiento += ratio;
+            entradasConItems++;
+            option.items.forEach((item) => {
+              if (!item.tipo) return;
+              const m = items.find((x) => x.itemId === item.id);
+              const bucket = (macroTotales[item.tipo] ||= { got: 0, expected: 0 });
+              bucket.got += Math.min(m ? m.qty : 0, item.qty);
+              bucket.expected += item.qty;
+            });
+          }
+        }
+        if (activa) (activeDatesBySlot[slotId] ||= new Set()).add(d);
+      });
     });
   });
 
   const rows = slots.map((slot, i) => {
-    const dates = matchedBySlot[slot.id] ?? new Set();
+    const dates = activeDatesBySlot[slot.id] ?? new Set();
     const cells = cols.map((c, idx) => {
       const futuro = per === 'semana' && c.from > tISO;
       if (futuro) return { v: 0, futuro: true, current: idx === current };
@@ -154,11 +273,26 @@ export function comoComes(state, per) {
     .reduce((a, d) => a + state.meals.log[d].length, 0);
   const diasConRegistro = Object.keys(state.meals?.log ?? {})
     .filter((d) => d >= desde && d <= hasta && state.meals.log[d].length > 0).length;
+
+  // El tile de CUMPLIMIENTO reemplaza a ENTRADAS recién cuando hay algo cuantificado que
+  // mostrar — así la grilla de 3 tiles no cambia de forma, solo de contenido.
+  const cumplimientoPct = entradasConItems ? Math.round((sumaCumplimiento / entradasConItems) * 100) : null;
   const stats = [
     { k: 'FRANJAS OK', v: `${rows.filter((r) => r.total > 0).length}/${rows.length || 0}` },
     { k: 'DÍAS CON REGISTRO', v: String(diasConRegistro) },
-    { k: 'ENTRADAS', v: String(entradasEnVentana) },
+    cumplimientoPct === null
+      ? { k: 'ENTRADAS', v: String(entradasEnVentana) }
+      : { k: 'CUMPLIMIENTO', v: `${cumplimientoPct}%` },
   ];
+
+  // Por macro, de mayor a menor cumplimiento: "con qué soy más regular" a simple vista.
+  const macros = Object.keys(macroTotales)
+    .map((tipo) => ({
+      tipo,
+      label: MACRO_LABELS[tipo] || tipo,
+      pct: macroTotales[tipo].expected ? Math.round((macroTotales[tipo].got / macroTotales[tipo].expected) * 100) : 0,
+    }))
+    .sort((a, b) => b.pct - a.pct);
 
   /* Avisos de "calidad" (pedido explícito — ver store/mutations.js, campo `quality` en
      extras): un extra 'malo' (ej. Alcohol) no es una franja, así que no entra a la matriz
@@ -178,5 +312,5 @@ export function comoComes(state, per) {
     }
   });
 
-  return { winLabel, unit, unitAbbr, unitPl, cols, current, rows, stats, alerts };
+  return { winLabel, unit, unitAbbr, unitPl, cols, current, rows, stats, alerts, macros };
 }

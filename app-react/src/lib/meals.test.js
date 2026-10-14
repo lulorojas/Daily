@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { activePlan, comoComes, extraCount, extraLoggedOn, extraMatchDates, extraStreak, matchEntry, normalizeText } from './meals';
+import { activePlan, comoComes, extraCount, extraLoggedOn, extraMatchDates, extraStreak, itemsBreakdown, itemsCompliance, matchEntry, normalizeText, optionLabel } from './meals';
 import { mondayAgo, thisMonday } from '../test/fixtures';
 
 /* ============================================================================
@@ -65,6 +65,80 @@ describe('matchEntry', () => {
 
   it('sin state.meals (cuenta que nunca usó Comidas), no explota', () => {
     expect(matchEntry({}, 'milanesa')).toEqual({ options: [], extras: [] });
+  });
+});
+
+/* Opciones cuantificadas (pedido explícito: "quiero que las opciones de cada comida y lo
+   que yo comí importe... si ese día comí 2 tostadas y 3 huevos"). Lulo confirmó que
+   escribe "número pegado al alimento". */
+describe('matchEntry: opciones con ítems de cantidad', () => {
+  const planItems = [
+    { id: 's1', name: 'Desayuno', options: [{ id: 'o1', items: [{ id: 'i1', name: 'tostadas', qty: 3 }, { id: 'i2', name: 'huevos', qty: 3 }] }] },
+  ];
+
+  it('"2 tostadas" matchea con la cantidad exacta escrita', () => {
+    const s = state({ plan: planItems });
+    const { options } = matchEntry(s, 'comí 2 tostadas y 3 huevos');
+    expect(options).toEqual([{ slotId: 's1', optionId: 'o1', items: [{ itemId: 'i1', qty: 2 }, { itemId: 'i2', qty: 3 }] }]);
+  });
+
+  it('el nombre del ítem SIN número cuenta como "la cantidad entera del plan"', () => {
+    const s = state({ plan: planItems });
+    const { options } = matchEntry(s, 'comí tostadas y huevos');
+    expect(options[0].items).toEqual([{ itemId: 'i1', qty: 3 }, { itemId: 'i2', qty: 3 }]);
+  });
+
+  it('un ítem que no aparece para nada cuenta 0, pero no se omite de la lista', () => {
+    const s = state({ plan: planItems });
+    const { options } = matchEntry(s, 'comí 2 tostadas'); // sin mencionar huevos
+    expect(options[0].items).toEqual([{ itemId: 'i1', qty: 2 }, { itemId: 'i2', qty: 0 }]);
+  });
+
+  it('si NINGÚN ítem aparece, la opción no está referenciada (no hay match)', () => {
+    const s = state({ plan: planItems });
+    expect(matchEntry(s, 'tomé agua nomás').options).toEqual([]);
+  });
+
+  it('sin tildes ni mayúsculas, igual matchea', () => {
+    const s = state({ plan: planItems });
+    expect(matchEntry(s, '3 TOSTADAS').options[0].items[0]).toEqual({ itemId: 'i1', qty: 3 });
+  });
+});
+
+describe('optionLabel', () => {
+  it('una opción de texto libre devuelve su texto', () => {
+    expect(optionLabel({ text: 'Milanesa con ensalada' })).toBe('Milanesa con ensalada');
+  });
+
+  it('una opción cuantificada arma "cantidad nombre" por cada ítem', () => {
+    const option = { items: [{ id: 'i1', name: 'Tostadas', qty: 3 }, { id: 'i2', name: 'Huevos', qty: 3 }] };
+    expect(optionLabel(option)).toBe('3 Tostadas, 3 Huevos');
+  });
+});
+
+describe('itemsBreakdown / itemsCompliance', () => {
+  const option = { items: [{ id: 'i1', name: 'Tostadas', qty: 3 }, { id: 'i2', name: 'Huevos', qty: 3 }] };
+
+  it('itemsBreakdown trae got/expected por cada ítem del plan, en orden', () => {
+    const matched = [{ itemId: 'i1', qty: 2 }, { itemId: 'i2', qty: 3 }];
+    expect(itemsBreakdown(option, matched)).toEqual([
+      { id: 'i1', name: 'Tostadas', tipo: undefined, got: 2, expected: 3 },
+      { id: 'i2', name: 'Huevos', tipo: undefined, got: 3, expected: 3 },
+    ]);
+  });
+
+  it('itemsCompliance: 5 de 6 pedidos entre los dos ítems → 0.83...', () => {
+    const matched = [{ itemId: 'i1', qty: 2 }, { itemId: 'i2', qty: 3 }];
+    expect(itemsCompliance(option, matched)).toBeCloseTo(5 / 6);
+  });
+
+  it('comer de más no da más de 1 (se recorta a lo que pedía el plan)', () => {
+    const matched = [{ itemId: 'i1', qty: 10 }, { itemId: 'i2', qty: 3 }];
+    expect(itemsCompliance(option, matched)).toBe(1);
+  });
+
+  it('nada comido → 0', () => {
+    expect(itemsCompliance(option, [])).toBe(0);
   });
 });
 
@@ -207,5 +281,86 @@ describe('comoComes: avisos de calidad (extras bueno/malo)', () => {
 
   it('un extra neutro (sin quality) no genera ningún aviso', () => {
     expect(comoComes(docConExtra(undefined, [thisMonday]), 'mes').alerts).toEqual([]);
+  });
+});
+
+/* Una opción cuantificada no cuenta el día solo por aparecer: tiene que llegar al menos
+   a la mitad de lo pedido (UMBRAL_CUMPLIMIENTO en lib/meals.js) — pedido explícito:
+   "quiero... una medición de bien o mal", no un simple sí/no de si la tocaste. */
+describe('comoComes: una franja cuantificada exige cumplimiento mínimo', () => {
+  function docConCumplimiento(qtyTostadas, qtyHuevos) {
+    const plan = [{ id: 's1', name: 'Desayuno', options: [{ id: 'o1', items: [{ id: 'i1', name: 'tostadas', qty: 3 }, { id: 'i2', name: 'huevos', qty: 3 }] }] }];
+    const log = {
+      [thisMonday]: [{
+        id: 'x', at: 0, text: 'comí',
+        matches: { options: [{ slotId: 's1', optionId: 'o1', items: [{ itemId: 'i1', qty: qtyTostadas }, { itemId: 'i2', qty: qtyHuevos }] }], extras: [] },
+      }],
+    };
+    return state({ plan, log });
+  }
+
+  it('comer la mitad o más (3 de 6) SÍ cuenta el día como activo', () => {
+    expect(comoComes(docConCumplimiento(3, 0), 'mes').rows[0].total).toBe(1);
+  });
+
+  it('comer menos de la mitad (2 de 6) NO cuenta el día', () => {
+    expect(comoComes(docConCumplimiento(2, 0), 'mes').rows[0].total).toBe(0);
+  });
+
+  it('el tile ENTRADAS se reemplaza por CUMPLIMIENTO cuando hay algo cuantificado', () => {
+    const v = comoComes(docConCumplimiento(2, 2), 'mes'); // 4/6 = 67%
+    const tile = v.stats.find((s) => s.k === 'CUMPLIMIENTO' || s.k === 'ENTRADAS');
+    expect(tile.k).toBe('CUMPLIMIENTO');
+    expect(tile.v).toBe('67%');
+  });
+
+  it('sin ninguna opción cuantificada logueada, el tile sigue siendo ENTRADAS', () => {
+    const v = comoComes(docConFranjaSimple(), 'mes');
+    expect(v.stats.some((s) => s.k === 'ENTRADAS')).toBe(true);
+  });
+
+  function docConFranjaSimple() {
+    const plan = [{ id: 's1', name: 'Almuerzo', options: [{ id: 'o1', text: 'Milanesa' }] }];
+    return state({ plan, log: { [thisMonday]: [{ id: 'x', at: 0, text: 'milanesa', matches: { options: [{ slotId: 's1', optionId: 'o1' }], extras: [] } }] } });
+  }
+});
+
+/* Por macro (pedido explícito, segunda vuelta: "las mediciones podrian hacerse en
+   carbohidratos y proteinas para tambien tener un registro de con que soy mas regular"). */
+describe('comoComes: cumplimiento por macro', () => {
+  function docConMacros(entradas) {
+    const plan = [{
+      id: 's1',
+      name: 'Desayuno',
+      options: [{ id: 'o1', items: [{ id: 'i1', name: 'tostadas', qty: 4, tipo: 'carbo' }, { id: 'i2', name: 'huevos', qty: 2, tipo: 'proteina' }] }],
+    }];
+    const log = {};
+    entradas.forEach(([dISO, qtyTostadas, qtyHuevos]) => {
+      (log[dISO] ||= []).push({
+        id: 'x', at: 0, text: 'comí',
+        matches: { options: [{ slotId: 's1', optionId: 'o1', items: [{ itemId: 'i1', qty: qtyTostadas }, { itemId: 'i2', qty: qtyHuevos }] }], extras: [] },
+      });
+    });
+    return state({ plan, log });
+  }
+
+  it('suma el cumplimiento de cada macro por separado, no mezclado', () => {
+    // Una sola entrada: 4/4 tostadas (100% carbo), 1/2 huevos (50% proteína).
+    const v = comoComes(docConMacros([[thisMonday, 4, 1]]), 'mes');
+    const carbo = v.macros.find((m) => m.tipo === 'carbo');
+    const proteina = v.macros.find((m) => m.tipo === 'proteina');
+    expect(carbo.pct).toBe(100);
+    expect(proteina.pct).toBe(50);
+  });
+
+  it('ordena de mayor a menor cumplimiento ("con qué soy más regular" a simple vista)', () => {
+    const v = comoComes(docConMacros([[thisMonday, 4, 1]]), 'mes');
+    expect(v.macros.map((m) => m.tipo)).toEqual(['carbo', 'proteina']);
+  });
+
+  it('sin ningún ítem clasificado por macro, la lista viene vacía', () => {
+    const plan = [{ id: 's1', name: 'Almuerzo', options: [{ id: 'o1', items: [{ id: 'i1', name: 'arroz', qty: 1 }] }] }]; // sin tipo
+    const log = { [thisMonday]: [{ id: 'x', at: 0, text: 'arroz', matches: { options: [{ slotId: 's1', optionId: 'o1', items: [{ itemId: 'i1', qty: 1 }] }], extras: [] } }] };
+    expect(comoComes(state({ plan, log }), 'mes').macros).toEqual([]);
   });
 });

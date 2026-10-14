@@ -565,6 +565,45 @@ describe('comidas', () => {
       m.addMealOption(d, slot.id, { text: 'Pollo' });
       expect(activePlan(d).slots[0].options.map((o) => o.text)).toEqual(['Milanesa', 'Pollo']);
     });
+
+    /* Opción cuantificada (pedido explícito: "quiero que las opciones de cada comida y
+       lo que yo comí importe"): texto e ítems son mutuamente excluyentes, ver
+       normalizeOptionFields() más arriba en este archivo. */
+    describe('opción cuantificada (ítems con cantidad)', () => {
+      it('agregar una opción con ítems guarda items, no text', () => {
+        const d = vacio();
+        const slot = m.addMealSlot(d, { name: 'Desayuno' });
+        const items = [{ id: 'i1', name: 'tostadas', qty: 3 }, { id: 'i2', name: 'huevos', qty: 3, tipo: 'proteina' }];
+        m.addMealOption(d, slot.id, { items });
+        expect(activePlan(d).slots[0].options[0]).toEqual({ id: expect.any(String), items });
+        expect('text' in activePlan(d).slots[0].options[0]).toBe(false);
+      });
+
+      it('editar una opción de texto a ítems reemplaza limpio (sin dejar el text viejo)', () => {
+        const d = vacio();
+        const slot = m.addMealSlot(d, { name: 'Desayuno' });
+        const opt = m.addMealOption(d, slot.id, { text: 'Tostadas con huevo' });
+        const items = [{ id: 'i1', name: 'tostadas', qty: 3 }];
+
+        m.updateMealOption(d, slot.id, opt.id, { items });
+
+        const guardada = activePlan(d).slots[0].options[0];
+        expect(guardada.items).toEqual(items);
+        expect('text' in guardada).toBe(false);
+      });
+
+      it('editar una opción de ítems a texto reemplaza limpio (sin dejar los items viejos)', () => {
+        const d = vacio();
+        const slot = m.addMealSlot(d, { name: 'Desayuno' });
+        const opt = m.addMealOption(d, slot.id, { items: [{ id: 'i1', name: 'tostadas', qty: 3 }] });
+
+        m.updateMealOption(d, slot.id, opt.id, { text: 'Tostadas con huevo' });
+
+        const guardada = activePlan(d).slots[0].options[0];
+        expect(guardada.text).toBe('Tostadas con huevo');
+        expect('items' in guardada).toBe(false);
+      });
+    });
   });
 
   /* "Nuevo plan" (pedido explícito: historial de planes, versión nueva por ACCIÓN
