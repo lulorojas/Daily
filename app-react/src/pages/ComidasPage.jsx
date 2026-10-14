@@ -9,7 +9,7 @@ import { MealLogBubble } from '../components/comidas/MealLogBubble';
 import { MealLogComposer } from '../components/comidas/MealLogComposer';
 import { PencilIcon } from '../components/ui/Icons';
 import { useData } from '../hooks/useData';
-import { extraCount, extraStreak } from '../lib/meals';
+import { activePlan, extraCount, extraStreak } from '../lib/meals';
 import { addMealLogEntry, deleteMealLogEntry } from '../store/mutations';
 import { iso, mondayOf, parseISO, todayISO } from '../lib/dates';
 import { shiftWeek } from '../lib/items';
@@ -36,7 +36,7 @@ export function ComidasPage() {
   const [day, setDay] = useState(todayISO());
   const [modal, setModal] = useState(null);
 
-  const plan = data.meals?.plan ?? [];
+  const plan = activePlan(data)?.slots ?? [];
   const extras = data.meals?.extras ?? [];
   const log = data.meals?.log ?? {};
   const entradas = log[day] ?? [];

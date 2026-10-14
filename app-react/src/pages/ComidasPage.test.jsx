@@ -5,6 +5,7 @@ import { ComidasPage } from './ComidasPage';
 import { renderScreen } from '../test/utils';
 import { emptyDoc } from '../test/fixtures';
 import { todayISO } from '../lib/dates';
+import { activePlan } from '../lib/meals';
 
 /* ============================================================================
    COMIDAS
@@ -54,7 +55,7 @@ describe('administrar el plan', () => {
     await user.type(screen.getByLabelText('Nombre'), 'Desayuno');
     await user.click(screen.getByRole('button', { name: 'Agregar' }));
 
-    expect(leer().meals.plan.map((s) => s.name)).toEqual(['Desayuno']);
+    expect(activePlan(leer()).slots.map((s) => s.name)).toEqual(['Desayuno']);
     expect(screen.getByRole('dialog', { name: 'Plan de comidas' })).toBeInTheDocument();
   });
 
@@ -68,7 +69,7 @@ describe('administrar el plan', () => {
     await user.type(screen.getByLabelText(/Opción de Almuerzo/), 'Pollo con arroz');
     await user.click(screen.getByRole('button', { name: 'Agregar' }));
 
-    expect(leer().meals.plan[0].options.map((o) => o.text)).toEqual(['Milanesa con ensalada', 'Pollo con arroz']);
+    expect(activePlan(leer()).slots[0].options.map((o) => o.text)).toEqual(['Milanesa con ensalada', 'Pollo con arroz']);
   });
 
   it('borrar una franja pide confirmación', async () => {
@@ -80,13 +81,31 @@ describe('administrar el plan', () => {
     expect(screen.getByText('¿Eliminar "Almuerzo"?')).toBeInTheDocument();
 
     await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Eliminar' }));
-    expect(leer().meals.plan).toEqual([]);
+    expect(activePlan(leer()).slots).toEqual([]);
   });
 
   it('el plan se ve de solo lectura en la pantalla, con sus opciones', () => {
     renderScreen(<ComidasPage />, { doc: docConPlan() });
     expect(screen.getByText('Almuerzo')).toBeInTheDocument();
     expect(screen.getByText('Milanesa con ensalada')).toBeInTheDocument();
+  });
+
+  it('"Nuevo plan" pide confirmación y archiva el plan actual (historial de planes)', async () => {
+    const user = userEvent.setup();
+    const { doc: leer } = renderScreen(<ComidasPage />, { doc: docConPlan() });
+    const viejaId = activePlan(leer()).id;
+
+    await user.click(within(screen.getByText('Plan de comidas').closest('.sect')).getByRole('button', { name: /Editar/ }));
+    await user.click(screen.getByRole('button', { name: /Nuevo plan/ }));
+    expect(screen.getByText('¿Empezar un plan nuevo?')).toBeInTheDocument();
+
+    await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Empezar' }));
+
+    expect(leer().meals.plans).toHaveLength(2);
+    expect(leer().meals.plans.find((p) => p.id === viejaId).endISO).not.toBeNull();
+    // La franja se copia (mismo nombre), pero sin opciones — hay que volver a cargarlas.
+    expect(activePlan(leer()).slots.map((s) => s.name)).toEqual(['Almuerzo']);
+    expect(activePlan(leer()).slots[0].options).toEqual([]);
   });
 });
 
@@ -101,6 +120,19 @@ describe('administrar extras', () => {
     await user.click(screen.getByRole('button', { name: 'Agregar' }));
 
     expect(leer().meals.extras.map((e) => e.name)).toEqual(['Alcohol']);
+  });
+
+  it('crear un extra con calidad "Evitar" la guarda en el documento', async () => {
+    const user = userEvent.setup();
+    const { doc: leer } = renderScreen(<ComidasPage />, { doc: emptyDoc() });
+
+    await user.click(within(screen.getByText('Extras').closest('.sect')).getByRole('button', { name: /Editar/ }));
+    await user.click(screen.getByRole('button', { name: 'Nuevo extra' }));
+    await user.type(screen.getByLabelText('Nombre'), 'Alcohol');
+    await user.click(screen.getByRole('button', { name: 'Evitar' }));
+    await user.click(screen.getByRole('button', { name: 'Agregar' }));
+
+    expect(leer().meals.extras[0]).toMatchObject({ name: 'Alcohol', quality: 'malo' });
   });
 
   it('cada extra muestra cuántas veces apareció esta semana', () => {

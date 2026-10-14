@@ -7,12 +7,30 @@ import { addMealExtra, nextExtraColor, updateMealExtra } from '../../store/mutat
 import { ICON_KEYS } from '../../lib/icons';
 import { C, PALETTE, tint } from '../../lib/theme';
 
+// Las tres calidades que puede tener un extra (pedido explícito: "evitar el alcohol" por
+// un lado, "comí algo fuera del plan que no está tan mal" por el otro). Colores fijos
+// (no var(--accent)): el modal vive fuera de #app (createPortal) y no puede leer el
+// acento de la página — mismo motivo por el que el resto de los campos de este formulario
+// ya usa colores explícitos. `undefined` es "neutro", el comportamiento de siempre
+// (café, permitidos…) — no se guarda como valor, se guarda AUSENCIA del campo.
+const CALIDADES = [
+  { value: undefined, label: 'Neutro', color: 'rgba(242,244,248,.4)' },
+  { value: 'bueno', label: 'Bueno', color: C.green },
+  { value: 'malo', label: 'Evitar', color: C.danger },
+];
+
 /* ----------------------------- NUEVO / EDITAR EXTRA -----------------------------
    Calco de HabitFormModal.jsx, sin el campo "veces por día": un extra no se marca N
    veces, se reconoce (o no) en lo que escribís en la bitácora — ver matchEntry() en
    lib/meals.js. El borrado vive en MealExtrasManager.jsx (con su propio ConfirmDialog,
    igual que gimnasio separa TypesManager de TypeCreateModal), así que acá no hay botón
-   de eliminar. */
+   de eliminar.
+
+   Campo nuevo "Calidad" (pedido explícito, seguimiento de adherencia del plan de
+   comidas): "Evitar" es para algo como Alcohol — "Cómo comés" (Progreso) le dedica un
+   aviso si aparece en el período. "Bueno" es para algo como "Comida libre" — fuera del
+   plan, pero no es un problema, y "Cómo comés" lo cuenta como un aviso informativo en vez
+   de dejarlo invisible. Ver comoComes() en lib/meals.js. */
 export function MealExtraFormModal({ extra, onClose, onSaved }) {
   const { data, update } = useData();
   const editing = !!extra;
@@ -22,6 +40,7 @@ export function MealExtraFormModal({ extra, onClose, onSaved }) {
   const [name, setName] = useState(extra?.name ?? '');
   const [color, setColor] = useState(extra?.color ?? nextExtraColor(data));
   const [icon, setIcon] = useState(extra?.icon ?? 'estrella');
+  const [quality, setQuality] = useState(extra?.quality);
   const [error, setError] = useState(null);
 
   const handleSave = () => {
@@ -31,7 +50,7 @@ export function MealExtraFormModal({ extra, onClose, onSaved }) {
       nameRef.current?.focus();
       return;
     }
-    const fields = { name: trimmed, color, icon };
+    const fields = { name: trimmed, color, icon, quality };
     update((draft) => {
       if (editing) updateMealExtra(draft, extra.id, fields);
       else addMealExtra(draft, fields);
@@ -56,6 +75,26 @@ export function MealExtraFormModal({ extra, onClose, onSaved }) {
           value={name}
           onChange={(e) => { setName(e.target.value); if (error) setError(null); }}
         />
+      </Field>
+
+      <Field label="Calidad">
+        <div className="qualitypick">
+          {CALIDADES.map((q) => {
+            const on = quality === q.value;
+            return (
+              <button
+                type="button"
+                key={q.label}
+                className="qbtn"
+                style={on ? { background: tint(q.color, '24'), borderColor: q.color, color: q.color } : undefined}
+                aria-pressed={on}
+                onClick={() => setQuality(q.value)}
+              >
+                {q.label}
+              </button>
+            );
+          })}
+        </div>
       </Field>
 
       <Field label="Ícono">

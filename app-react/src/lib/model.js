@@ -29,8 +29,8 @@
        onboarding: { seen: boolean },
        fcmTokens?:  [ 'token de FCM de cada dispositivo que activó notificaciones' ],
        meals?: {                      // seguidor de comidas, ver abajo — campo opcional
-         plan: [ { id, name, options:[ { id, text } ] } ],
-         extras: [ { id, name, color, icon } ],
+         plans: [ { id, startISO, endISO: string|null, slots:[ { id, name, options:[ { id, text } ] } ] } ],
+         extras: [ { id, name, color, icon, quality?: 'bueno'|'malo' } ],
          log: { 'YYYY-MM-DD': [ { id, at, text, matches:{ options:[], extras:[] } } ] },
        },
        migratedFrom?, migratedAt?,     // solo en cuentas que vienen de daily.v1
@@ -71,6 +71,8 @@
       Están marcadas una por una más abajo.
    ============================================================================ */
 import { REST } from './gym';
+import { todayISO } from './dates';
+import { uid } from './ids';
 
 /* Copia profunda. structuredClone conserva todo (incluso claves con undefined); el
    fallback por JSON es para entornos viejos. Se clona porque en React el estado tiene
@@ -90,6 +92,18 @@ export function seed() {
     habitLog: {},
     onboarding: { seen: false },
   };
+}
+
+/* Migración única, historial de planes de comidas (pedido explícito: "el plan cambia de
+   nutricionista en nutricionista, quiero guardar el historial"): `meals.plan` (una lista
+   plana de franjas, sin versión) pasa a `meals.plans` (array de versiones, cada una con
+   `startISO`/`endISO` y las mismas franjas de antes adentro de `.slots`). La versión
+   vieja se envuelve en una sola versión "activa" (`endISO: null`) para no perder nada ya
+   cargado. Idempotente — si ya existe `meals.plans` no se toca. */
+function migrateMealsPlan(meals) {
+  if (meals.plans || !meals.plan) return;
+  meals.plans = [{ id: uid(), startISO: todayISO(), endISO: null, slots: meals.plan }];
+  delete meals.plan;
 }
 
 /* Migración única, seguimiento por músculo: un día viejo tenía `type`/`type2` (un solo
@@ -161,7 +175,8 @@ export function normalize(input) {
   // abrió Comidas no gana un campo nuevo en su documento (writes.test.js no se entera).
   // Si ya existe (por mínimo que sea), se sanean sus sub-campos por las dudas.
   if (s.meals) {
-    s.meals.plan ||= [];
+    migrateMealsPlan(s.meals);
+    s.meals.plans ||= [];
     s.meals.extras ||= [];
     s.meals.log ||= {};
   }

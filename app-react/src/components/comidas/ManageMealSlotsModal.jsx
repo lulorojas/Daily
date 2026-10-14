@@ -11,7 +11,7 @@ import { clickable } from '../ui/clickable';
    borra — las tres acciones de más (mover/editar/borrar) cortan la propagación con
    clickable()/stopPropagation, igual que TaskRow hace con su checkbox: tocar la fila abre
    las opciones, tocar un botón de adentro NO. */
-export function ManageMealSlotsModal({ slots, onClose, onNew, onOpenOptions, onEdit, onDelete, onMove }) {
+export function ManageMealSlotsModal({ slots, onClose, onNew, onOpenOptions, onEdit, onDelete, onMove, onNewPlan }) {
   return (
     <Modal title="Plan de comidas" onClose={onClose}>
       <div className="fld">
@@ -70,6 +70,12 @@ export function ManageMealSlotsModal({ slots, onClose, onNew, onOpenOptions, onE
         <div className="managetypes-note">
           Cada franja puede tener varias opciones — tocá una franja para administrarlas.
         </div>
+
+        {slots.length > 0 && (
+          <button type="button" className="pillbtn comidas comidas-newplan" onClick={onNewPlan}>
+            Nuevo plan (el nutricionista me dio uno distinto)
+          </button>
+        )}
       </div>
     </Modal>
   );

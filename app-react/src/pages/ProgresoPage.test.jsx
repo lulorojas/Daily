@@ -190,6 +190,30 @@ describe('las otras secciones', () => {
     expect(within(sect).getAllByText(/\/sem$/).length).toBeGreaterThan(0);
   });
 
+  it('"Cómo comés" invita a armar el plan cuando todavía no hay ninguno', () => {
+    renderScreen(<ProgresoPage />, { doc: fullDoc() });
+    const sect = screen.getByText('Cómo comés').closest('.sect');
+    expect(within(sect).getByText(/Armá tu plan de comidas/)).toBeInTheDocument();
+  });
+
+  it('"Cómo comés" muestra la franja y avisa de un extra a evitar que apareció (pedido explícito: seguimiento de comidas)', () => {
+    const doc = fullDoc();
+    doc.meals = {
+      plans: [{ id: 'p1', startISO: thisMonday, endISO: null, slots: [{ id: 's1', name: 'Almuerzo', options: [{ id: 'o1', text: 'Milanesa' }] }] }],
+      extras: [{ id: 'e1', name: 'Alcohol', color: '#fff', icon: 'agua', quality: 'malo' }],
+      log: {
+        [thisMonday]: [
+          { id: 'x1', at: 0, text: 'milanesa y una cerveza, alcohol', matches: { options: [{ slotId: 's1', optionId: 'o1' }], extras: ['e1'] } },
+        ],
+      },
+    };
+    renderScreen(<ProgresoPage />, { doc });
+
+    const sect = screen.getByText('Cómo comés').closest('.sect');
+    expect(within(sect).getByText('Almuerzo')).toBeInTheDocument();
+    expect(within(sect).getByText(/Alcohol: 1 vez en este período/)).toBeInTheDocument();
+  });
+
   it('tocar una celda del mapa despliega el globito con qué se entrenó ese día, y tocar afuera lo cierra', async () => {
     const user = userEvent.setup();
     const doc = fullDoc();

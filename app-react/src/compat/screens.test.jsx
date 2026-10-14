@@ -247,10 +247,10 @@ function progresoVanilla(doc, per = 'mes') {
   return texto(cont);
 }
 
-// "Cómo venís" (rediseño "Glass + aurora"), "Mapa de entrenamientos" (etapa 7) y
-// "Frecuencia semanal" (pedido explícito, tabla nueva y separada de "Cómo venís") son
+// "Cómo venís" (rediseño "Glass + aurora"), "Mapa de entrenamientos" (etapa 7),
+// "Frecuencia semanal" y "Cómo comés" (seguimiento de adherencia al plan de comidas) son
 // 100% React, vanilla no las tiene, así que se sacan de este lado antes de comparar.
-const SIN_EQUIVALENTE_EN_VANILLA = ['Cómo venís', 'Mapa de entrenamientos', 'Frecuencia semanal'];
+const SIN_EQUIVALENTE_EN_VANILLA = ['Cómo venís', 'Mapa de entrenamientos', 'Frecuencia semanal', 'Cómo comés'];
 
 function progresoReact(doc) {
   const { container } = renderScreen(<ProgresoPage />, { doc: clone(doc) });

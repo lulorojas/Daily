@@ -5,7 +5,8 @@ import { ManageMealOptionsModal } from './ManageMealOptionsModal';
 import { MealOptionFormModal } from './MealOptionFormModal';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { useData } from '../../hooks/useData';
-import { deleteMealOption, deleteMealSlot, moveMealSlot } from '../../store/mutations';
+import { activePlan } from '../../lib/meals';
+import { deleteMealOption, deleteMealSlot, moveMealSlot, startNewMealPlan } from '../../store/mutations';
 
 /* ----------------------------- FLUJO DE "ADMINISTRAR EL PLAN" -----------------------------
    Misma máquina de estados que TypesManager.jsx (gimnasio), con un nivel más: el plan
@@ -19,14 +20,21 @@ import { deleteMealOption, deleteMealSlot, moveMealSlot } from '../../store/muta
    `paso.slot` se vuelve a leer del documento en cada render (no se guarda el objeto
    entero en el estado) porque después de agregar una opción el `slot` del estado sería
    el de antes — una copia vieja, sin la opción nueva. Guardar el id y re-buscar es lo
-   mismo que hace GymPage con `modal.liftId`. */
+   mismo que hace GymPage con `modal.liftId`.
+
+   Todo esto opera sobre activePlan(data) (lib/meals.js), la versión VIGENTE del plan —
+   pedido explícito, historial de planes: el nutricionista actualiza el plan de vez en
+   cuando y Lulo quiere guardar las versiones viejas, no pisarlas. "Nuevo plan" (botón al
+   pie de ManageMealSlotsModal) archiva la activa y arranca otra; nada de lo de acá arriba
+   —franja-form/opciones/opcion-form— crea una versión nueva, solo edita la vigente. */
 export function MealPlanManager({ onClose }) {
   const { data, update } = useData();
   const [paso, setPaso] = useState({ vista: 'franjas' });
   const [borrandoSlot, setBorrandoSlot] = useState(null);
   const [borrandoOpcion, setBorrandoOpcion] = useState(null);
+  const [nuevoPlan, setNuevoPlan] = useState(false);
 
-  const slots = data.meals?.plan ?? [];
+  const slots = activePlan(data)?.slots ?? [];
   const slotActual = paso.slotId ? slots.find((s) => s.id === paso.slotId) : null;
 
   const handleDeleteSlot = () => {
@@ -37,6 +45,11 @@ export function MealPlanManager({ onClose }) {
   const handleDeleteOpcion = () => {
     update((draft) => deleteMealOption(draft, slotActual.id, borrandoOpcion.id));
     setBorrandoOpcion(null);
+  };
+
+  const handleNuevoPlan = () => {
+    update((draft) => startNewMealPlan(draft));
+    setNuevoPlan(false);
   };
 
   return (
@@ -50,6 +63,7 @@ export function MealPlanManager({ onClose }) {
           onEdit={(s) => setPaso({ vista: 'franja-form', slotId: s.id })}
           onDelete={(s) => setBorrandoSlot(s)}
           onMove={(id, dir) => update((draft) => moveMealSlot(draft, id, dir))}
+          onNewPlan={() => setNuevoPlan(true)}
         />
       )}
 
@@ -97,6 +111,16 @@ export function MealPlanManager({ onClose }) {
           okLabel="Eliminar"
           onConfirm={handleDeleteOpcion}
           onCancel={() => setBorrandoOpcion(null)}
+        />
+      )}
+
+      {nuevoPlan && (
+        <ConfirmDialog
+          title="¿Empezar un plan nuevo?"
+          description="El plan actual queda archivado (con su historial) y arranca uno con las mismas franjas, sin opciones — las vas a cargar de nuevo. La bitácora ya escrita no se modifica."
+          okLabel="Empezar"
+          onConfirm={handleNuevoPlan}
+          onCancel={() => setNuevoPlan(false)}
         />
       )}
     </>

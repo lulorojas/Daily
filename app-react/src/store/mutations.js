@@ -20,7 +20,8 @@ import { PALETTE } from '../lib/theme';
 import { emptyWeekPlan, REST } from '../lib/gym';
 import { moveInArray } from '../lib/arrays';
 import { habitMarks } from '../lib/habits';
-import { matchEntry } from '../lib/meals';
+import { activePlan, matchEntry } from '../lib/meals';
+import { todayISO } from '../lib/dates';
 
 /* ============================ agenda (items) ============================ */
 
@@ -441,42 +442,56 @@ export function setOnboardingSeen(draft, seen) {
    `draft.meals ||= {...}`: recién se materializa en el documento la primera vez que
    de verdad se guarda algo. */
 function ensureMeals(draft) {
-  draft.meals ||= { plan: [], extras: [], log: {} };
+  draft.meals ||= { plans: [], extras: [], log: {} };
   return draft.meals;
 }
 
-/* ---- plan: franjas (Desayuno/Almuerzo/...) y sus opciones ---- */
-export function addMealSlot(draft, { name }) {
+/* La versión de plan donde escribir franjas/opciones: la activa si ya hay una, o una
+   recién creada (vacía) si todavía no se tocó el plan ni una vez — así addMealSlot() de
+   una cuenta nueva no necesita un caso especial "crear la primera versión". */
+function ensureActivePlan(draft) {
   const meals = ensureMeals(draft);
+  let plan = activePlan(draft);
+  if (!plan) {
+    plan = { id: uid(), startISO: todayISO(), endISO: null, slots: [] };
+    meals.plans.push(plan);
+  }
+  return plan;
+}
+
+/* ---- plan: franjas (Desayuno/Almuerzo/...) y sus opciones, todo sobre la versión ACTIVA
+   (ver activePlan() en lib/meals.js) ---- */
+export function addMealSlot(draft, { name }) {
+  const plan = ensureActivePlan(draft);
   const slot = { id: uid(), name, options: [] };
-  meals.plan.push(slot);
+  plan.slots.push(slot);
   return slot;
 }
 
 export function updateMealSlot(draft, slotId, { name }) {
-  const slot = ensureMeals(draft).plan.find((s) => s.id === slotId);
+  const slot = ensureActivePlan(draft).slots.find((s) => s.id === slotId);
   if (!slot) return false;
   slot.name = name;
   return true;
 }
 
 // Borrar una franja NO toca la bitácora ya escrita: una entrada vieja que había
-// matcheado una opción de esa franja se queda con el id guardado, aunque ya no exista
-// en meals.plan — mismo criterio que borrar un tipo de gym no reescribe el historial.
+// matcheado una opción de esa franja se queda con el id guardado, aunque ya no exista en
+// el plan activo — mismo criterio que borrar un tipo de gym no reescribe el historial.
 export function deleteMealSlot(draft, slotId) {
-  const meals = ensureMeals(draft);
-  const before = meals.plan.length;
-  meals.plan = meals.plan.filter((s) => s.id !== slotId);
-  return meals.plan.length !== before;
+  const plan = ensureActivePlan(draft);
+  const before = plan.slots.length;
+  plan.slots = plan.slots.filter((s) => s.id !== slotId);
+  return plan.slots.length !== before;
 }
 
 export function moveMealSlot(draft, slotId, dir) {
-  const meals = ensureMeals(draft);
-  return moveInArray(meals.plan, meals.plan.findIndex((s) => s.id === slotId), dir);
+  const plan = ensureActivePlan(draft);
+  return moveInArray(plan.slots, plan.slots.findIndex((s) => s.id === slotId), dir);
 }
 
 export function addMealOption(draft, slotId, { text }) {
-  const slot = ensureMeals(draft).plan.find((s) => s.id === slotId);
+  const slot = ensureActivePlan(draft).slots.find((s) => s.id === slotId);
   if (!slot) return null;
   const option = { id: uid(), text };
   slot.options.push(option);
@@ -484,7 +499,7 @@ export function addMealOption(draft, slotId, { text }) {
 }
 
 export function updateMealOption(draft, slotId, optionId, { text }) {
-  const slot = ensureMeals(draft).plan.find((s) => s.id === slotId);
+  const slot = ensureActivePlan(draft).slots.find((s) => s.id === slotId);
   const option = slot && slot.options.find((o) => o.id === optionId);
   if (!option) return false;
   option.text = text;
@@ -492,11 +507,32 @@ export function updateMealOption(draft, slotId, optionId, { text }) {
 }
 
 export function deleteMealOption(draft, slotId, optionId) {
-  const slot = ensureMeals(draft).plan.find((s) => s.id === slotId);
+  const slot = ensureActivePlan(draft).slots.find((s) => s.id === slotId);
   if (!slot) return false;
   const before = slot.options.length;
   slot.options = slot.options.filter((o) => o.id !== optionId);
   return slot.options.length !== before;
+}
+
+/* "Nuevo plan" (pedido explícito: "quiero guardar el historial de planes", y que la
+   versión cambie por ACCIÓN EXPLÍCITA, no sola — editar una opción del plan de hoy no
+   crea una versión nueva, esto sí). Archiva la versión activa (le pone endISO:hoy) y
+   arranca una con las MISMAS franjas (nombres) pero sin opciones: la estructura —
+   Desayuno/Almuerzo/Merienda/Cena — rara vez cambia de nutricionista a nutricionista, así
+   que copiarla ahorra tipeo sin arrastrar comida que ya no corresponde. Si todavía no
+   había ningún plan, esto se comporta igual que ensureActivePlan: crea el primero. */
+export function startNewMealPlan(draft) {
+  const meals = ensureMeals(draft);
+  const actual = activePlan(draft);
+  if (actual) actual.endISO = todayISO();
+  const nuevo = {
+    id: uid(),
+    startISO: todayISO(),
+    endISO: null,
+    slots: (actual?.slots ?? []).map((s) => ({ id: uid(), name: s.name, options: [] })),
+  };
+  meals.plans.push(nuevo);
+  return nuevo;
 }
 
 /* ---- extras: catálogo libre (café, alcohol, permitidos…), calco de habits ---- */
@@ -504,19 +540,26 @@ export function nextExtraColor(state) {
   return PALETTE[(state.meals?.extras.length ?? 0) % PALETTE.length];
 }
 
-export function addMealExtra(draft, { name, color, icon }) {
+// `quality` ('bueno'|'malo', opcional) es lo que deja que "Cómo comés" (lib/meals.js,
+// comoComes()) sepa que un extra como Alcohol hay que evitarlo o que uno como "Comida
+// libre" está bien aunque esté fuera del plan — sin valor, un extra sigue siendo neutro
+// como hasta ahora (café, permitidos). Se guarda SOLO si viene con algo: un extra neutro
+// no tiene la clave `quality` en absoluto, no `quality: undefined`.
+export function addMealExtra(draft, { name, color, icon, quality }) {
   const meals = ensureMeals(draft);
   const extra = { id: uid(), name, color, icon };
+  if (quality) extra.quality = quality;
   meals.extras.push(extra);
   return extra;
 }
 
-export function updateMealExtra(draft, id, { name, color, icon }) {
+export function updateMealExtra(draft, id, { name, color, icon, quality }) {
   const extra = ensureMeals(draft).extras.find((e) => e.id === id);
   if (!extra) return false;
   extra.name = name;
   extra.color = color;
   extra.icon = icon;
+  if (quality) extra.quality = quality; else delete extra.quality;
   return true;
 }
 

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { PeriodSelector } from '../components/progreso/PeriodSelector';
 import { ProgComoVenis } from '../components/progreso/ProgComoVenis';
 import { ProgWeeklyFreq } from '../components/progreso/ProgWeeklyFreq';
+import { ProgComoComes } from '../components/progreso/ProgComoComes';
 import { ProgBodyWeight } from '../components/progreso/ProgBodyWeight';
 import { ProgRanking } from '../components/progreso/ProgRanking';
 import { ProgBalance } from '../components/progreso/ProgBalance';
@@ -44,7 +45,13 @@ import { progStart } from '../lib/progress';
    calcule aparte y se superponga con lo que ya cuentan "Cómo venís"/"Entrenamientos por
    tipo". Por el mismo pedido, "Resumen" entra a la lista de arriba que
    src/compat/screens.test.jsx le saca a vanilla antes de comparar texto (vanilla sigue
-   teniéndolo, React ya no). */
+   teniéndolo, React ya no).
+
+   Tercera vuelta, pedido explícito ("quiero que a nivel seguimiento daily entienda si
+   estoy comiendo bien o mal" + "¿dónde lo mostrás? — en Progreso, junto a Cómo venís"):
+   se agrega ProgComoComes, calco de ProgComoVenis para el plan de comidas — ver
+   comoComes() en lib/meals.js. Tampoco tiene equivalente en vanilla, mismo tratamiento
+   que "Cómo venís" en screens.test.jsx. */
 export function ProgresoPage() {
   const { data } = useData();
   const [period, setPeriod] = useState('mes');
@@ -63,6 +70,7 @@ export function ProgresoPage() {
       <div className="body prog2">
         <ProgComoVenis data={data} per={period} />
         <ProgWeeklyFreq data={data} per={period} />
+        <ProgComoComes data={data} per={period} />
 
         <ProgBodyWeight data={data} per={period} start={start} />
         <ProgRanking data={data} per={period} start={start} />

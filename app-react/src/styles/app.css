@@ -371,6 +371,13 @@ a.rcover { display: block; }
   background: #B49BE828; color: var(--violet);
   display: flex; align-items: center; gap: 6px;
 }
+.comidas-newplan { width: 100%; justify-content: center; margin-top: 10px; }
+
+/* Selector de "Calidad" de un extra (Neutro/Bueno/Evitar) — tres píldoras, mismo tamaño
+   de toque que .ibtn/.cdot de arriba. Colores explícitos por botón (ver comentario de
+   CALIDADES en MealExtraFormModal.jsx): el modal no puede leer var(--accent). */
+.qualitypick { display: flex; gap: 8px; }
+.qbtn { flex: 1; height: 38px; border-radius: 12px; border: 1.5px solid var(--line); background: rgba(255, 255, 255, .03); font-size: 12.5px; font-weight: 600; color: rgba(242, 244, 248, .5); cursor: pointer; }
 
 /* ---- el plan, de solo lectura ---- */
 .mealslot { padding: 12px 2px; }

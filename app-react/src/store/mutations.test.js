@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { normalize } from '../lib/model';
+import { activePlan } from '../lib/meals';
 import { emptyDoc, fullDoc, TODAY, ago } from '../test/fixtures';
 import * as m from './mutations';
 
@@ -480,7 +481,9 @@ describe('después de cualquier escritura, el documento sigue siendo válido', (
     'marcar onboarding': (d) => m.setOnboardingSeen(d, true),
     'agregar franja de comidas': (d) => m.addMealSlot(d, { name: 'Desayuno' }),
     'agregar extra de comidas': (d) => m.addMealExtra(d, { name: 'Café', color: '#fff', icon: 'agua' }),
+    'agregar extra de comidas con calidad': (d) => m.addMealExtra(d, { name: 'Alcohol', color: '#fff', icon: 'agua', quality: 'malo' }),
     'agregar entrada a la bitácora de comidas': (d) => m.addMealLogEntry(d, TODAY, 'tomé un café'),
+    'empezar un plan de comidas nuevo': (d) => { m.addMealSlot(d, { name: 'Desayuno' }); m.startNewMealPlan(d); },
   };
 
   it.each(Object.keys(operaciones))('%s: normalize() no le cambia nada', (nombre) => {
@@ -505,27 +508,27 @@ describe('comidas', () => {
     expect(d.meals).toBeTruthy();
   });
 
-  describe('plan: franjas y opciones', () => {
+  describe('plan: franjas y opciones (sobre la versión ACTIVA, ver activePlan en lib/meals.js)', () => {
     it('agregar una franja la suma al final', () => {
       const d = vacio();
       m.addMealSlot(d, { name: 'Desayuno' });
       m.addMealSlot(d, { name: 'Almuerzo' });
-      expect(d.meals.plan.map((s) => s.name)).toEqual(['Desayuno', 'Almuerzo']);
-      expect(d.meals.plan[0].options).toEqual([]);
+      expect(activePlan(d).slots.map((s) => s.name)).toEqual(['Desayuno', 'Almuerzo']);
+      expect(activePlan(d).slots[0].options).toEqual([]);
     });
 
     it('renombrar una franja', () => {
       const d = vacio();
       const slot = m.addMealSlot(d, { name: 'Desayuno' });
       m.updateMealSlot(d, slot.id, { name: 'Mañana' });
-      expect(d.meals.plan[0].name).toBe('Mañana');
+      expect(activePlan(d).slots[0].name).toBe('Mañana');
     });
 
     it('borrar una franja la saca de la lista', () => {
       const d = vacio();
       const slot = m.addMealSlot(d, { name: 'Desayuno' });
       expect(m.deleteMealSlot(d, slot.id)).toBe(true);
-      expect(d.meals.plan).toEqual([]);
+      expect(activePlan(d).slots).toEqual([]);
     });
 
     it('borrar una franja que no existe da false', () => {
@@ -539,20 +542,20 @@ describe('comidas', () => {
       const a = m.addMealSlot(d, { name: 'A' });
       m.addMealSlot(d, { name: 'B' });
       m.moveMealSlot(d, a.id, 1);
-      expect(d.meals.plan.map((s) => s.name)).toEqual(['B', 'A']);
+      expect(activePlan(d).slots.map((s) => s.name)).toEqual(['B', 'A']);
     });
 
     it('agregar/editar/borrar una opción dentro de una franja', () => {
       const d = vacio();
       const slot = m.addMealSlot(d, { name: 'Almuerzo' });
       const opt = m.addMealOption(d, slot.id, { text: 'Milanesa con ensalada' });
-      expect(d.meals.plan[0].options).toEqual([{ id: opt.id, text: 'Milanesa con ensalada' }]);
+      expect(activePlan(d).slots[0].options).toEqual([{ id: opt.id, text: 'Milanesa con ensalada' }]);
 
       m.updateMealOption(d, slot.id, opt.id, { text: 'Milanesa con puré' });
-      expect(d.meals.plan[0].options[0].text).toBe('Milanesa con puré');
+      expect(activePlan(d).slots[0].options[0].text).toBe('Milanesa con puré');
 
       expect(m.deleteMealOption(d, slot.id, opt.id)).toBe(true);
-      expect(d.meals.plan[0].options).toEqual([]);
+      expect(activePlan(d).slots[0].options).toEqual([]);
     });
 
     it('una franja admite varias opciones a la vez', () => {
@@ -560,7 +563,63 @@ describe('comidas', () => {
       const slot = m.addMealSlot(d, { name: 'Almuerzo' });
       m.addMealOption(d, slot.id, { text: 'Milanesa' });
       m.addMealOption(d, slot.id, { text: 'Pollo' });
-      expect(d.meals.plan[0].options.map((o) => o.text)).toEqual(['Milanesa', 'Pollo']);
+      expect(activePlan(d).slots[0].options.map((o) => o.text)).toEqual(['Milanesa', 'Pollo']);
+    });
+  });
+
+  /* "Nuevo plan" (pedido explícito: historial de planes, versión nueva por ACCIÓN
+     EXPLÍCITA — nunca automática al editar una opción). */
+  describe('startNewMealPlan', () => {
+    it('sin ningún plan todavía, se comporta como crear el primero', () => {
+      const d = vacio();
+      const nuevo = m.startNewMealPlan(d);
+      expect(activePlan(d).id).toBe(nuevo.id);
+      expect(activePlan(d).slots).toEqual([]);
+    });
+
+    it('archiva la versión activa (le pone endISO) y crea una nueva vigente', () => {
+      const d = vacio();
+      const slot = m.addMealSlot(d, { name: 'Almuerzo' });
+      m.addMealOption(d, slot.id, { text: 'Milanesa' });
+      const vieja = activePlan(d);
+
+      const nuevo = m.startNewMealPlan(d);
+
+      expect(d.meals.plans.find((p) => p.id === vieja.id).endISO).toBe(TODAY);
+      expect(activePlan(d).id).toBe(nuevo.id);
+      expect(d.meals.plans).toHaveLength(2);
+    });
+
+    it('copia los NOMBRES de franja de la versión vieja, sin las opciones', () => {
+      const d = vacio();
+      const slot = m.addMealSlot(d, { name: 'Almuerzo' });
+      m.addMealOption(d, slot.id, { text: 'Milanesa' });
+
+      m.startNewMealPlan(d);
+
+      expect(activePlan(d).slots.map((s) => s.name)).toEqual(['Almuerzo']);
+      expect(activePlan(d).slots[0].options).toEqual([]);
+      // Y con un id propio, no el mismo de la franja archivada.
+      expect(activePlan(d).slots[0].id).not.toBe(slot.id);
+    });
+
+    it('editar una opción del plan actual NO crea una versión nueva', () => {
+      const d = vacio();
+      m.addMealSlot(d, { name: 'Almuerzo' });
+      m.startNewMealPlan(d); // ahora hay 2 versiones
+      m.updateMealSlot(d, activePlan(d).slots[0].id, { name: 'Mediodía' });
+      expect(d.meals.plans).toHaveLength(2);
+    });
+
+    it('una entrada de la bitácora ya escrita no cambia al archivar su plan', () => {
+      const d = vacio();
+      const slot = m.addMealSlot(d, { name: 'Almuerzo' });
+      m.addMealOption(d, slot.id, { text: 'Milanesa' });
+      const entry = m.addMealLogEntry(d, TODAY, 'comí milanesa');
+
+      m.startNewMealPlan(d);
+
+      expect(d.meals.log[TODAY][0]).toEqual(entry);
     });
   });
 
@@ -599,6 +658,30 @@ describe('comidas', () => {
       expect(d.meals.log[TODAY][0].matches.extras).toEqual([extra.id]);
       expect(d.meals.extras).toEqual([]);
     });
+
+    /* `quality` (pedido explícito: evitar el alcohol por un lado, "comí algo fuera del
+       plan que no está tan mal" por el otro — ver comoComes() en lib/meals.js). Sin
+       valor, un extra sigue siendo neutro: ni gana la clave `quality` en el documento. */
+    describe('quality', () => {
+      it('un extra sin quality no tiene esa clave en absoluto (neutro, como siempre)', () => {
+        const d = vacio();
+        const extra = m.addMealExtra(d, { name: 'Café', color: '#fff', icon: 'agua' });
+        expect('quality' in extra).toBe(false);
+      });
+
+      it('se guarda si viene con algo (ej. "malo" para Alcohol)', () => {
+        const d = vacio();
+        const extra = m.addMealExtra(d, { name: 'Alcohol', color: '#fff', icon: 'agua', quality: 'malo' });
+        expect(d.meals.extras[0].quality).toBe('malo');
+      });
+
+      it('editar puede sacarle la calidad a un extra (volverlo neutro)', () => {
+        const d = vacio();
+        const extra = m.addMealExtra(d, { name: 'Alcohol', color: '#fff', icon: 'agua', quality: 'malo' });
+        m.updateMealExtra(d, extra.id, { name: 'Alcohol', color: '#fff', icon: 'agua', quality: undefined });
+        expect('quality' in d.meals.extras[0]).toBe(false);
+      });
+    });
   });
 
   describe('bitácora diaria', () => {
@@ -609,7 +692,7 @@ describe('comidas', () => {
       const entry = m.addMealLogEntry(d, TODAY, 'Comí milanesa con ensalada');
 
       expect(entry.text).toBe('Comí milanesa con ensalada');
-      expect(entry.matches.options).toEqual([{ slotId: slot.id, optionId: d.meals.plan[0].options[0].id }]);
+      expect(entry.matches.options).toEqual([{ slotId: slot.id, optionId: activePlan(d).slots[0].options[0].id }]);
       expect(d.meals.log[TODAY]).toEqual([entry]);
     });
 

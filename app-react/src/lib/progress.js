@@ -194,7 +194,9 @@ const DOW_1 = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 
 // Unidad abreviada para los números apretados (tiles, promedio por fila): "semana" no
 // entra en una tile de 20px, "sem" sí. La prosa de los avisos usa la palabra completa.
-const UNIT_ABBR = { día: 'día', semana: 'sem', mes: 'mes', trimestre: 'trim' };
+// Exportada: "Cómo comés" (lib/meals.js) la reusa para que sus tiles hablen el mismo
+// idioma que "Cómo venís" en vez de inventar sus propias abreviaturas.
+export const UNIT_ABBR = { día: 'día', semana: 'sem', mes: 'mes', trimestre: 'trim' };
 
 /* Regularidad por músculo (pedido explícito, segunda vuelta: "buscale otro termino a cada
    regularidad" — 4 de 4 columnas activas = Regular, 3 de 4 = Aceptable, 2 de 4 =
@@ -216,6 +218,14 @@ const REGULARIDAD = {
   2: { label: 'IRREGULAR', color: C.amber },
   1: { label: 'INSUFICIENTE', color: C.danger },
 };
+
+// Exportada: "Cómo comés" (lib/meals.js, seguimiento de adherencia al plan de comidas) la
+// reusa tal cual para que las dos pantallas midan la regularidad con la misma vara —
+// mismos 4 baldes, mismo redondeo proporcional. `activas`/`vigentes` tienen el mismo
+// significado que acá arriba (columnas con algo adentro / columnas no futuras).
+export function regularidadPorRatio(activas, vigentes) {
+  return REGULARIDAD[Math.min(4, Math.max(1, Math.round((activas / vigentes) * 4)))];
+}
 
 export function comoVenis(state, per) {
   const { cols, current, unit, unitPl, winLabel } = comoVenisColumns(per);
@@ -252,7 +262,7 @@ export function comoVenis(state, per) {
     // se deja `activas` porque es la cuenta que ya hace falta para el ratio de abajo.
     const status = activas === 0
       ? { label: 'SIN ENTRENAR', color: C.danger }
-      : REGULARIDAD[Math.min(4, Math.max(1, Math.round((activas / vigentes.length) * 4)))];
+      : regularidadPorRatio(activas, vigentes.length);
 
     return {
       ...t, cells, total, trail, allOn, vigentes: vigentes.length, activas,
