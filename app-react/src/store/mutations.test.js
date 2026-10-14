@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { normalize } from '../lib/model';
 import { activePlan } from '../lib/meals';
+import { PLAN_NUTRI_2026_10 } from '../lib/mealPlanTemplates';
 import { emptyDoc, fullDoc, TODAY, ago } from '../test/fixtures';
 import * as m from './mutations';
 
@@ -484,6 +485,12 @@ describe('después de cualquier escritura, el documento sigue siendo válido', (
     'agregar extra de comidas con calidad': (d) => m.addMealExtra(d, { name: 'Alcohol', color: '#fff', icon: 'agua', quality: 'malo' }),
     'agregar entrada a la bitácora de comidas': (d) => m.addMealLogEntry(d, TODAY, 'tomé un café'),
     'empezar un plan de comidas nuevo': (d) => { m.addMealSlot(d, { name: 'Desayuno' }); m.startNewMealPlan(d); },
+    'cargar el plan de la nutricionista': (d) => m.loadMealPlanTemplate(d, PLAN_NUTRI_2026_10),
+    'registrar una comida tocando': (d) => {
+      const plan = m.loadMealPlanTemplate(d, PLAN_NUTRI_2026_10);
+      const slot = plan.slots[0];
+      m.addMealLogStructured(d, TODAY, { slotId: slot.id, optionId: slot.options[0].id, qtys: {}, pesado: true });
+    },
   };
 
   it.each(Object.keys(operaciones))('%s: normalize() no le cambia nada', (nombre) => {
@@ -566,41 +573,47 @@ describe('comidas', () => {
       expect(activePlan(d).slots[0].options.map((o) => o.text)).toEqual(['Milanesa', 'Pollo']);
     });
 
-    /* Opción cuantificada (pedido explícito: "quiero que las opciones de cada comida y
-       lo que yo comí importe"): texto e ítems son mutuamente excluyentes, ver
-       normalizeOptionFields() más arriba en este archivo. */
-    describe('opción cuantificada (ítems con cantidad)', () => {
-      it('agregar una opción con ítems guarda items, no text', () => {
+    /* Opción medible (pedido explícito: "quiero que las opciones de cada comida y lo que
+       yo comí importe" + "a veces pueden ser pesos"): siempre tiene nombre, y opcionalmente
+       lo que lleva — ver normalizeOptionFields() más arriba en este archivo. */
+    describe('opción medible (nombre + qué lleva)', () => {
+      it('guarda el nombre Y los ítems', () => {
         const d = vacio();
         const slot = m.addMealSlot(d, { name: 'Desayuno' });
-        const items = [{ id: 'i1', name: 'tostadas', qty: 3 }, { id: 'i2', name: 'huevos', qty: 3, tipo: 'proteina' }];
-        m.addMealOption(d, slot.id, { items });
-        expect(activePlan(d).slots[0].options[0]).toEqual({ id: expect.any(String), items });
-        expect('text' in activePlan(d).slots[0].options[0]).toBe(false);
+        const items = [{ id: 'i1', name: 'pan', qty: 3, unit: 'u' }, { id: 'i2', name: 'huevo', qty: 3, unit: 'u', tipo: 'proteina' }];
+        m.addMealOption(d, slot.id, { text: 'Panes con huevo', items });
+        expect(activePlan(d).slots[0].options[0]).toEqual({
+          id: expect.any(String),
+          text: 'Panes con huevo',
+          items: [{ id: 'i1', name: 'pan', qty: 3 }, { id: 'i2', name: 'huevo', qty: 3, tipo: 'proteina' }],
+        });
       });
 
-      it('editar una opción de texto a ítems reemplaza limpio (sin dejar el text viejo)', () => {
+      it('la unidad "u" no se guarda (es el default); "gr" sí', () => {
         const d = vacio();
-        const slot = m.addMealSlot(d, { name: 'Desayuno' });
-        const opt = m.addMealOption(d, slot.id, { text: 'Tostadas con huevo' });
-        const items = [{ id: 'i1', name: 'tostadas', qty: 3 }];
-
-        m.updateMealOption(d, slot.id, opt.id, { items });
-
-        const guardada = activePlan(d).slots[0].options[0];
-        expect(guardada.items).toEqual(items);
-        expect('text' in guardada).toBe(false);
+        const slot = m.addMealSlot(d, { name: 'Almuerzo' });
+        m.addMealOption(d, slot.id, { text: 'Pollo', items: [{ id: 'i1', name: 'pollo', qty: 250, unit: 'gr' }, { id: 'i2', name: 'papa', qty: 3, unit: 'u' }] });
+        const [pollo, papa] = activePlan(d).slots[0].options[0].items;
+        expect(pollo.unit).toBe('gr');
+        expect('unit' in papa).toBe(false);
       });
 
-      it('editar una opción de ítems a texto reemplaza limpio (sin dejar los items viejos)', () => {
+      it('sin ítems, la opción no tiene la clave items en absoluto', () => {
+        const d = vacio();
+        const slot = m.addMealSlot(d, { name: 'Almuerzo' });
+        m.addMealOption(d, slot.id, { text: 'Milanesa', items: [] });
+        expect('items' in activePlan(d).slots[0].options[0]).toBe(false);
+      });
+
+      it('editar sacándole todos los ítems borra la clave, el nombre queda', () => {
         const d = vacio();
         const slot = m.addMealSlot(d, { name: 'Desayuno' });
-        const opt = m.addMealOption(d, slot.id, { items: [{ id: 'i1', name: 'tostadas', qty: 3 }] });
+        const opt = m.addMealOption(d, slot.id, { text: 'Tostadas', items: [{ id: 'i1', name: 'tostada', qty: 3 }] });
 
-        m.updateMealOption(d, slot.id, opt.id, { text: 'Tostadas con huevo' });
+        m.updateMealOption(d, slot.id, opt.id, { text: 'Tostadas', items: [] });
 
         const guardada = activePlan(d).slots[0].options[0];
-        expect(guardada.text).toBe('Tostadas con huevo');
+        expect(guardada.text).toBe('Tostadas');
         expect('items' in guardada).toBe(false);
       });
     });
@@ -710,7 +723,7 @@ describe('comidas', () => {
 
       it('se guarda si viene con algo (ej. "malo" para Alcohol)', () => {
         const d = vacio();
-        const extra = m.addMealExtra(d, { name: 'Alcohol', color: '#fff', icon: 'agua', quality: 'malo' });
+        m.addMealExtra(d, { name: 'Alcohol', color: '#fff', icon: 'agua', quality: 'malo' });
         expect(d.meals.extras[0].quality).toBe('malo');
       });
 
@@ -764,6 +777,114 @@ describe('comidas', () => {
     it('borrar de un día sin entradas da false', () => {
       const d = vacio();
       expect(m.deleteMealLogEntry(d, TODAY, 'zzz')).toBe(false);
+    });
+
+    /* Registrar tocando (pedido explícito: "de una manera fácil, clara y didáctica"): la
+       entrada queda con la MISMA forma que una escrita, sin pasar por el bot. */
+    describe('addMealLogStructured', () => {
+      function conOpcion() {
+        const d = vacio();
+        const slot = m.addMealSlot(d, { name: 'Desayuno' });
+        const opt = m.addMealOption(d, slot.id, {
+          text: 'Panes con huevo',
+          items: [{ id: 'i1', name: 'pan', qty: 3 }, { id: 'i2', name: 'fruta', qty: 200, unit: 'gr' }],
+        });
+        return { d, slot, opt };
+      }
+
+      it('guarda las cantidades ajustadas y arma un texto legible', () => {
+        const { d, slot, opt } = conOpcion();
+        const entry = m.addMealLogStructured(d, TODAY, { slotId: slot.id, optionId: opt.id, qtys: { i1: 2, i2: 150 } });
+        expect(entry.matches).toEqual({ options: [{ slotId: slot.id, optionId: opt.id, items: [{ itemId: 'i1', qty: 2 }, { itemId: 'i2', qty: 150 }] }], extras: [] });
+        expect(entry.text).toBe('Desayuno: Panes con huevo (2 pan, 150 gr fruta)');
+        expect(d.meals.log[TODAY]).toEqual([entry]);
+      });
+
+      it('un ítem que no viene en qtys cuenta lo del plan', () => {
+        const { d, slot, opt } = conOpcion();
+        const entry = m.addMealLogStructured(d, TODAY, { slotId: slot.id, optionId: opt.id, qtys: { i1: 1 } });
+        expect(entry.matches.options[0].items[1]).toEqual({ itemId: 'i2', qty: 200 });
+      });
+
+      it('"pesado" se guarda solo si es true', () => {
+        const { d, slot, opt } = conOpcion();
+        const sin = m.addMealLogStructured(d, TODAY, { slotId: slot.id, optionId: opt.id });
+        const con = m.addMealLogStructured(d, TODAY, { slotId: slot.id, optionId: opt.id, pesado: true });
+        expect('pesado' in sin).toBe(false);
+        expect(con.pesado).toBe(true);
+      });
+
+      it('una opción sin ítems guarda el match sin items', () => {
+        const d = vacio();
+        const slot = m.addMealSlot(d, { name: 'Almuerzo' });
+        const opt = m.addMealOption(d, slot.id, { text: 'Milanesa' });
+        const entry = m.addMealLogStructured(d, TODAY, { slotId: slot.id, optionId: opt.id });
+        expect(entry.matches.options).toEqual([{ slotId: slot.id, optionId: opt.id }]);
+        expect(entry.text).toBe('Almuerzo: Milanesa');
+      });
+
+      it('una opción que no existe no escribe nada', () => {
+        const d = vacio();
+        expect(m.addMealLogStructured(d, TODAY, { slotId: 'x', optionId: 'y' })).toBeNull();
+        expect(d.meals).toBeUndefined();
+      });
+    });
+
+    it('addMealExtraEntry anota un extra de un toque', () => {
+      const d = vacio();
+      const extra = m.addMealExtra(d, { name: 'Café', color: '#fff', icon: 'agua' });
+      const entry = m.addMealExtraEntry(d, TODAY, extra.id);
+      expect(entry).toMatchObject({ text: 'Café', matches: { options: [], extras: [extra.id] } });
+    });
+  });
+
+  /* Cargar el plan del nutricionista (lib/mealPlanTemplates.js) de un toque. */
+  describe('loadMealPlanTemplate', () => {
+    const plantilla = {
+      guide: ['Pesá en cocido.'],
+      slots: [{ name: 'Desayuno', options: [{ text: 'Tortita', items: [{ name: 'banana', qty: 200, unit: 'gr', tipo: 'carbo' }, { name: 'huevo', qty: 2 }] }] }],
+      extras: [{ name: 'Alcohol', color: '#fff', icon: 'llama', quality: 'malo' }],
+    };
+
+    it('en una cuenta sin plan, lo deja como vigente con su guía', () => {
+      const d = vacio();
+      m.loadMealPlanTemplate(d, plantilla);
+      const plan = activePlan(d);
+      expect(plan.guide).toEqual(['Pesá en cocido.']);
+      expect(plan.slots[0].name).toBe('Desayuno');
+      expect(plan.slots[0].options[0]).toMatchObject({ text: 'Tortita', items: [{ name: 'banana', qty: 200, unit: 'gr', tipo: 'carbo' }, { name: 'huevo', qty: 2 }] });
+      expect(d.meals.plans).toHaveLength(1);
+    });
+
+    it('todos los ids son distintos', () => {
+      const d = vacio();
+      m.loadMealPlanTemplate(d, plantilla);
+      const plan = activePlan(d);
+      const ids = [plan.id, plan.slots[0].id, plan.slots[0].options[0].id, ...plan.slots[0].options[0].items.map((i) => i.id)];
+      expect(new Set(ids).size).toBe(ids.length);
+    });
+
+    it('si ya había un plan con franjas, lo archiva (no lo pisa)', () => {
+      const d = vacio();
+      m.addMealSlot(d, { name: 'Mío' });
+      const viejo = activePlan(d);
+      m.loadMealPlanTemplate(d, plantilla);
+      expect(d.meals.plans).toHaveLength(2);
+      expect(d.meals.plans.find((p) => p.id === viejo.id).endISO).toBe(TODAY);
+    });
+
+    it('si el plan vigente estaba vacío, lo reemplaza en vez de archivarlo', () => {
+      const d = vacio();
+      m.startNewMealPlan(d); // plan vigente sin franjas
+      m.loadMealPlanTemplate(d, plantilla);
+      expect(d.meals.plans).toHaveLength(1);
+    });
+
+    it('suma los extras de la plantilla, sin duplicar uno que ya existe con ese nombre', () => {
+      const d = vacio();
+      m.addMealExtra(d, { name: 'alcohol', color: '#000', icon: 'agua' });
+      m.loadMealPlanTemplate(d, plantilla);
+      expect(d.meals.extras).toHaveLength(1);
     });
   });
 });

@@ -9,27 +9,29 @@
    de verdad, y a propósito: no hace falta más para "me va a llevar el registro".
 
    state.meals = {
-     plans:  [ { id, startISO, endISO: string|null, slots:[ { id, name, options:[
-       { id, text } |                                              // opción de texto libre
-       { id, items:[ { id, name, qty, tipo?: 'carbo'|'proteina'|'grasa' } ] },  // opción cuantificada
+     plans:  [ { id, startISO, endISO: string|null, guide?: [string], slots:[ { id, name, options:[
+       { id, text, items?:[ { id, name, qty, unit?: 'u'|'gr', tipo?: 'carbo'|'proteina'|'grasa' } ] },
      ] } ] } ],
      extras: [ { id, name, color, icon, quality?: 'bueno'|'malo' } ],  // catálogo libre, shape como habits
-     log:    { 'YYYY-MM-DD': [ { id, at, text, matches:{
+     log:    { 'YYYY-MM-DD': [ { id, at, text, pesado?: boolean, matches:{
        options:[ { slotId, optionId, items?:[{itemId,qty}] } ],
        extras:[id],
      } } ] },
    }
 
-   Opción cuantificada (pedido explícito: "quiero que las opciones de cada comida y lo
-   que yo comí importe... que haya una medición de bien o mal... si ese día comí 2
-   tostadas y 3 huevos"): una opción es O BIEN texto libre (`text`, como hasta ahora) O
-   BIEN una lista de ítems con cantidad (`items`) — nunca las dos cosas a la vez, ver
-   normalizeOptionFields() en store/mutations.js. Cada ítem puede además marcarse con un
-   `tipo` de macro (carbohidrato/proteína/grasa) — pedido explícito, segunda vuelta: "las
-   mediciones podrian hacerse en carbohidratos y proteinas para tambien tener un registro
-   de con que soy mas regular" — así comoComes() puede sumar el cumplimiento por macro
-   además de por ítem. Sin `tipo`, el ítem se mide igual (cantidad comida/cantidad del
-   plan) pero no entra a ningún total de macro.
+   Opción medible (pedido explícito: "quiero que las opciones de cada comida y lo que yo
+   comí importe... si ese día comí 2 tostadas y 3 huevos", y después "no solo cantidades,
+   a veces pueden ser pesos"): toda opción tiene un nombre (`text`) y, opcionalmente, la
+   lista de lo que lleva (`items`), cada ítem con su cantidad del plan en unidades (`u`,
+   el default) o en gramos (`gr`). Cada ítem puede además marcarse con un `tipo` de macro
+   (carbohidrato/proteína/grasa) — pedido explícito: "las mediciones podrian hacerse en
+   carbohidratos y proteinas para tambien tener un registro de con que soy mas regular".
+
+   `guide` (opcional) son las recomendaciones del nutricionista que acompañan a esa
+   versión del plan ("pesar en cocido", porciones de proteína/hidrato…): se muestran en
+   Comidas como guía, no se miden. `pesado` en una entrada es si Lulo pesó la comida en
+   la balanza o la estimó a ojo (pedido explícito: "daily podría ponerle si pesé o no pesé
+   la comida para especificarle los gramos").
 
    Igual que fcmTokens, `meals` NO tiene default en normalize() (ver lib/model.js): una
    cuenta que nunca abrió Comidas no gana un campo de más en su documento. Por eso todo
@@ -72,18 +74,18 @@ function escapeRegex(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-/* Cuánto de cada ítem de una opción cuantificada aparece en el texto ya normalizado.
-   Pedido explícito sobre cómo escribe Lulo: "número pegado al alimento" — "2 tostadas"
-   cuenta como 2. El nombre del ítem SIN número adelante ("comí tostadas y huevos", sin
-   decir cuántas) se toma como "comí la cantidad del plan entera" — options.items[].qty.
-   Si el nombre no aparece para nada, esa cantidad es 0. Devuelve un array del mismo largo
-   que `items` (nunca se omite un ítem, así "2 de 3" se puede mostrar siempre), o `null`
-   si NINGÚN ítem apareció — ahí la opción no está referenciada en este texto. */
+/* Cuánto de cada ítem de una opción medible aparece en el texto ya normalizado. Pedido
+   explícito sobre cómo escribe Lulo: "número pegado al alimento" — "2 tostadas" cuenta 2,
+   y con peso también "200gr de pollo" / "200 gramos de pollo" / "200g pollo" (la unidad y
+   el "de" del medio son opcionales). El nombre del ítem SIN número adelante ("comí
+   tostadas y huevos") se toma como "la cantidad entera del plan". Si el nombre no aparece,
+   esa cantidad es 0. Devuelve un array del mismo largo que `items` (nunca se omite uno, así
+   "2 de 3" se puede mostrar siempre), o `null` si NINGÚN ítem apareció. */
 function matchItems(items, norm) {
   const out = items.map((item) => {
     const name = normalizeText(item.name);
     if (!name) return { itemId: item.id, qty: 0 };
-    const conNumero = norm.match(new RegExp(`(\\d+)\\s*${escapeRegex(name)}`));
+    const conNumero = norm.match(new RegExp(`(\\d+)\\s*(?:gramos|grs|gr|g)?\\.?\\s*(?:de\\s+)?${escapeRegex(name)}`));
     if (conNumero) return { itemId: item.id, qty: parseInt(conNumero[1], 10) };
     if (norm.includes(name)) return { itemId: item.id, qty: item.qty };
     return { itemId: item.id, qty: 0 };
@@ -91,23 +93,29 @@ function matchItems(items, norm) {
   return out.some((x) => x.qty > 0) ? out : null;
 }
 
+// "Comí todo lo que dice el plan" para una opción medible: cada ítem con su cantidad.
+function itemsCompletos(items) {
+  return items.map((item) => ({ itemId: item.id, qty: item.qty }));
+}
+
 /* El "bot": busca, dentro del texto que el usuario escribió, cualquier opción del plan o
    cualquier extra cuyo nombre aparezca como substring. Puede matchear varios de cada uno
    a la vez (“café con un permitido” matchea el extra Café Y el extra Permitidos). Si no
    matchea nada, la entrada se guarda igual — solo que no suma a ninguna frecuencia.
 
-   Una opción CUANTIFICADA (option.items, ver arriba) no se busca por texto entero: basta
-   con que aparezca el nombre de AL MENOS UNO de sus ítems (matchItems se encarga). Una
-   opción de texto libre sigue exactamente igual que siempre. */
+   Una opción medible (con `items`) se reconoce por su nombre O por cualquiera de sus
+   ítems; las cantidades salen de matchItems — y si se la nombró sin decir ningún ítem
+   ("comí la tortita de banana"), cuenta como comida entera. */
 export function matchEntry(state, text) {
   const norm = normalizeText(text);
   const options = [];
   (activePlan(state)?.slots ?? []).forEach((slot) => {
     slot.options.forEach((opt) => {
+      const porNombre = !!opt.text && norm.includes(normalizeText(opt.text));
       if (opt.items?.length) {
-        const items = matchItems(opt.items, norm);
+        const items = matchItems(opt.items, norm) ?? (porNombre ? itemsCompletos(opt.items) : null);
         if (items) options.push({ slotId: slot.id, optionId: opt.id, items });
-      } else if (opt.text && norm.includes(normalizeText(opt.text))) {
+      } else if (porNombre) {
         options.push({ slotId: slot.id, optionId: opt.id });
       }
     });
@@ -118,23 +126,36 @@ export function matchEntry(state, text) {
   return { options, extras };
 }
 
-// La etiqueta para mostrar una opción: su texto tal cual si es libre, o sus ítems
-// armados ("3 Tostadas, 3 Huevos") si es cuantificada — nunca se guarda un texto
-// derivado en el documento, se arma acá cada vez para no arrastrar una copia vieja si
-// cambian las cantidades.
-export function optionLabel(option) {
-  if (option.items?.length) return option.items.map((i) => `${i.qty} ${i.name}`).join(', ');
-  return option.text ?? '';
+// "3" para unidades, "200 gr" para peso.
+export function qtyLabel(qty, unit) {
+  return unit === 'gr' ? `${qty} gr` : String(qty);
 }
 
-// El detalle ítem por ítem de lo que matcheó una opción cuantificada, para mostrar "2/3
-// Tostadas" en la bitácora — un elemento por cada ítem DEL PLAN (no solo los que
-// aparecieron), así el que falta se ve con 0 en vez de desaparecer de la lista.
+// Lo que lleva una opción medible, en una línea: "3 pan, 3 huevo, 200 gr fruta".
+export function itemsLabel(items) {
+  return items.map((i) => `${qtyLabel(i.qty, i.unit)} ${i.name}`).join(', ');
+}
+
+// El nombre de una opción. Una opción vieja sin nombre (solo ítems) se nombra por lo
+// que lleva.
+export function optionLabel(option) {
+  if (option.text) return option.text;
+  return option.items?.length ? itemsLabel(option.items) : '';
+}
+
+// El detalle ítem por ítem de lo que matcheó una opción medible, para mostrar "2/3 pan"
+// en la bitácora — un elemento por cada ítem DEL PLAN (no solo los que aparecieron), así
+// el que falta se ve con 0 en vez de desaparecer de la lista.
 export function itemsBreakdown(option, matchedItems) {
   return option.items.map((item) => {
     const m = matchedItems.find((x) => x.itemId === item.id);
-    return { id: item.id, name: item.name, tipo: item.tipo, got: m ? m.qty : 0, expected: item.qty };
+    return { id: item.id, name: item.name, tipo: item.tipo, unit: item.unit, got: m ? m.qty : 0, expected: item.qty };
   });
+}
+
+// "2/3 pan" o "150/200 gr pollo".
+export function breakdownLabel(it) {
+  return `${it.got}/${it.expected}${it.unit === 'gr' ? ' gr' : ''} ${it.name}`;
 }
 
 // Cuánto de una opción cuantificada se cumplió, 0 a 1 (comer de más no suma puntos
@@ -313,4 +334,64 @@ export function comoComes(state, per) {
   });
 
   return { winLabel, unit, unitAbbr, unitPl, cols, current, rows, stats, alerts, macros };
+}
+
+/* ============================================================================
+   "TU DÍA" — lo primero que muestra Comidas (pedido explícito: "que yo pueda llevar de una
+   manera fácil, clara y didáctica el registro de mis comidas"). Por cada franja del plan
+   vigente: qué se registró ese día y qué tan cerca del plan quedó. Si una franja tiene
+   varias entradas (dos registros de almuerzo), vale la mejor — no se suman, porque el
+   plan pide UNA de las opciones, no varias.
+   ============================================================================ */
+export function franjaStatus(pct) {
+  if (pct === null) return { key: 'pendiente', label: 'Pendiente', color: 'rgba(242,244,248,.45)' };
+  if (pct >= 1) return { key: 'cumplida', label: 'Cumplida', color: C.green };
+  if (pct >= UMBRAL_CUMPLIMIENTO) return { key: 'parcial', label: 'Parcial', color: C.amber };
+  return { key: 'poco', label: 'Poco', color: C.danger };
+}
+
+export function dayMealSummary(state, dISO) {
+  const slots = activePlan(state)?.slots ?? [];
+  const entradas = state.meals?.log?.[dISO] ?? [];
+
+  const franjas = slots.map((slot) => {
+    const registros = [];
+    entradas.forEach((e) => {
+      e.matches.options.forEach((m) => {
+        if (m.slotId !== slot.id) return;
+        const option = slot.options.find((o) => o.id === m.optionId);
+        if (!option) return;
+        const medible = !!(m.items && option.items?.length);
+        registros.push({
+          entryId: e.id,
+          option,
+          pesado: e.pesado,
+          pct: medible ? itemsCompliance(option, m.items) : 1,
+          detalle: medible ? itemsBreakdown(option, m.items) : null,
+        });
+      });
+    });
+    const pct = registros.length ? Math.max(...registros.map((r) => r.pct)) : null;
+    return { slot, registros, pct, status: franjaStatus(pct) };
+  });
+
+  const pct = franjas.length ? franjas.reduce((a, f) => a + Math.min(1, f.pct ?? 0), 0) / franjas.length : null;
+  const pendientes = franjas.filter((f) => f.pct === null).map((f) => f.slot.name);
+  const hechas = franjas.length - pendientes.length;
+  // Entradas que no son ni del plan ni un extra conocido: "comí otra cosa".
+  const fueraDePlan = entradas.filter((e) => !e.matches.options.length && !e.matches.extras.length).length;
+
+  return { franjas, pct, hechas, pendientes, fueraDePlan, message: dayMessage(franjas, pct, hechas, pendientes) };
+}
+
+// Una frase que se entienda sin mirar los números.
+function dayMessage(franjas, pct, hechas, pendientes) {
+  if (!franjas.length) return null;
+  if (hechas === 0) return 'Todavía no registraste nada. Tocá una comida para empezar.';
+  if (!pendientes.length) {
+    return pct >= 0.9
+      ? '¡Día completo! Seguiste el plan en todas las comidas.'
+      : 'Registraste todas las comidas, algunas por debajo de lo que pide el plan.';
+  }
+  return `Te falta: ${pendientes.join(', ')}.`;
 }

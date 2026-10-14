@@ -66,28 +66,30 @@ describe('administrar el plan', () => {
     await user.click(within(screen.getByText('Plan de comidas').closest('.sect')).getByRole('button', { name: /Editar/ }));
     await user.click(screen.getByRole('button', { name: 'Almuerzo' }));   // abre sus opciones
     await user.click(screen.getByRole('button', { name: 'Nueva opción' }));
-    // El modo "Texto libre" es el default; el campo de texto se llama "Texto" (el rótulo
-    // "Opción de Almuerzo" quedó arriba, en el selector de modo texto/ítems).
-    await user.type(screen.getByLabelText(/^Texto/), 'Pollo con arroz');
+    await user.type(screen.getByLabelText(/Opción de Almuerzo/), 'Pollo con arroz');
     await user.click(screen.getByRole('button', { name: 'Agregar' }));
 
     expect(activePlan(leer()).slots[0].options.map((o) => o.text)).toEqual(['Milanesa con ensalada', 'Pollo con arroz']);
   });
 
-  it('agregar una opción con ítems de cantidad (pedido explícito: medir lo que comí)', async () => {
+  it('una opción puede llevar alimentos medidos en gramos (pedido explícito: "a veces pueden ser pesos")', async () => {
     const user = userEvent.setup();
     const { doc: leer } = renderScreen(<ComidasPage />, { doc: docConPlan() });
 
     await user.click(within(screen.getByText('Plan de comidas').closest('.sect')).getByRole('button', { name: /Editar/ }));
     await user.click(screen.getByRole('button', { name: 'Almuerzo' }));
     await user.click(screen.getByRole('button', { name: 'Nueva opción' }));
-    await user.click(screen.getByRole('button', { name: 'Con cantidades' }));
-    await user.click(screen.getByRole('button', { name: 'Agregar ítem' }));
-    await user.type(screen.getByPlaceholderText('Alimento (ej: tostadas)'), 'tostadas');
+    await user.type(screen.getByLabelText(/Opción de Almuerzo/), 'Pollo con papas');
+    await user.click(screen.getByRole('button', { name: 'Agregar alimento' }));
+    await user.type(screen.getByLabelText('Alimento'), 'pollo');
+    await user.clear(screen.getByLabelText('Cantidad del plan'));
+    await user.type(screen.getByLabelText('Cantidad del plan'), '250');
+    await user.selectOptions(screen.getByLabelText('Unidad'), 'gr');
+    await user.selectOptions(screen.getByLabelText('Macro'), 'proteina');
     await user.click(screen.getByRole('button', { name: 'Agregar' }));
 
     const opt = activePlan(leer()).slots[0].options[1];
-    expect(opt.items).toEqual([{ id: expect.any(String), name: 'tostadas', qty: 1, tipo: undefined }]);
+    expect(opt).toMatchObject({ text: 'Pollo con papas', items: [{ name: 'pollo', qty: 250, unit: 'gr', tipo: 'proteina' }] });
   });
 
   it('borrar una franja pide confirmación', async () => {
@@ -104,8 +106,9 @@ describe('administrar el plan', () => {
 
   it('el plan se ve de solo lectura en la pantalla, con sus opciones', () => {
     renderScreen(<ComidasPage />, { doc: docConPlan() });
-    expect(screen.getByText('Almuerzo')).toBeInTheDocument();
-    expect(screen.getByText('Milanesa con ensalada')).toBeInTheDocument();
+    const plan = screen.getByText('Plan de comidas').closest('.sect');
+    expect(within(plan).getByText('Almuerzo')).toBeInTheDocument();
+    expect(within(plan).getByText('Milanesa con ensalada')).toBeInTheDocument();
   });
 
   it('"Nuevo plan" pide confirmación y archiva el plan actual (historial de planes)', async () => {
@@ -254,7 +257,101 @@ describe('bitácora', () => {
     };
     renderScreen(<ComidasPage />, { doc });
 
-    expect(screen.getByText('2/3 tostadas')).toBeInTheDocument();
-    expect(screen.getByText('3/3 huevos')).toBeInTheDocument();
+    const bitacora = screen.getByText('Bitácora').closest('.sect');
+    expect(within(bitacora).getByText('2/3 tostadas')).toBeInTheDocument();
+    expect(within(bitacora).getByText('3/3 huevos')).toBeInTheDocument();
+  });
+});
+
+/* "Tu día" — registrar tocando en vez de escribiendo (pedido explícito: "que yo pueda
+   llevar de una manera fácil, clara y didáctica el registro de mis comidas"). */
+describe('tu día', () => {
+  function docMedible() {
+    return {
+      ...emptyDoc(),
+      meals: {
+        plans: [{
+          id: 'p1',
+          startISO: todayISO(),
+          endISO: null,
+          slots: [
+            { id: 's1', name: 'Desayuno', options: [{ id: 'o1', text: 'Panes con huevo', items: [{ id: 'i1', name: 'pan', qty: 3 }, { id: 'i2', name: 'fruta', qty: 200, unit: 'gr' }] }] },
+            { id: 's2', name: 'Cena', options: [{ id: 'o2', text: 'Milanesa' }] },
+          ],
+        }],
+        extras: [{ id: 'e1', name: 'Café', color: '#B49BE8', icon: 'agua' }],
+        log: {},
+      },
+    };
+  }
+
+  it('sin plan, ofrece cargar el de la nutricionista y lo carga con un toque', async () => {
+    const user = userEvent.setup();
+    const { doc: leer } = renderScreen(<ComidasPage />, { doc: emptyDoc() });
+
+    await user.click(screen.getByRole('button', { name: 'Cargar el plan de la nutricionista' }));
+
+    const plan = activePlan(leer());
+    expect(plan.slots.map((s) => s.name)).toEqual(['Desayuno', 'Almuerzo', 'Merienda', 'Cena']);
+    expect(leer().meals.extras.map((e) => e.name)).toEqual(['Alcohol', 'Comida libre']);
+    expect(screen.getByText('Guía de tu nutricionista')).toBeInTheDocument();
+  });
+
+  it('cada franja arranca pendiente, con una frase que dice qué falta', () => {
+    renderScreen(<ComidasPage />, { doc: docMedible() });
+    const dia = screen.getByText('Tu día').closest('.sect');
+    expect(within(dia).getByText('Todavía no registraste nada. Tocá una comida para empezar.')).toBeInTheDocument();
+    expect(within(dia).getAllByText('Pendiente')).toHaveLength(2);
+  });
+
+  it('registrar tocando: elegir la opción, bajar un pan, marcar "lo pesé" y guardar', async () => {
+    const user = userEvent.setup();
+    const { doc: leer } = renderScreen(<ComidasPage />, { doc: docMedible() });
+
+    await user.click(screen.getByRole('button', { name: 'Registrar Desayuno' }));
+    await user.click(screen.getByRole('button', { name: /Panes con huevo/ }));
+    await user.click(screen.getByRole('button', { name: 'Menos pan' }));
+    await user.click(screen.getByRole('switch', { name: 'Lo pesé en la balanza' }));
+    await user.click(screen.getByRole('button', { name: 'Registrar' }));
+
+    const [entrada] = leer().meals.log[todayISO()];
+    expect(entrada.matches.options[0].items).toEqual([{ itemId: 'i1', qty: 2 }, { itemId: 'i2', qty: 200 }]);
+    expect(entrada.pesado).toBe(true);
+
+    const dia = screen.getByText('Tu día').closest('.sect');
+    expect(within(dia).getByText('Parcial')).toBeInTheDocument();
+    expect(within(dia).getByText('2/3 pan')).toBeInTheDocument();
+    expect(within(dia).getByText('Te falta: Cena.')).toBeInTheDocument();
+  });
+
+  it('una opción sin alimentos se registra con un solo toque', async () => {
+    const user = userEvent.setup();
+    const { doc: leer } = renderScreen(<ComidasPage />, { doc: docMedible() });
+
+    await user.click(screen.getByRole('button', { name: 'Registrar Cena' }));
+    await user.click(screen.getByRole('button', { name: /Milanesa/ }));
+
+    expect(leer().meals.log[todayISO()][0].matches.options).toEqual([{ slotId: 's2', optionId: 'o2' }]);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('"¿Comiste otra cosa?" anota texto libre en la bitácora', async () => {
+    const user = userEvent.setup();
+    const { doc: leer } = renderScreen(<ComidasPage />, { doc: docMedible() });
+
+    await user.click(screen.getByRole('button', { name: 'Registrar Cena' }));
+    await user.type(screen.getByLabelText('Comí otra cosa'), 'pastel de carne');
+    await user.click(screen.getByRole('button', { name: 'Anotar otra cosa' }));
+
+    expect(leer().meals.log[todayISO()][0].text).toBe('pastel de carne');
+  });
+
+  it('el "+" de un extra lo anota de un toque', async () => {
+    const user = userEvent.setup();
+    const { doc: leer } = renderScreen(<ComidasPage />, { doc: docMedible() });
+
+    await user.click(screen.getByRole('button', { name: 'Anotar Café' }));
+
+    expect(leer().meals.log[todayISO()][0].matches.extras).toEqual(['e1']);
   });
 });

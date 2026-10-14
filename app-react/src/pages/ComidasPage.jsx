@@ -1,6 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { WeekStrip } from '../components/ui/WeekStrip';
 import { EmptyCard, Section } from '../components/ui/Section';
+import { DayMealsCard } from '../components/comidas/DayMealsCard';
+import { RegisterMealModal } from '../components/comidas/RegisterMealModal';
 import { MealPlanCard } from '../components/comidas/MealPlanCard';
 import { MealPlanManager } from '../components/comidas/MealPlanManager';
 import { MealExtraRow } from '../components/comidas/MealExtraRow';
@@ -9,23 +11,34 @@ import { MealLogBubble } from '../components/comidas/MealLogBubble';
 import { MealLogComposer } from '../components/comidas/MealLogComposer';
 import { PencilIcon } from '../components/ui/Icons';
 import { useData } from '../hooks/useData';
-import { activePlan, extraCount, extraStreak } from '../lib/meals';
-import { addMealLogEntry, deleteMealLogEntry } from '../store/mutations';
+import { activePlan, dayMealSummary, extraCount, extraStreak } from '../lib/meals';
+import { PLAN_NUTRI_2026_10 } from '../lib/mealPlanTemplates';
+import {
+  addMealExtraEntry, addMealLogEntry, addMealLogStructured, deleteMealLogEntry, loadMealPlanTemplate,
+} from '../store/mutations';
 import { iso, mondayOf, parseISO, todayISO } from '../lib/dates';
 import { shiftWeek } from '../lib/items';
 
 /* ============================================================================
    COMIDAS
 
-   Sexta sección, sin equivalente en vanilla. Tres bloques:
+   Sexta sección, sin equivalente en vanilla. Reordenada alrededor de "Tu día" (pedido
+   explícito: "que yo pueda llevar de una manera fácil, clara y didáctica el registro de
+   mis comidas con lo que te expliqué y el plan que te mandé"):
 
-     Plan      — lo que tenés que comer (franjas con varias opciones), de solo lectura
-                 acá; se edita desde el lápiz de la cabecera (MealPlanManager).
-     Extras    — café, alcohol, permitidos… el catálogo que vos armás, con cuántas veces
-                 aparecieron esta semana y su racha.
-     Bitácora  — lo que escribiste ese día. Escribís en texto libre y el "bot" reconoce
-                 solo lo que matchea del plan y de los extras (matchEntry en lib/meals.js).
-                 Sin IA y sin respuestas: anota y registra, nada más — pedido explícito.
+     Tu día    — una fila por franja del plan con su estado (pendiente/parcial/cumplida)
+                 y un botón "Registrar" que abre RegisterMealModal: elegís la opción que
+                 comiste y ajustás las cantidades con −/+, sin escribir nada. Arriba, una
+                 frase ("Te falta: Cena.") y el % del plan del día.
+     Extras    — café, alcohol, comida libre… con cuántas veces aparecieron esta semana, y
+                 un "+" para anotarlos de un toque.
+     Bitácora  — todo lo registrado ese día, en orden. Abajo, el cuadro de texto libre de
+                 siempre: lo que escribas lo sigue reconociendo el bot (matchEntry).
+     Plan      — lo que tenés que comer, de solo lectura, con la guía del nutricionista;
+                 se edita desde "Editar".
+
+   Sin plan todavía, "Tu día" ofrece cargar de un toque el plan que mandó Lulo en PDF
+   (PLAN_NUTRI_2026_10 en lib/mealPlanTemplates.js) — o armarlo a mano.
 
    El día que se mira es estado LOCAL de esta pantalla (como el mes en Calendario o la
    semana en Gimnasio), no la URL: la bitácora de comidas no se comparte con ninguna otra
@@ -36,20 +49,39 @@ export function ComidasPage() {
   const [day, setDay] = useState(todayISO());
   const [modal, setModal] = useState(null);
 
-  const plan = activePlan(data)?.slots ?? [];
+  const plan = activePlan(data);
+  const slots = plan?.slots ?? [];
   const extras = data.meals?.extras ?? [];
   const log = data.meals?.log ?? {};
   const entradas = log[day] ?? [];
+  const resumen = dayMealSummary(data, day);
 
   // Para resolver el nombre de cada coincidencia sin recorrer el plan entero por burbuja.
-  const slotsById = useMemo(() => Object.fromEntries(plan.map((s) => [s.id, s])), [plan]);
-  const extrasById = useMemo(() => Object.fromEntries(extras.map((e) => [e.id, e])), [extras]);
+  const slotsById = Object.fromEntries(slots.map((s) => [s.id, s]));
+  const extrasById = Object.fromEntries(extras.map((e) => [e.id, e]));
 
   // "Esta semana" es la semana del día que se está mirando, no siempre la actual.
   const lunes = iso(mondayOf(parseISO(day)));
 
   const escribir = (text) => update((draft) => addMealLogEntry(draft, day, text));
   const borrar = (id) => update((draft) => deleteMealLogEntry(draft, day, id));
+  const cargarPlan = () => update((draft) => loadMealPlanTemplate(draft, PLAN_NUTRI_2026_10));
+
+  const registrar = (slot, { optionId, qtys, pesado }) => {
+    update((draft) => addMealLogStructured(draft, day, { slotId: slot.id, optionId, qtys, pesado }));
+    setModal(null);
+  };
+  const otraCosa = (text) => {
+    escribir(text);
+    setModal(null);
+  };
+
+  const editarPlan = (
+    <button type="button" className="pillbtn comidas" onClick={() => setModal({ kind: 'plan' })}>
+      <PencilIcon size={14} />
+      Editar
+    </button>
+  );
 
   return (
     <div className="view">
@@ -66,18 +98,23 @@ export function ComidasPage() {
           hasMark={(dISO) => (log[dISO] ?? []).length > 0}
         />
 
-        <Section
-          label="Plan de comidas"
-          action={(
-            <button type="button" className="pillbtn comidas" onClick={() => setModal({ kind: 'plan' })}>
-              <PencilIcon size={14} />
-              Editar
-            </button>
+        <Section label="Tu día">
+          {slots.length ? (
+            <DayMealsCard summary={resumen} onRegistrar={(slot) => setModal({ kind: 'registrar', slotId: slot.id })} />
+          ) : (
+            <div className="card pad mealempty">
+              <div className="mealempty-title">Todavía no tenés un plan cargado.</div>
+              <div className="mealempty-sub">
+                Cargá el plan que te dio tu nutricionista ({PLAN_NUTRI_2026_10.name}) y empezá a registrar tocando cada comida.
+              </div>
+              <button type="button" className="pillbtn comidas mealempty-btn" onClick={cargarPlan}>
+                Cargar el plan de la nutricionista
+              </button>
+              <button type="button" className="mealempty-alt" onClick={() => setModal({ kind: 'plan' })}>
+                o armalo a mano
+              </button>
+            </div>
           )}
-        >
-          {plan.length
-            ? <MealPlanCard slots={plan} />
-            : <EmptyCard>Todavía no armaste tu plan. Tocá &quot;Editar&quot; para crear la primera franja.</EmptyCard>}
         </Section>
 
         <Section
@@ -96,6 +133,7 @@ export function ComidasPage() {
                 extra={ex}
                 semana={extraCount(data, ex.id, lunes)}
                 racha={extraStreak(data, ex.id, day)}
+                onAdd={() => update((draft) => addMealExtraEntry(draft, day, ex.id))}
               />
             ))
             : <EmptyCard size="sm">Café, alcohol, permitidos… agregá los que quieras seguir.</EmptyCard>}
@@ -116,8 +154,31 @@ export function ComidasPage() {
 
           <MealLogComposer onSend={escribir} />
         </Section>
+
+        <Section label="Plan de comidas" action={editarPlan}>
+          {slots.length
+            ? <MealPlanCard slots={slots} />
+            : <EmptyCard>Todavía no armaste tu plan. Tocá &quot;Editar&quot; para crear la primera franja.</EmptyCard>}
+
+          {plan?.guide?.length > 0 && (
+            <details className="card pad mealguide">
+              <summary>Guía de tu nutricionista</summary>
+              <ul>
+                {plan.guide.map((g) => <li key={g}>{g}</li>)}
+              </ul>
+            </details>
+          )}
+        </Section>
       </div>
 
+      {modal?.kind === 'registrar' && slotsById[modal.slotId] && (
+        <RegisterMealModal
+          slot={slotsById[modal.slotId]}
+          onClose={() => setModal(null)}
+          onSave={(sel) => registrar(slotsById[modal.slotId], sel)}
+          onOtraCosa={otraCosa}
+        />
+      )}
       {modal?.kind === 'plan' && <MealPlanManager onClose={() => setModal(null)} />}
       {modal?.kind === 'extras' && <MealExtrasManager onClose={() => setModal(null)} />}
     </div>

@@ -20,7 +20,7 @@ import { PALETTE } from '../lib/theme';
 import { emptyWeekPlan, REST } from '../lib/gym';
 import { moveInArray } from '../lib/arrays';
 import { habitMarks } from '../lib/habits';
-import { activePlan, matchEntry } from '../lib/meals';
+import { activePlan, itemsLabel, matchEntry, normalizeText, optionLabel } from '../lib/meals';
 import { todayISO } from '../lib/dates';
 
 /* ============================ agenda (items) ============================ */
@@ -490,13 +490,25 @@ export function moveMealSlot(draft, slotId, dir) {
   return moveInArray(plan.slots, plan.slots.findIndex((s) => s.id === slotId), dir);
 }
 
-/* Una opción es O BIEN texto libre O BIEN una lista de ítems con cantidad — nunca las dos
-   cosas (pedido explícito: "quiero que las opciones de cada comida y lo que yo comí
-   importe", ver comoComes()/matchEntry() en lib/meals.js). `fields.items` manda sobre
-   `fields.text` si vienen los dos: así cambiar de modo en el formulario (MealOptionFormModal)
-   reemplaza limpio, nunca deja un campo viejo colgado del modo anterior. */
+/* Una opción siempre tiene nombre (`text`) y, si se quiere medir, la lista de lo que
+   lleva (`items`, pedido explícito: "quiero que las opciones de cada comida y lo que yo
+   comí importe"). Sin ítems, la clave `items` no existe — no `items: []`. La unidad
+   default ('u') tampoco se guarda: un ítem sin `unit` se cuenta por unidades. */
+function cleanItem({ id, name, qty, unit, tipo }) {
+  return {
+    id,
+    name,
+    qty,
+    ...(unit === 'gr' ? { unit } : {}),
+    ...(tipo ? { tipo } : {}),
+  };
+}
+
 function normalizeOptionFields({ text, items }) {
-  return (items && items.length) ? { items } : { text };
+  return {
+    text: (text ?? '').trim(),
+    ...(items && items.length ? { items: items.map(cleanItem) } : {}),
+  };
 }
 
 export function addMealOption(draft, slotId, fields) {
@@ -596,6 +608,83 @@ export function addMealLogEntry(draft, dISO, text) {
   const entry = { id: uid(), at: Date.now(), text: trimmed, matches: matchEntry(draft, trimmed) };
   (meals.log[dISO] ||= []).push(entry);
   return entry;
+}
+
+/* Registrar una comida TOCANDO en vez de escribiendo (pedido explícito: "que yo pueda
+   llevar de una manera fácil, clara y didáctica el registro de mis comidas"): se eligió
+   una opción del plan y, si es medible, cuánto de cada ítem. No pasa por el bot — ya se
+   sabe exactamente qué es — pero queda guardada con la MISMA forma que una entrada
+   escrita (texto + matches), así la bitácora, "Tu día" y "Cómo comés" no distinguen de
+   dónde vino. `qtys` es { itemId: cantidad }; un ítem que no viene cuenta lo del plan.
+   `pesado` (si lo pesó en la balanza) solo se guarda cuando es true. */
+export function addMealLogStructured(draft, dISO, { slotId, optionId, qtys = {}, pesado = false }) {
+  const slot = activePlan(draft)?.slots.find((s) => s.id === slotId);
+  const option = slot?.options.find((o) => o.id === optionId);
+  if (!option) return null;
+  const meals = ensureMeals(draft);
+
+  const match = { slotId, optionId };
+  let text = `${slot.name}: ${optionLabel(option)}`;
+  if (option.items?.length) {
+    match.items = option.items.map((it) => ({ itemId: it.id, qty: Math.max(0, Number(qtys[it.id] ?? it.qty) || 0) }));
+    text += ` (${itemsLabel(option.items.map((it, i) => ({ ...it, qty: match.items[i].qty })))})`;
+  }
+
+  const entry = { id: uid(), at: Date.now(), text, matches: { options: [match], extras: [] } };
+  if (pesado) entry.pesado = true;
+  (meals.log[dISO] ||= []).push(entry);
+  return entry;
+}
+
+// Un toque en un extra (café, alcohol…) lo anota en la bitácora de ese día, sin escribir.
+export function addMealExtraEntry(draft, dISO, extraId) {
+  const meals = ensureMeals(draft);
+  const extra = meals.extras.find((e) => e.id === extraId);
+  if (!extra) return null;
+  const entry = { id: uid(), at: Date.now(), text: extra.name, matches: { options: [], extras: [extra.id] } };
+  (meals.log[dISO] ||= []).push(entry);
+  return entry;
+}
+
+/* Cargar un plan armado de antemano (ver lib/mealPlanTemplates.js — pedido explícito: el
+   plan del nutricionista que Lulo mandó en PDF). Pasa a ser la versión VIGENTE: si ya
+   había una con franjas se archiva (mismo criterio que startNewMealPlan); si la vigente
+   estaba vacía, se reemplaza — no tiene sentido archivar un plan sin nada. Los extras de
+   la plantilla se suman solo si no hay ya uno con el mismo nombre.
+
+   Los ids salen de un solo uid() + un contador: con ~60 ids creados en el mismo
+   milisegundo, cuatro caracteres al azar por id ya no alcanzan para descartar choques. */
+export function loadMealPlanTemplate(draft, template) {
+  const meals = ensureMeals(draft);
+  const base = uid();
+  let n = 0;
+  const nid = () => base + (n++).toString(36);
+
+  const actual = activePlan(draft);
+  if (actual && actual.slots.length) actual.endISO = todayISO();
+  else if (actual) meals.plans = meals.plans.filter((p) => p !== actual);
+
+  const plan = {
+    id: nid(),
+    startISO: todayISO(),
+    endISO: null,
+    ...(template.guide?.length ? { guide: [...template.guide] } : {}),
+    slots: template.slots.map((s) => ({
+      id: nid(),
+      name: s.name,
+      options: s.options.map((o) => ({
+        id: nid(),
+        ...normalizeOptionFields({ text: o.text, items: (o.items ?? []).map((it) => ({ ...it, id: nid() })) }),
+      })),
+    })),
+  };
+  meals.plans.push(plan);
+
+  (template.extras ?? []).forEach((ex) => {
+    if (meals.extras.some((e) => normalizeText(e.name) === normalizeText(ex.name))) return;
+    meals.extras.push({ id: nid(), name: ex.name, color: ex.color, icon: ex.icon, ...(ex.quality ? { quality: ex.quality } : {}) });
+  });
+  return plan;
 }
 
 export function deleteMealLogEntry(draft, dISO, entryId) {

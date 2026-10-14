@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { activePlan, comoComes, extraCount, extraLoggedOn, extraMatchDates, extraStreak, itemsBreakdown, itemsCompliance, matchEntry, normalizeText, optionLabel } from './meals';
+import {
+  activePlan, breakdownLabel, comoComes, dayMealSummary, extraCount, extraLoggedOn, extraMatchDates, extraStreak,
+  itemsBreakdown, itemsCompliance, itemsLabel, matchEntry, normalizeText, optionLabel, qtyLabel,
+} from './meals';
 import { mondayAgo, thisMonday } from '../test/fixtures';
 
 /* ============================================================================
@@ -105,14 +108,113 @@ describe('matchEntry: opciones con ítems de cantidad', () => {
   });
 });
 
-describe('optionLabel', () => {
-  it('una opción de texto libre devuelve su texto', () => {
-    expect(optionLabel({ text: 'Milanesa con ensalada' })).toBe('Milanesa con ensalada');
+/* Pesos (pedido explícito: "no solo cantidades, a veces pueden ser pesos"). */
+describe('matchEntry: ítems en gramos', () => {
+  const plan = [
+    { id: 's1', name: 'Almuerzo', options: [{ id: 'o1', text: 'Pollo con papas', items: [{ id: 'i1', name: 'pollo', qty: 250, unit: 'gr' }, { id: 'i2', name: 'papa', qty: 3 }] }] },
+  ];
+
+  it.each([
+    ['200gr de pollo'],
+    ['200 gr de pollo'],
+    ['200 gramos de pollo'],
+    ['200g pollo'],
+    ['200 pollo'],
+  ])('"%s" cuenta 200', (texto) => {
+    expect(matchEntry(state({ plan }), texto).options[0].items[0]).toEqual({ itemId: 'i1', qty: 200 });
   });
 
-  it('una opción cuantificada arma "cantidad nombre" por cada ítem', () => {
-    const option = { items: [{ id: 'i1', name: 'Tostadas', qty: 3 }, { id: 'i2', name: 'Huevos', qty: 3 }] };
-    expect(optionLabel(option)).toBe('3 Tostadas, 3 Huevos');
+  it('nombrar la opción sin ningún ítem cuenta como comida entera', () => {
+    const { options } = matchEntry(state({ plan }), 'comí pollo con papas');
+    expect(options[0].items).toEqual([{ itemId: 'i1', qty: 250 }, { itemId: 'i2', qty: 3 }]);
+  });
+});
+
+describe('etiquetas', () => {
+  it('qtyLabel: unidades sin sufijo, gramos con "gr"', () => {
+    expect(qtyLabel(3, undefined)).toBe('3');
+    expect(qtyLabel(200, 'gr')).toBe('200 gr');
+  });
+
+  it('itemsLabel arma lo que lleva una opción en una línea', () => {
+    expect(itemsLabel([{ name: 'pan', qty: 3 }, { name: 'fruta', qty: 200, unit: 'gr' }])).toBe('3 pan, 200 gr fruta');
+  });
+
+  it('optionLabel: el nombre si lo tiene; si no, lo que lleva', () => {
+    expect(optionLabel({ text: 'Milanesa con ensalada' })).toBe('Milanesa con ensalada');
+    expect(optionLabel({ text: 'Tostadas', items: [{ name: 'tostada', qty: 3 }] })).toBe('Tostadas');
+    expect(optionLabel({ items: [{ id: 'i1', name: 'Tostadas', qty: 3 }, { id: 'i2', name: 'Huevos', qty: 3 }] })).toBe('3 Tostadas, 3 Huevos');
+  });
+
+  it('breakdownLabel: "2/3 pan" y "150/200 gr pollo"', () => {
+    expect(breakdownLabel({ got: 2, expected: 3, name: 'pan' })).toBe('2/3 pan');
+    expect(breakdownLabel({ got: 150, expected: 200, unit: 'gr', name: 'pollo' })).toBe('150/200 gr pollo');
+  });
+});
+
+/* "Tu día" (pedido explícito: "que yo pueda llevar de una manera fácil, clara y didáctica
+   el registro de mis comidas"). */
+describe('dayMealSummary', () => {
+  const DIA = '2026-10-14';
+  const plan = [
+    { id: 's1', name: 'Desayuno', options: [{ id: 'o1', text: 'Panes', items: [{ id: 'i1', name: 'pan', qty: 3 }] }] },
+    { id: 's2', name: 'Cena', options: [{ id: 'o2', text: 'Milanesa' }] },
+  ];
+  const entrada = (matchOpts, extra = {}) => ({ id: Math.random().toString(36), at: 0, text: 't', matches: { options: matchOpts, extras: [] }, ...extra });
+
+  it('sin nada registrado: todo pendiente, 0% y la frase para empezar', () => {
+    const r = dayMealSummary(state({ plan }), DIA);
+    expect(r.franjas.map((f) => f.status.key)).toEqual(['pendiente', 'pendiente']);
+    expect(r.pct).toBe(0);
+    expect(r.message).toBe('Todavía no registraste nada. Tocá una comida para empezar.');
+  });
+
+  it('2 de 3 panes es "parcial"; una opción sin ítems, "cumplida"', () => {
+    const log = { [DIA]: [
+      entrada([{ slotId: 's1', optionId: 'o1', items: [{ itemId: 'i1', qty: 2 }] }]),
+      entrada([{ slotId: 's2', optionId: 'o2' }]),
+    ] };
+    const r = dayMealSummary(state({ plan, log }), DIA);
+    expect(r.franjas.map((f) => f.status.key)).toEqual(['parcial', 'cumplida']);
+    expect(r.pct).toBeCloseTo((2 / 3 + 1) / 2);
+    expect(r.message).toBe('Registraste todas las comidas, algunas por debajo de lo que pide el plan.');
+  });
+
+  it('dos registros de la misma franja: vale el mejor, no se suman', () => {
+    const log = { [DIA]: [
+      entrada([{ slotId: 's1', optionId: 'o1', items: [{ itemId: 'i1', qty: 1 }] }]),
+      entrada([{ slotId: 's1', optionId: 'o1', items: [{ itemId: 'i1', qty: 3 }] }]),
+    ] };
+    expect(dayMealSummary(state({ plan, log }), DIA).franjas[0].pct).toBe(1);
+  });
+
+  it('con una franja sin registrar, la frase dice cuál falta', () => {
+    const log = { [DIA]: [entrada([{ slotId: 's2', optionId: 'o2' }])] };
+    expect(dayMealSummary(state({ plan, log }), DIA).message).toBe('Te falta: Desayuno.');
+  });
+
+  it('todo cumplido: "día completo"', () => {
+    const log = { [DIA]: [
+      entrada([{ slotId: 's1', optionId: 'o1', items: [{ itemId: 'i1', qty: 3 }] }]),
+      entrada([{ slotId: 's2', optionId: 'o2' }]),
+    ] };
+    expect(dayMealSummary(state({ plan, log }), DIA).message).toBe('¡Día completo! Seguiste el plan en todas las comidas.');
+  });
+
+  it('cuenta lo que no es ni del plan ni un extra como "fuera del plan", y lleva el "pesado"', () => {
+    const log = { [DIA]: [
+      { id: 'a', at: 0, text: 'pastel de carne', matches: { options: [], extras: [] } },
+      entrada([{ slotId: 's1', optionId: 'o1', items: [{ itemId: 'i1', qty: 3 }] }], { pesado: true }),
+    ] };
+    const r = dayMealSummary(state({ plan, log }), DIA);
+    expect(r.fueraDePlan).toBe(1);
+    expect(r.franjas[0].registros[0].pesado).toBe(true);
+  });
+
+  it('sin plan, no hay franjas ni frase', () => {
+    const r = dayMealSummary({}, DIA);
+    expect(r.franjas).toEqual([]);
+    expect(r.message).toBeNull();
   });
 });
 
@@ -122,8 +224,8 @@ describe('itemsBreakdown / itemsCompliance', () => {
   it('itemsBreakdown trae got/expected por cada ítem del plan, en orden', () => {
     const matched = [{ itemId: 'i1', qty: 2 }, { itemId: 'i2', qty: 3 }];
     expect(itemsBreakdown(option, matched)).toEqual([
-      { id: 'i1', name: 'Tostadas', tipo: undefined, got: 2, expected: 3 },
-      { id: 'i2', name: 'Huevos', tipo: undefined, got: 3, expected: 3 },
+      { id: 'i1', name: 'Tostadas', tipo: undefined, unit: undefined, got: 2, expected: 3 },
+      { id: 'i2', name: 'Huevos', tipo: undefined, unit: undefined, got: 3, expected: 3 },
     ]);
   });
 

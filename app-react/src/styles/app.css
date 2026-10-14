@@ -379,13 +379,68 @@ a.rcover { display: block; }
 .qualitypick { display: flex; gap: 8px; }
 .qbtn { flex: 1; height: 38px; border-radius: 12px; border: 1.5px solid var(--line); background: rgba(255, 255, 255, .03); font-size: 12.5px; font-weight: 600; color: rgba(242, 244, 248, .5); cursor: pointer; }
 
-/* Constructor de ítems con cantidad de una opción (MealOptionFormModal) — una fila por
-   alimento: nombre (crece), cantidad (angosta), macro (select nativo, compacto). */
-.mealitems-build { display: flex; flex-direction: column; gap: 8px; }
-.mealitemrow { display: flex; align-items: center; gap: 6px; }
+/* "Qué lleva" una opción (MealOptionFormModal) — dos renglones por alimento, para que
+   entre en un celular: nombre + quitar arriba; cantidad, unidad y macro abajo. */
+.mealitems-build { display: flex; flex-direction: column; gap: 10px; }
+.mealitemrow { display: flex; flex-direction: column; gap: 6px; padding-bottom: 10px; border-bottom: 1px solid rgba(255, 255, 255, .06); }
+.mealitemrow-top, .mealitemrow-bottom { display: flex; align-items: center; gap: 6px; }
 .mealitem-name { flex: 1; min-width: 0; }
-.mealitem-qty { width: 56px; flex: none; text-align: center; padding-left: 0; padding-right: 0; }
-.mealitem-tipo { width: 128px; flex: none; }
+.mealitem-qty { width: 72px; flex: none; text-align: center; padding-left: 4px; padding-right: 4px; }
+.mealitem-unit { width: 110px; flex: none; padding-left: 10px; padding-right: 6px; }
+.mealitem-tipo { flex: 1; min-width: 0; padding-left: 10px; padding-right: 6px; }
+
+/* ---- "Tu día" (DayMealsCard) ---- */
+.daymeals { padding: 16px 16px 6px; }
+.daymeals-head { display: flex; align-items: center; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid rgba(255, 255, 255, .07); }
+.daymeals-msg { font-size: 15px; font-weight: 600; line-height: 1.35; }
+.daymeals-sub { font-size: 12.5px; color: rgba(242, 244, 248, .5); margin-top: 3px; }
+.daymeals-pct { display: flex; flex-direction: column; align-items: flex-end; flex: none; }
+.daymeals-pct .fr { font-size: 26px; font-weight: 800; letter-spacing: -.8px; line-height: 1; }
+.daymeals-pctlbl { font-size: 11px; color: rgba(242, 244, 248, .45); margin-top: 2px; }
+.daymeals-row { padding: 12px 0; }
+.daymeals-row:not(:last-child) { border-bottom: 1px solid rgba(255, 255, 255, .06); }
+.daymeals-rowtop { display: flex; align-items: center; gap: 8px; }
+.daymeals-name { font-size: 15px; font-weight: 600; }
+.daymeals-status { font-size: 9.5px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; padding: 3px 7px; border-radius: 99px; background: rgba(255, 255, 255, .06); }
+.daymeals-reg { margin-top: 8px; padding-left: 2px; }
+.daymeals-opt { font-size: 13px; color: rgba(242, 244, 248, .8); display: flex; align-items: center; gap: 6px; }
+.daymeals-pesado { font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 99px; background: rgba(255, 255, 255, .07); color: rgba(242, 244, 248, .6); }
+.daymeals-items { display: flex; flex-wrap: wrap; gap: 3px 10px; margin-top: 4px; font-size: 11px; font-weight: 600; }
+
+/* Sin plan: la invitación a cargar el del nutricionista. */
+.mealempty { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.mealempty-title { font-size: 15px; font-weight: 600; }
+.mealempty-sub { font-size: 13px; line-height: 1.45; color: rgba(242, 244, 248, .6); }
+.mealempty-btn { margin-top: 4px; }
+.mealempty-alt { font-size: 12.5px; color: rgba(242, 244, 248, .5); cursor: pointer; text-decoration: underline; }
+
+/* Guía del nutricionista, plegada por defecto (<details> nativo). */
+.mealguide summary { cursor: pointer; font-size: 13.5px; font-weight: 600; color: var(--violet); }
+.mealguide ul { margin: 10px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 7px; }
+.mealguide li { font-size: 13px; line-height: 1.45; color: rgba(242, 244, 248, .75); }
+
+/* Registrar una comida (RegisterMealModal). */
+.mealopts { display: flex; flex-direction: column; gap: 8px; }
+.mealopt { text-align: left; display: flex; flex-direction: column; gap: 3px; padding: 13px 14px; border-radius: 16px; background: rgba(255, 255, 255, .05); border: 1.5px solid var(--glass-brd); cursor: pointer; }
+.mealopt-name { font-size: 14.5px; font-weight: 600; color: #F2F4F8; }
+.mealopt-items { font-size: 12px; color: rgba(242, 244, 248, .5); line-height: 1.4; }
+.mealotra { display: flex; align-items: center; gap: 8px; }
+.mealotra .inp { flex: 1; min-width: 0; }
+.pillbtn.comidas:disabled { opacity: .4; cursor: default; }
+.mealajustar-hint { margin-top: 0; margin-bottom: 10px; }
+.mealajustar { display: flex; flex-direction: column; gap: 10px; }
+.mealajustar-row { display: flex; align-items: center; gap: 6px; }
+.mealajustar-name { font-size: 14px; font-weight: 600; }
+.mealajustar-plan { font-size: 11.5px; color: rgba(242, 244, 248, .45); margin-top: 1px; }
+.mealajustar-val { width: 64px; flex: none; text-align: center; padding: 10px 4px; }
+.mealajustar-unit { width: 18px; font-size: 12px; color: rgba(242, 244, 248, .5); }
+.mealpesado { display: flex; align-items: center; gap: 12px; }
+.mealvolver { margin-top: 6px; font-size: 13px; color: rgba(242, 244, 248, .55); cursor: pointer; }
+
+/* La calidad de un extra, al lado del nombre. */
+.mealextra-q { margin-left: 7px; font-size: 10px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; padding: 2px 6px; border-radius: 99px; vertical-align: middle; }
+.mealextra-q.malo { background: #FF8A8024; color: var(--danger); }
+.mealextra-q.bueno { background: #86D9A024; color: var(--green); }
 
 /* ---- el plan, de solo lectura ---- */
 .mealslot { padding: 12px 2px; }

@@ -6,7 +6,8 @@ import { MealOptionFormModal } from './MealOptionFormModal';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { useData } from '../../hooks/useData';
 import { activePlan, optionLabel } from '../../lib/meals';
-import { deleteMealOption, deleteMealSlot, moveMealSlot, startNewMealPlan } from '../../store/mutations';
+import { PLAN_NUTRI_2026_10 } from '../../lib/mealPlanTemplates';
+import { deleteMealOption, deleteMealSlot, loadMealPlanTemplate, moveMealSlot, startNewMealPlan } from '../../store/mutations';
 
 /* ----------------------------- FLUJO DE "ADMINISTRAR EL PLAN" -----------------------------
    Misma máquina de estados que TypesManager.jsx (gimnasio), con un nivel más: el plan
@@ -33,6 +34,7 @@ export function MealPlanManager({ onClose }) {
   const [borrandoSlot, setBorrandoSlot] = useState(null);
   const [borrandoOpcion, setBorrandoOpcion] = useState(null);
   const [nuevoPlan, setNuevoPlan] = useState(false);
+  const [cargarPlan, setCargarPlan] = useState(false);
 
   const slots = activePlan(data)?.slots ?? [];
   const slotActual = paso.slotId ? slots.find((s) => s.id === paso.slotId) : null;
@@ -52,6 +54,16 @@ export function MealPlanManager({ onClose }) {
     setNuevoPlan(false);
   };
 
+  // Con el plan vacío no hay nada que archivar: se carga directo, sin preguntar.
+  const pedirCargarPlan = () => {
+    if (slots.length) setCargarPlan(true);
+    else update((draft) => loadMealPlanTemplate(draft, PLAN_NUTRI_2026_10));
+  };
+  const handleCargarPlan = () => {
+    update((draft) => loadMealPlanTemplate(draft, PLAN_NUTRI_2026_10));
+    setCargarPlan(false);
+  };
+
   return (
     <>
       {paso.vista === 'franjas' && (
@@ -64,6 +76,7 @@ export function MealPlanManager({ onClose }) {
           onDelete={(s) => setBorrandoSlot(s)}
           onMove={(id, dir) => update((draft) => moveMealSlot(draft, id, dir))}
           onNewPlan={() => setNuevoPlan(true)}
+          onLoadTemplate={pedirCargarPlan}
         />
       )}
 
@@ -121,6 +134,16 @@ export function MealPlanManager({ onClose }) {
           okLabel="Empezar"
           onConfirm={handleNuevoPlan}
           onCancel={() => setNuevoPlan(false)}
+        />
+      )}
+
+      {cargarPlan && (
+        <ConfirmDialog
+          title="¿Cargar el plan de la nutricionista?"
+          description={`Tu plan actual queda archivado (con su historial) y pasa a vigente "${PLAN_NUTRI_2026_10.name}". La bitácora ya escrita no se modifica.`}
+          okLabel="Cargar"
+          onConfirm={handleCargarPlan}
+          onCancel={() => setCargarPlan(false)}
         />
       )}
     </>

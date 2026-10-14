@@ -1,5 +1,5 @@
 import { CrossIcon } from '../ui/Icons';
-import { itemsBreakdown, optionLabel } from '../../lib/meals';
+import { breakdownLabel, itemsBreakdown, optionLabel } from '../../lib/meals';
 import { C, tint } from '../../lib/theme';
 
 /* ----------------------------- UNA ENTRADA DE LA BITÁCORA -----------------------------
@@ -34,7 +34,7 @@ export function MealLogBubble({ entry, slotsById, extrasById, onDelete }) {
       return {
         key: optionId,
         label: `${slot.name}: ${optionLabel(option)}`,
-        detalle: items ? itemsBreakdown(option, items) : null,
+        detalle: items && option.items?.length ? itemsBreakdown(option, items) : null,
       };
     })
     .filter(Boolean);
@@ -53,11 +53,12 @@ export function MealLogBubble({ entry, slotsById, extrasById, onDelete }) {
         </button>
       </div>
 
-      {(opciones.length > 0 || extras.length > 0) && (
+      {(opciones.length > 0 || extras.length > 0 || entry.pesado) && (
         <div className="mealtags">
           {opciones.map((o) => (
             <span className="mealtag mealtag-plan" key={o.key}>{o.label}</span>
           ))}
+          {entry.pesado && <span className="mealtag">pesado en balanza</span>}
           {extras.map((ex) => (
             <span
               className="mealtag"
@@ -74,7 +75,7 @@ export function MealLogBubble({ entry, slotsById, extrasById, onDelete }) {
         <div className="mealitems-detalle">
           {opciones.filter((o) => o.detalle).flatMap((o) => o.detalle).map((it) => (
             <span className="mono mealitem-detalle" key={it.id} style={{ color: itemColor(it.got, it.expected) }}>
-              {it.got}/{it.expected} {it.name}
+              {breakdownLabel(it)}
             </span>
           ))}
         </div>
