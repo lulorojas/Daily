@@ -1,4 +1,4 @@
-import { breakdownLabel, optionLabel } from '../../lib/meals';
+import { breakdownLabel, optionLabel, qtyLabel } from '../../lib/meals';
 import { C } from '../../lib/theme';
 
 /* ----------------------------- TU DÍA -----------------------------
@@ -71,10 +71,13 @@ export function DayMealsCard({ summary, onRegistrar, onEditar, onPermitido }) {
                   </button>
                 )}
               </div>
-              {r.detalle && (
+              {(r.detalle || r.suma.length > 0) && (
                 <div className="daymeals-items">
-                  {r.detalle.map((it) => (
+                  {r.detalle?.map((it) => (
                     <span className="mono" key={it.id} style={{ color: itemColor(it) }}>{breakdownLabel(it)}</span>
+                  ))}
+                  {r.suma.map((s) => (
+                    <span className="mono" key={`+${s.optionId}-${s.name}`} style={{ color: C.teal }}>+ {qtyLabel(s.qty, s.unit)} {s.name}</span>
                   ))}
                 </div>
               )}

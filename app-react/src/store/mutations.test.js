@@ -839,6 +839,23 @@ describe('comidas', () => {
         expect(entry.text).toBe('Almuerzo: Milanesa');
       });
 
+      it('suma alimentos de otra opción (pedido explícito: "arroz con pollo con un wok de verduras")', () => {
+        const { d, slot, opt } = conOpcion();
+        const entry = m.addMealLogStructured(d, TODAY, {
+          slotId: slot.id,
+          optionId: opt.id,
+          suma: [{ optionId: 'wok', name: 'verdura', qty: 200, unit: 'gr' }, { optionId: 'wok', name: 'nada', qty: 0 }],
+        });
+        expect(entry.matches.options[0].suma).toEqual([{ optionId: 'wok', name: 'verdura', qty: 200, unit: 'gr' }]);
+        expect(entry.text).toBe('Desayuno: Panes con huevo (3 pan, 200 gr fruta — + 200 gr verdura)');
+      });
+
+      it('sin nada sumado, el match no tiene la clave suma', () => {
+        const { d, slot, opt } = conOpcion();
+        const entry = m.addMealLogStructured(d, TODAY, { slotId: slot.id, optionId: opt.id });
+        expect('suma' in entry.matches.options[0]).toBe(false);
+      });
+
       it('una opción que no existe no escribe nada', () => {
         const d = vacio();
         expect(m.addMealLogStructured(d, TODAY, { slotId: 'x', optionId: 'y' })).toBeNull();

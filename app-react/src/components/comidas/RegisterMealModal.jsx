@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Modal } from '../ui/Modal';
 import { MinusIcon, PlusIcon } from '../ui/Icons';
 import { OffPlanForm } from './OffPlanForm';
-import { itemsLabel, optionLabel } from '../../lib/meals';
+import { itemsLabel, normalizeText, optionLabel } from '../../lib/meals';
 import { C, tint } from '../../lib/theme';
 
 /* ----------------------------- REGISTRAR UNA COMIDA -----------------------------
@@ -20,6 +20,11 @@ import { C, tint } from '../../lib/theme';
                    (pedido explícito: "elegir una opción y sacarle algo por si lo quiero
                    agregar después"). Si hay algo en gramos aparece "Lo pesé en la balanza".
 
+   En el paso 2 también se puede "Sumar algo de otra opción" de esta misma comida (pedido
+   explícito: "arroz con pollo con un wok de verduras"): se toca el alimento de la otra
+   opción y queda como una fila más, marcada como sumada. No cambia el cumplimiento de la
+   opción elegida (ver buildStructured en store/mutations.js).
+
    Con `initial` (corregir algo ya registrado desde "Tu día") arranca directo en el paso 2
    con lo que se había guardado — así "lo agrego después" es volver acá y ponerlo.
 
@@ -30,6 +35,40 @@ function qtysDelPlan(option) {
   return Object.fromEntries(option.items.map((it) => [it.id, it.qty]));
 }
 
+// Una fila de alimento con −/+ y el número editable. `nota` es lo que va debajo del
+// nombre (lo del plan, de qué opción vino) y `accion` el link de la derecha de la nota.
+function FilaCantidad({ name, qty, unit, valor, onChange, nota, accion }) {
+  const gr = unit === 'gr';
+  const paso = gr ? 10 : 1;
+  return (
+    <div className={`mealajustar-row${valor === 0 ? ' off' : ''}`}>
+      <div className="grow">
+        <div className="mealajustar-name">{name}</div>
+        <div className="mealajustar-plan">
+          {nota ?? `plan: ${gr ? `${qty} gr` : qty}`}
+          {accion && <>{' · '}{accion}</>}
+        </div>
+      </div>
+      <button type="button" className="stepbtn dec" onClick={() => onChange(Math.max(0, valor - paso))} aria-label={`Menos ${name}`}>
+        <MinusIcon color="#F2F4F8" strokeWidth="2.8" />
+      </button>
+      <input
+        className="inp mealajustar-val"
+        type="number"
+        min="0"
+        inputMode="numeric"
+        aria-label={`Cantidad de ${name}`}
+        value={valor}
+        onChange={(e) => onChange(Math.max(0, Number(e.target.value) || 0))}
+      />
+      <span className="mealajustar-unit">{gr ? 'gr' : 'u'}</span>
+      <button type="button" className="stepbtn" style={{ background: tint(ACCENT, '2E') }} onClick={() => onChange(valor + paso)} aria-label={`Más ${name}`}>
+        <PlusIcon color={ACCENT} strokeWidth="2.8" />
+      </button>
+    </div>
+  );
+}
+
 export function RegisterMealModal({ slot, initial = null, onClose, onSave, onLibre }) {
   const editando = !!initial;
   const inicial = initial ? slot.options.find((o) => o.id === initial.optionId) ?? null : null;
@@ -37,21 +76,35 @@ export function RegisterMealModal({ slot, initial = null, onClose, onSave, onLib
   const [option, setOption] = useState(inicial?.items?.length ? inicial : null);
   const [qtys, setQtys] = useState(inicial?.items?.length ? { ...qtysDelPlan(inicial), ...initial.qtys } : {});
   const [pesado, setPesado] = useState(!!initial?.pesado);
+  // Lo sumado de OTRAS opciones de esta comida (pedido explícito: "a una comida del plan
+  // se le pueden agregar cosas de otras comidas del plan, por ejemplo arroz con pollo con
+  // un wok de verduras"): [{ optionId, name, qty, unit?, tipo? }].
+  const [suma, setSuma] = useState(initial?.suma ?? []);
+  const [sumando, setSumando] = useState(false);
 
   const elegir = (o) => {
     if (!o.items?.length) {
-      onSave({ optionId: o.id, qtys: {}, pesado: false });
+      onSave({ optionId: o.id, qtys: {}, pesado: false, suma: [] });
       return;
     }
     setOption(o);
     setQtys(qtysDelPlan(o));
     setPesado(false);
+    setSuma([]);
   };
 
   const fijar = (it, valor) => setQtys((q) => ({ ...q, [it.id]: Math.max(0, valor) }));
-  const cambiar = (it, delta) => fijar(it, (Number(qtys[it.id]) || 0) + delta);
 
-  const hayPeso = option?.items.some((it) => it.unit === 'gr');
+  const yaEsta = (name) => option.items.some((it) => normalizeText(it.name) === normalizeText(name))
+    || suma.some((s) => normalizeText(s.name) === normalizeText(name));
+  const sumar = (o, it) => setSuma((xs) => [...xs, {
+    optionId: o.id, name: it.name, qty: it.qty, ...(it.unit ? { unit: it.unit } : {}), ...(it.tipo ? { tipo: it.tipo } : {}),
+  }]);
+  const fijarSuma = (i, qty) => setSuma((xs) => xs.map((s, j) => (j === i ? { ...s, qty } : s)));
+  const quitarSuma = (i) => setSuma((xs) => xs.filter((_, j) => j !== i));
+  const nombreOpcion = (id) => slot.options.find((o) => o.id === id)?.text ?? '';
+
+  const hayPeso = option?.items.some((it) => it.unit === 'gr') || suma.some((s) => s.unit === 'gr');
 
   if (!option) {
     return (
@@ -87,7 +140,7 @@ export function RegisterMealModal({ slot, initial = null, onClose, onSave, onLib
       title={slot.name}
       accent={ACCENT}
       saveLabel={editando ? 'Guardar' : 'Registrar'}
-      onSave={() => onSave({ optionId: option.id, qtys, pesado: hayPeso && pesado })}
+      onSave={() => onSave({ optionId: option.id, qtys, pesado: hayPeso && pesado, suma: suma.filter((s) => s.qty > 0) })}
       onClose={onClose}
     >
       <div className="fld">
@@ -98,48 +151,88 @@ export function RegisterMealModal({ slot, initial = null, onClose, onSave, onLib
 
         <div className="mealajustar">
           {option.items.map((it) => {
-            const gr = it.unit === 'gr';
-            const paso = gr ? 10 : 1;
             const valor = qtys[it.id] ?? 0;
             const sacado = valor === 0;
             return (
-              <div className={`mealajustar-row${sacado ? ' off' : ''}`} key={it.id}>
-                <div className="grow">
-                  <div className="mealajustar-name">{it.name}</div>
-                  <div className="mealajustar-plan">
-                    plan: {gr ? `${it.qty} gr` : it.qty}
-                    {' · '}
-                    <button
-                      type="button"
-                      className="mealajustar-toggle"
-                      aria-label={sacado ? `Volver a poner ${it.name}` : `Sacar ${it.name}`}
-                      onClick={() => fijar(it, sacado ? it.qty : 0)}
-                    >
-                      {sacado ? 'Volver a poner' : 'Sacar'}
-                    </button>
-                  </div>
-                </div>
-                <button type="button" className="stepbtn dec" onClick={() => cambiar(it, -paso)} aria-label={`Menos ${it.name}`}>
-                  <MinusIcon color="#F2F4F8" strokeWidth="2.8" />
-                </button>
-                <input
-                  className="inp mealajustar-val"
-                  type="number"
-                  min="0"
-                  inputMode="numeric"
-                  aria-label={`Cantidad de ${it.name}`}
-                  value={valor}
-                  onChange={(e) => fijar(it, Number(e.target.value) || 0)}
-                />
-                <span className="mealajustar-unit">{gr ? 'gr' : 'u'}</span>
-                <button type="button" className="stepbtn" style={{ background: tint(ACCENT, '2E') }} onClick={() => cambiar(it, paso)} aria-label={`Más ${it.name}`}>
-                  <PlusIcon color={ACCENT} strokeWidth="2.8" />
-                </button>
-              </div>
+              <FilaCantidad
+                key={it.id}
+                name={it.name}
+                qty={it.qty}
+                unit={it.unit}
+                valor={valor}
+                onChange={(v) => fijar(it, v)}
+                accion={(
+                  <button
+                    type="button"
+                    className="mealajustar-toggle"
+                    aria-label={sacado ? `Volver a poner ${it.name}` : `Sacar ${it.name}`}
+                    onClick={() => fijar(it, sacado ? it.qty : 0)}
+                  >
+                    {sacado ? 'Volver a poner' : 'Sacar'}
+                  </button>
+                )}
+              />
             );
           })}
+
+          {suma.map((s, i) => (
+            <FilaCantidad
+              key={`${s.optionId}-${s.name}`}
+              name={s.name}
+              qty={s.qty}
+              unit={s.unit}
+              valor={s.qty}
+              onChange={(v) => fijarSuma(i, v)}
+              nota={`sumado, de ${nombreOpcion(s.optionId)}`}
+              accion={(
+                <button type="button" className="mealajustar-toggle" aria-label={`Quitar ${s.name}`} onClick={() => quitarSuma(i)}>
+                  Quitar
+                </button>
+              )}
+            />
+          ))}
         </div>
       </div>
+
+      {slot.options.length > 1 && (
+        <div className="fld">
+          {!sumando ? (
+            <button type="button" className="dashed" onClick={() => setSumando(true)}>
+              <PlusIcon size={16} strokeWidth="2.4" />
+              Sumar algo de otra opción
+            </button>
+          ) : (
+            <>
+              <div className="flabel notopmargin">¿Qué le sumaste?</div>
+              <div className="mealsumar">
+                {slot.options.filter((o) => o.id !== option.id && o.items?.length).map((o) => {
+                  const libres = o.items.filter((it) => !yaEsta(it.name));
+                  if (!libres.length) return null;
+                  return (
+                    <div className="mealsumar-opt" key={o.id}>
+                      <div className="mealajustar-plan">{optionLabel(o)}</div>
+                      <div className="chips">
+                        {libres.map((it) => (
+                          <button
+                            type="button"
+                            className="chip"
+                            key={it.id}
+                            aria-label={`Sumar ${it.name} de ${optionLabel(o)}`}
+                            onClick={() => sumar(o, it)}
+                          >
+                            + {it.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <button type="button" className="mealvolver" onClick={() => setSumando(false)}>Listo</button>
+            </>
+          )}
+        </div>
+      )}
 
       {hayPeso && (
         <div className="fld">

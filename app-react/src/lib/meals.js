@@ -442,6 +442,9 @@ export function dayMealSummary(state, dISO, plan = activePlan(state)) {
           pesado: e.pesado,
           pct: medible ? itemsCompliance(option, m.items) : 1,
           detalle: medible ? itemsBreakdown(option, m.items) : null,
+          // Lo sumado de otras opciones (ver buildStructured en store/mutations.js): se
+          // muestra, pero no cambia `pct` — ni la vuelve pifiada ni completa lo que faltó.
+          suma: m.suma ?? [],
         });
       });
     });

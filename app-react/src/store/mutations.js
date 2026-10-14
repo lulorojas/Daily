@@ -640,28 +640,51 @@ function unaFranjaPorPlato(draft, entradasDelDia, options) {
    `pesado` (si lo pesó en la balanza) solo se guarda cuando es true. */
 /* El match y el texto de una entrada registrada tocando. Lo que se sacó (cantidad 0) no
    se lista como "0 fruta" sino aparte, "sin fruta" — así se lee qué faltó. */
-function buildStructured(draft, { slotId, optionId, qtys = {} }) {
+/* `suma`: alimentos de OTRAS opciones de la misma comida que se agregaron a esta (pedido
+   explícito: "a una comida del plan se le pueden agregar cosas de otras comidas del
+   plan, por ejemplo arroz con pollo con un wok de verduras"). Se guardan con su nombre y
+   cantidad tal cual — no por id, porque no son ítems de ESTA opción —, y no tocan el
+   cumplimiento de la opción elegida: son comida del plan, así que no la vuelven pifiada,
+   pero tampoco "completan" lo que faltó de ella. */
+function cleanSuma(suma) {
+  return (suma ?? [])
+    .map((s) => ({
+      optionId: s.optionId,
+      name: (s.name ?? '').trim(),
+      qty: Math.max(0, Number(s.qty) || 0),
+      ...(s.unit === 'gr' ? { unit: 'gr' } : {}),
+      ...(s.tipo ? { tipo: s.tipo } : {}),
+    }))
+    .filter((s) => s.name && s.qty > 0);
+}
+
+function buildStructured(draft, { slotId, optionId, qtys = {}, suma = [] }) {
   const slot = activePlan(draft)?.slots.find((s) => s.id === slotId);
   const option = slot?.options.find((o) => o.id === optionId);
   if (!option) return null;
 
   const match = { slotId, optionId };
   let text = `${slot.name}: ${optionLabel(option)}`;
+  const partes = [];
   if (option.items?.length) {
     match.items = option.items.map((it) => ({ itemId: it.id, qty: Math.max(0, Number(qtys[it.id] ?? it.qty) || 0) }));
     const conQty = option.items.map((it, i) => ({ ...it, qty: match.items[i].qty }));
     const comidos = conQty.filter((it) => it.qty > 0);
     const sacados = conQty.filter((it) => it.qty === 0);
-    const partes = [];
     if (comidos.length) partes.push(itemsLabel(comidos));
     if (sacados.length) partes.push(`sin ${sacados.map((it) => it.name).join(', ')}`);
-    if (partes.length) text += ` (${partes.join(' — ')})`;
   }
+  const sumados = cleanSuma(suma);
+  if (sumados.length) {
+    match.suma = sumados;
+    partes.push(`+ ${itemsLabel(sumados)}`);
+  }
+  if (partes.length) text += ` (${partes.join(' — ')})`;
   return { match, text };
 }
 
-export function addMealLogStructured(draft, dISO, { slotId, optionId, qtys = {}, pesado = false }) {
-  const built = buildStructured(draft, { slotId, optionId, qtys });
+export function addMealLogStructured(draft, dISO, { slotId, optionId, qtys = {}, pesado = false, suma = [] }) {
+  const built = buildStructured(draft, { slotId, optionId, qtys, suma });
   if (!built) return null;
   const meals = ensureMeals(draft);
 
@@ -676,10 +699,10 @@ export function addMealLogStructured(draft, dISO, { slotId, optionId, qtys = {},
    la entrada, sin tocar la hora ni otros matches que pudiera tener. El texto se rearma
    solo si la entrada no tiene nada más (una registrada tocando); si vino de la bitácora
    escrita, el texto es lo que escribió Lulo y se respeta. */
-export function updateMealLogStructured(draft, dISO, entryId, { slotId, optionId, prevOptionId = optionId, qtys = {}, pesado = false }) {
+export function updateMealLogStructured(draft, dISO, entryId, { slotId, optionId, prevOptionId = optionId, qtys = {}, pesado = false, suma = [] }) {
   const entry = draft.meals?.log?.[dISO]?.find((e) => e.id === entryId);
   if (!entry) return false;
-  const built = buildStructured(draft, { slotId, optionId, qtys });
+  const built = buildStructured(draft, { slotId, optionId, qtys, suma });
   if (!built) return false;
 
   const i = entry.matches.options.findIndex((m) => m.slotId === slotId && m.optionId === prevOptionId);

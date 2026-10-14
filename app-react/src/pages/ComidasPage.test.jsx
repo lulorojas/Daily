@@ -326,6 +326,27 @@ describe('tu día', () => {
     expect(within(dia).getByText('Te falta: Cena.')).toBeInTheDocument();
   });
 
+  it('a una opción se le suma algo de otra opción de la misma comida (pedido explícito: arroz con pollo + wok)', async () => {
+    const user = userEvent.setup();
+    const doc = docMedible();
+    doc.meals.plans[0].slots[0].options.push({
+      id: 'o3', text: 'Wok de pollo', items: [{ id: 'w1', name: 'verdura', qty: 200, unit: 'gr' }, { id: 'w2', name: 'fideos', qty: 300, unit: 'gr' }],
+    });
+    const { doc: leer } = renderScreen(<ComidasPage />, { doc });
+
+    await user.click(screen.getByRole('button', { name: 'Registrar Desayuno' }));
+    await user.click(screen.getByRole('button', { name: /Panes con huevo/ }));
+    await user.click(screen.getByRole('button', { name: 'Sumar algo de otra opción' }));
+    await user.click(screen.getByRole('button', { name: 'Sumar verdura de Wok de pollo' }));
+    await user.click(screen.getByRole('button', { name: 'Registrar' }));
+
+    const [entrada] = leer().meals.log[todayISO()];
+    expect(entrada.matches.options[0].suma).toEqual([{ optionId: 'o3', name: 'verdura', qty: 200, unit: 'gr' }]);
+    const dia = screen.getByText('Tu día').closest('.sect');
+    expect(within(dia).getByText('+ 200 gr verdura')).toBeInTheDocument();
+    expect(within(dia).getByText('Cumplida')).toBeInTheDocument(); // sumar no la vuelve pifiada
+  });
+
   it('una opción sin alimentos se registra con un solo toque', async () => {
     const user = userEvent.setup();
     const { doc: leer } = renderScreen(<ComidasPage />, { doc: docMedible() });

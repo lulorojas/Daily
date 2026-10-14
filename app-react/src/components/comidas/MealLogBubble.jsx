@@ -1,5 +1,5 @@
 import { CrossIcon } from '../ui/Icons';
-import { breakdownLabel, itemsBreakdown, optionLabel } from '../../lib/meals';
+import { breakdownLabel, itemsBreakdown, optionLabel, qtyLabel } from '../../lib/meals';
 import { C, tint } from '../../lib/theme';
 
 /* ----------------------------- UNA ENTRADA DE LA BITÁCORA -----------------------------
@@ -27,7 +27,7 @@ export function MealLogBubble({ entry, slotsById, extrasById, onDelete }) {
   const hora = new Date(entry.at).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
 
   const opciones = entry.matches.options
-    .map(({ slotId, optionId, items }) => {
+    .map(({ slotId, optionId, items, suma }) => {
       const slot = slotsById[slotId];
       const option = slot?.options.find((o) => o.id === optionId);
       if (!option) return null;
@@ -35,6 +35,7 @@ export function MealLogBubble({ entry, slotsById, extrasById, onDelete }) {
         key: optionId,
         label: `${slot.name}: ${optionLabel(option)}`,
         detalle: items && option.items?.length ? itemsBreakdown(option, items) : null,
+        suma: suma ?? [],
       };
     })
     .filter(Boolean);
@@ -71,11 +72,16 @@ export function MealLogBubble({ entry, slotsById, extrasById, onDelete }) {
         </div>
       )}
 
-      {opciones.some((o) => o.detalle) && (
+      {opciones.some((o) => o.detalle || o.suma.length) && (
         <div className="mealitems-detalle">
           {opciones.filter((o) => o.detalle).flatMap((o) => o.detalle).map((it) => (
             <span className="mono mealitem-detalle" key={it.id} style={{ color: itemColor(it.got, it.expected) }}>
               {breakdownLabel(it)}
+            </span>
+          ))}
+          {opciones.flatMap((o) => o.suma).map((s) => (
+            <span className="mono mealitem-detalle" key={`+${s.optionId}-${s.name}`} style={{ color: C.teal }}>
+              + {qtyLabel(s.qty, s.unit)} {s.name}
             </span>
           ))}
         </div>

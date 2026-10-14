@@ -79,10 +79,10 @@ export function ComidasPage() {
   const cargarPlan = () => update((draft) => loadMealPlanTemplate(draft, PLAN_NUTRI_2026_10));
 
   // `modal.entryId` presente = se está corrigiendo un registro de "Tu día" (Editar).
-  const registrar = (slot, { optionId, qtys, pesado }) => {
+  const registrar = (slot, { optionId, qtys, pesado, suma }) => {
     update((draft) => (modal.entryId
-      ? updateMealLogStructured(draft, day, modal.entryId, { slotId: slot.id, optionId, prevOptionId: modal.initial.optionId, qtys, pesado })
-      : addMealLogStructured(draft, day, { slotId: slot.id, optionId, qtys, pesado })));
+      ? updateMealLogStructured(draft, day, modal.entryId, { slotId: slot.id, optionId, prevOptionId: modal.initial.optionId, qtys, pesado, suma })
+      : addMealLogStructured(draft, day, { slotId: slot.id, optionId, qtys, pesado, suma })));
     setModal(null);
   };
   // `slot` null = un permitido suelto, fuera de las comidas.
@@ -98,6 +98,7 @@ export function ComidasPage() {
       optionId: registro.option.id,
       qtys: Object.fromEntries((registro.match.items ?? []).map((m) => [m.itemId, m.qty])),
       pesado: !!registro.pesado,
+      suma: registro.suma,
     },
   });
 
