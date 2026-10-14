@@ -78,7 +78,7 @@ export function ManageMealSlotsModal({ slots, onClose, onNew, onOpenOptions, onE
         )}
         {faltantes > 0 && onRestore && (
           <button type="button" className="pillbtn comidas comidas-newplan" onClick={onRestore}>
-            Recuperar lo borrado del plan de la nutricionista ({faltantes})
+            Agregar lo que falta del plan de la nutricionista ({faltantes})
           </button>
         )}
         {onLoadTemplate && (

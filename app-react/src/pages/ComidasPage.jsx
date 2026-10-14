@@ -39,7 +39,8 @@ import { shiftWeek } from '../lib/items';
                  siempre: lo que escribas lo sigue reconociendo el bot (matchEntry).
      Plan      — lo que tenés que comer, de solo lectura, con la guía del nutricionista;
                  se edita desde "Editar". Si falta algo del plan de la nutricionista
-                 (borrado sin querer), un aviso ofrece recuperarlo.
+                 (borrado sin querer, o sumado después a la plantilla), un aviso ofrece
+                 agregarlo.
 
    Sin plan todavía, "Tu día" ofrece cargar de un toque el plan que mandó Lulo en PDF
    (PLAN_NUTRI_2026_10 en lib/mealPlanTemplates.js) — o armarlo a mano.
@@ -182,10 +183,10 @@ export function ComidasPage() {
           {faltanDelPlan > 0 && (
             <div className="card pad mealrecover">
               <span className="grow">
-                Falta algo del plan de la nutricionista ({faltanDelPlan}). ¿Lo borraste sin querer?
+                Hay {faltanDelPlan} {faltanDelPlan === 1 ? 'cosa' : 'cosas'} del plan de la nutricionista que no {faltanDelPlan === 1 ? 'está' : 'están'} en el tuyo (borradas sin querer, o nuevas).
               </span>
               <button type="button" className="pillbtn comidas" onClick={() => setModal({ kind: 'plan', recuperar: true })}>
-                Recuperar
+                Agregar
               </button>
             </div>
           )}

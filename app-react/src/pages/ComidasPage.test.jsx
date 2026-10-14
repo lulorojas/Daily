@@ -389,9 +389,9 @@ describe('tu día', () => {
     loadMealPlanTemplate(doc, plantilla);
     const { doc: leer } = renderScreen(<ComidasPage />, { doc });
 
-    await user.click(within(screen.getByText('Plan de comidas').closest('.sect')).getByRole('button', { name: 'Recuperar' }));
+    await user.click(within(screen.getByText('Plan de comidas').closest('.sect')).getByRole('button', { name: 'Agregar' }));
     expect(screen.getByText(/Desayuno › Panes con queso y huevo › cucharadas de queso untable/)).toBeInTheDocument();
-    await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Recuperar' }));
+    await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Agregar' }));
 
     const items = activePlan(leer()).slots[0].options[0].items.map((i) => i.name);
     expect(items).toEqual(['pan', 'cucharadas de queso untable', 'huevo', 'fruta']); // en su lugar, no al final

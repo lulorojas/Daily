@@ -344,31 +344,38 @@ export function comoComes(state, per) {
    están — por nombre, sin tildes ni mayúsculas. No mira lo que Lulo agregó de más: eso
    no se toca nunca.
 
-   `parecido` es cuántas opciones de la plantilla siguen en el plan: si es menos de la
-   mitad, el plan claramente NO salió de esa plantilla (lo armó a mano, o es otro
-   nutricionista) y ofrecer "recuperar" sería ofrecer meterle un plan ajeno.
+   También sirve cuando a la plantilla se le SUMA algo después de cargada (pedido
+   explícito: "sumame a almuerzos y cenas arroz con pollo…"): lo nuevo aparece como
+   faltante y "Recuperar" lo agrega igual.
+
+   `parecido`: si menos de la mitad de los platos de la plantilla están en algún lugar
+   del plan, el plan claramente NO salió de esa plantilla (lo armó a mano, o es otro
+   nutricionista) y ofrecer agregarle cosas sería meterle un plan ajeno. Se cuentan
+   platos DISTINTOS por nombre — el mismo plato va en dos franjas (almuerzo y cena) y no
+   tiene que pesar doble.
    ============================================================================ */
 export function missingFromTemplate(plan, template) {
   const faltan = [];
-  let encontradas = 0, total = 0;
   const slots = plan?.slots ?? [];
   template.slots.forEach((ts) => {
     const slot = slots.find((s) => normalizeText(s.name) === normalizeText(ts.name));
     ts.options.forEach((to) => {
-      total++;
       const opt = slot?.options.find((o) => normalizeText(o.text) === normalizeText(to.text));
       if (!opt) {
         faltan.push({ slot: ts.name, option: to.text });
         return;
       }
-      encontradas++;
       (to.items ?? []).forEach((ti) => {
         if ((opt.items ?? []).some((i) => normalizeText(i.name) === normalizeText(ti.name))) return;
         faltan.push({ slot: ts.name, option: to.text, item: ti.name });
       });
     });
   });
-  return { faltan, parecido: total > 0 && encontradas >= total / 2 };
+
+  const enElPlan = new Set(slots.flatMap((s) => s.options.map((o) => normalizeText(o.text))));
+  const platos = new Set(template.slots.flatMap((s) => s.options.map((o) => normalizeText(o.text))));
+  const encontrados = [...platos].filter((t) => enElPlan.has(t)).length;
+  return { faltan, parecido: platos.size > 0 && encontrados >= platos.size / 2 };
 }
 
 // "Desayuno › Panes con queso y huevo › cucharadas de queso untable"

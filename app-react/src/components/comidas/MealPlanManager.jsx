@@ -155,9 +155,9 @@ export function MealPlanManager({ onClose, recuperarDeEntrada = false }) {
 
       {recuperar && faltan.length > 0 && (
         <ConfirmDialog
-          title="¿Recuperar lo borrado?"
-          description={`Se vuelve a agregar, en su lugar de siempre: ${faltan.map(faltanteLabel).join('; ')}. Lo que agregaste o cambiaste vos no se toca.`}
-          okLabel="Recuperar"
+          title="¿Agregar lo que falta del plan?"
+          description={`Se agrega, en su lugar dentro de cada comida: ${faltan.slice(0, 6).map(faltanteLabel).join('; ')}${faltan.length > 6 ? `; y ${faltan.length - 6} más` : ''}. Lo que agregaste o cambiaste vos no se toca.`}
+          okLabel="Agregar"
           onConfirm={handleRecuperar}
           onCancel={() => setRecuperar(false)}
         />

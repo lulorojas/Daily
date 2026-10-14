@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { normalize } from '../lib/model';
-import { activePlan } from '../lib/meals';
+import { activePlan, missingFromTemplate } from '../lib/meals';
 import { PLAN_NUTRI_2026_10 } from '../lib/mealPlanTemplates';
 import { emptyDoc, fullDoc, TODAY, ago } from '../test/fixtures';
 import * as m from './mutations';
@@ -984,6 +984,96 @@ describe('comidas', () => {
       m.addMealExtra(d, { name: 'alcohol', color: '#000', icon: 'agua' });
       m.loadMealPlanTemplate(d, plantilla);
       expect(d.meals.extras).toHaveLength(1);
+    });
+  });
+
+  /* El plan real de la nutricionista (lib/mealPlanTemplates.js), con lo que pidió Lulo:
+     desayuno y merienda comparten opciones, almuerzo y cena también, y se suman arroz
+     con pollo y milanesa con arroz. */
+  describe('PLAN_NUTRI_2026_10', () => {
+    function cargado() {
+      const d = vacio();
+      m.loadMealPlanTemplate(d, PLAN_NUTRI_2026_10);
+      return Object.fromEntries(activePlan(d).slots.map((s) => [s.name, s.options.map((o) => o.text)]));
+    }
+
+    it('desayuno y merienda tienen las mismas opciones; almuerzo y cena también', () => {
+      const p = cargado();
+      expect(p.Merienda).toEqual(p.Desayuno);
+      expect(p.Cena).toEqual(p.Almuerzo);
+    });
+
+    it('almuerzo y cena incluyen arroz con pollo y milanesa con arroz, con sus gramos', () => {
+      const d = vacio();
+      m.loadMealPlanTemplate(d, PLAN_NUTRI_2026_10);
+      ['Almuerzo', 'Cena'].forEach((franja) => {
+        const opts = activePlan(d).slots.find((s) => s.name === franja).options;
+        expect(opts.find((o) => o.text === 'Arroz con pollo').items).toMatchObject([
+          { name: 'arroz', qty: 300, unit: 'gr' }, { name: 'pollo', qty: 250, unit: 'gr' },
+        ]);
+        expect(opts.find((o) => o.text === 'Milanesa con arroz').items).toMatchObject([
+          { name: 'arroz', qty: 300, unit: 'gr' }, { name: 'milanesa', qty: 250, unit: 'gr' },
+        ]);
+      });
+    });
+
+    it('un plan cargado con la versión anterior (franjas separadas) se pone al día con "Agregar"', () => {
+      const P = PLAN_NUTRI_2026_10.slots;
+      const dm = P[0].options, ac = P[1].options;
+      const anterior = {
+        slots: [
+          { name: 'Desayuno', options: dm.slice(0, 3) },
+          { name: 'Almuerzo', options: ac.slice(0, 7) },
+          { name: 'Merienda', options: [dm[1], dm[3], dm[0], dm[4]] },
+          { name: 'Cena', options: ac.slice(7, 14) },
+        ],
+      };
+      const d = vacio();
+      m.loadMealPlanTemplate(d, anterior);
+
+      const diff = missingFromTemplate(activePlan(d), PLAN_NUTRI_2026_10);
+      expect(diff.parecido).toBe(true);
+      expect(diff.faltan).toHaveLength(2 + 9 + 1 + 9);
+
+      m.restoreFromMealTemplate(d, PLAN_NUTRI_2026_10);
+      const nombres = (franja) => activePlan(d).slots.find((s) => s.name === franja).options.map((o) => o.text).sort();
+      expect(nombres('Merienda')).toEqual(nombres('Desayuno'));
+      expect(nombres('Cena')).toEqual(nombres('Almuerzo'));
+      expect(nombres('Cena')).toHaveLength(16);
+      expect(missingFromTemplate(activePlan(d), PLAN_NUTRI_2026_10).faltan).toEqual([]);
+    });
+
+    it('cada franja tiene sus propios ids, aunque compartan los mismos platos', () => {
+      const d = vacio();
+      m.loadMealPlanTemplate(d, PLAN_NUTRI_2026_10);
+      const ids = activePlan(d).slots.flatMap((s) => s.options.map((o) => o.id));
+      expect(new Set(ids).size).toBe(ids.length);
+    });
+  });
+
+  /* Un plato compartido por almuerzo y cena, escrito en la bitácora, cuenta en UNA sola
+     franja: la primera que todavía no se registró ese día. */
+  describe('addMealLogEntry con platos compartidos entre franjas', () => {
+    function conCompartido() {
+      const d = vacio();
+      const almuerzo = m.addMealSlot(d, { name: 'Almuerzo' });
+      const cena = m.addMealSlot(d, { name: 'Cena' });
+      m.addMealOption(d, almuerzo.id, { text: 'Arroz con pollo' });
+      m.addMealOption(d, cena.id, { text: 'Arroz con pollo' });
+      return { d, almuerzo, cena };
+    }
+
+    it('la primera vez del día va al almuerzo, no a las dos', () => {
+      const { d, almuerzo } = conCompartido();
+      const e = m.addMealLogEntry(d, TODAY, 'comí arroz con pollo');
+      expect(e.matches.options.map((x) => x.slotId)).toEqual([almuerzo.id]);
+    });
+
+    it('con el almuerzo ya registrado, va a la cena', () => {
+      const { d, cena } = conCompartido();
+      m.addMealLogEntry(d, TODAY, 'comí arroz con pollo');
+      const e = m.addMealLogEntry(d, TODAY, 'de nuevo arroz con pollo');
+      expect(e.matches.options.map((x) => x.slotId)).toEqual([cena.id]);
     });
   });
 

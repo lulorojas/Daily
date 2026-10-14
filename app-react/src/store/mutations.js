@@ -605,9 +605,30 @@ export function addMealLogEntry(draft, dISO, text) {
   const trimmed = (text || '').trim();
   if (!trimmed) return null;
   const meals = ensureMeals(draft);
-  const entry = { id: uid(), at: Date.now(), text: trimmed, matches: matchEntry(draft, trimmed) };
+  const matches = matchEntry(draft, trimmed);
+  matches.options = unaFranjaPorPlato(draft, meals.log[dISO] ?? [], matches.options);
+  const entry = { id: uid(), at: Date.now(), text: trimmed, matches };
   (meals.log[dISO] ||= []).push(entry);
   return entry;
+}
+
+/* El mismo plato está en dos franjas (almuerzo y cena comparten opciones, pedido
+   explícito), así que escribir "comí arroz con pollo" lo reconoce en las dos — y
+   contaría como almuerzo Y cena. Se queda con UNA: la primera (en el orden del plan) que
+   todavía no tiene nada registrado ese día — al mediodía es el almuerzo, a la noche, ya
+   registrado el almuerzo, es la cena. Si ya están todas, la última. */
+function unaFranjaPorPlato(draft, entradasDelDia, options) {
+  const slots = activePlan(draft)?.slots ?? [];
+  const plato = (m) => normalizeText(slots.find((s) => s.id === m.slotId)?.options.find((o) => o.id === m.optionId)?.text ?? m.optionId);
+  const registrada = (slotId) => entradasDelDia.some((e) => e.libre?.slotId === slotId || e.matches.options.some((m) => m.slotId === slotId));
+
+  const porPlato = new Map();
+  options.forEach((m) => {
+    const k = plato(m);
+    if (!porPlato.has(k)) porPlato.set(k, []);
+    porPlato.get(k).push(m);
+  });
+  return [...porPlato.values()].map((grupo) => grupo.find((m) => !registrada(m.slotId)) ?? grupo[grupo.length - 1]);
 }
 
 /* Registrar una comida TOCANDO en vez de escribiendo (pedido explícito: "que yo pueda
