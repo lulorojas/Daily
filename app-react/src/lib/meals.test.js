@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   activePlan, breakdownLabel, comoComes, dayMealSummary, extraCount, extraLoggedOn, extraMatchDates, extraStreak,
-  itemsBreakdown, itemsCompliance, itemsLabel, matchEntry, missingFromTemplate, normalizeText, optionLabel, qtyLabel,
+  itemsBreakdown, itemsCompliance, itemsLabel, matchEntry, mealScoreByPeriod, missingFromTemplate, normalizeText,
+  optionLabel, planOn, qtyLabel,
 } from './meals';
-import { mondayAgo, thisMonday } from '../test/fixtures';
+import { parseISO } from './dates';
+import { mondayAgo, thisMonday, TODAY } from '../test/fixtures';
 
 /* ============================================================================
    COMIDAS: el "bot" sin IA (substring match), la frecuencia de extras y el seguimiento
@@ -217,19 +219,122 @@ describe('dayMealSummary', () => {
     expect(r.message).toBeNull();
   });
 
-  /* Comida libre (pedido explícito: "unas galletas en el desayuno"): la franja deja de
-     estar pendiente, pero no suma ni resta al % del plan. */
-  it('una franja con solo comida libre queda "Libre" y fuera del % del plan', () => {
+  /* Fuera del plan (pedido explícito: "las que pueden estar bien son las comidas
+     distintas del plan pero que no son insalubres", y un permitido "es como una comida
+     pifiada"). */
+  const fuera = (id, slotId, tipo) => ({
+    id, at: 0, text: 't', libre: { ...(slotId ? { slotId } : {}), que: id, tipo }, matches: { options: [], extras: [] },
+  });
+
+  it('distinta pero sana: la franja queda "Fuera del plan" y no cuenta para el %', () => {
+    const log = { [DIA]: [fuera('yogur', 's1', 'sana'), entrada([{ slotId: 's2', optionId: 'o2' }])] };
+    const r = dayMealSummary(state({ plan, log }), DIA);
+    expect(r.franjas[0].status.key).toBe('sana');
+    expect(r.franjas[0].libres).toEqual([{ entryId: 'yogur', que: 'yogur', tipo: 'sana' }]);
+    expect(r.pct).toBe(1);           // solo cuenta la cena, cumplida
+    expect(r.fueraDePlan).toBe(0);
+    expect(r.message).toBe('¡Día completo! Seguiste el plan, con 1 comida distinta pero sana.');
+  });
+
+  it('un permitido en lugar de una comida cuenta 0 en el % del plan', () => {
+    const log = { [DIA]: [fuera('galletas', 's1', 'permitido'), entrada([{ slotId: 's2', optionId: 'o2' }])] };
+    const r = dayMealSummary(state({ plan, log }), DIA);
+    expect(r.franjas[0].status.key).toBe('permitido');
+    expect(r.pct).toBe(0.5);
+    expect(r.permitidos).toBe(1);
+    expect(r.message).toBe('Registraste todas las comidas, algunas por debajo de lo que pide el plan. Llevás 1 permitido.');
+  });
+
+  it('un permitido suelto no ocupa franja, pero se cuenta y se nombra', () => {
     const log = { [DIA]: [
-      { id: 'l', at: 0, text: 'Desayuno: galletas (comida libre)', libre: { slotId: 's1', que: 'galletas' }, matches: { options: [], extras: [] } },
+      fuera('alfajor', null, 'permitido'),
+      entrada([{ slotId: 's1', optionId: 'o1', items: [{ itemId: 'i1', qty: 3 }] }]),
       entrada([{ slotId: 's2', optionId: 'o2' }]),
     ] };
     const r = dayMealSummary(state({ plan, log }), DIA);
-    expect(r.franjas[0].status.key).toBe('libre');
-    expect(r.franjas[0].libres).toEqual([{ entryId: 'l', que: 'galletas' }]);
-    expect(r.pct).toBe(1);           // solo cuenta la cena, cumplida
-    expect(r.fueraDePlan).toBe(0);   // la comida libre no es "otra cosa suelta"
-    expect(r.message).toBe('¡Día completo! Seguiste el plan, con 1 comida libre.');
+    expect(r.sueltos).toEqual([{ entryId: 'alfajor', que: 'alfajor', tipo: 'permitido' }]);
+    expect(r.franjas.map((f) => f.status.key)).toEqual(['cumplida', 'cumplida']);
+    expect(r.message).toBe('Seguiste el plan en las comidas. Llevás 1 permitido.');
+  });
+
+  it('una entrada vieja de "comida libre", sin tipo, cuenta como sana', () => {
+    const log = { [DIA]: [{ id: 'v', at: 0, text: 't', libre: { slotId: 's1', que: 'galletas' }, matches: { options: [], extras: [] } }] };
+    expect(dayMealSummary(state({ plan, log }), DIA).franjas[0].status.key).toBe('sana');
+  });
+});
+
+/* "¿Comiste bien?" (pedido explícito: "cuántas comidas estuve bien y cuántas le pifié").
+   Con per='mes' por lo mismo que el resto: 4 columnas semanales, la última la actual. */
+describe('mealScoreByPeriod', () => {
+  const plan = [
+    { id: 's1', name: 'Desayuno', options: [{ id: 'o1', text: 'Panes', items: [{ id: 'i1', name: 'pan', qty: 3 }] }] },
+    { id: 's2', name: 'Cena', options: [{ id: 'o2', text: 'Milanesa' }] },
+  ];
+  // Días contados en la semana actual: del lunes a hoy, inclusive.
+  const diasEstaSemana = Math.round((parseISO(TODAY) - parseISO(thisMonday)) / 86400000) + 1;
+  const desayuno = (qty) => ({ id: `d${qty}`, at: 0, text: 't', matches: { options: [{ slotId: 's1', optionId: 'o1', items: [{ itemId: 'i1', qty }] }], extras: [] } });
+
+  it('sin nada registrado nunca, todo en 0 (no cuenta como "sin registrar")', () => {
+    const s = mealScoreByPeriod(state({ plan }), 'mes');
+    expect(s.total).toEqual({ bien: 0, pifie: 0, sinRegistrar: 0 });
+    expect(s.pctBien).toBeNull();
+    expect(s.bars).toHaveLength(4);
+  });
+
+  it('3 de 3 panes es "bien"; el resto del día y de la semana, "sin registrar"', () => {
+    const s = mealScoreByPeriod(state({ plan, log: { [thisMonday]: [desayuno(3)] } }), 'mes');
+    expect(s.total).toEqual({ bien: 1, pifie: 0, sinRegistrar: 2 * diasEstaSemana - 1 });
+    expect(s.pctBien).toBe(1);
+  });
+
+  it('1 de 3 panes (menos de la mitad) es "le pifiaste"', () => {
+    const s = mealScoreByPeriod(state({ plan, log: { [thisMonday]: [desayuno(1)] } }), 'mes');
+    expect(s.total.pifie).toBe(1);
+    expect(s.total.bien).toBe(0);
+  });
+
+  const fuera = (id, slotId, tipo) => ({
+    id, at: 0, text: 't', libre: { ...(slotId ? { slotId } : {}), que: id, tipo }, matches: { options: [], extras: [] },
+  });
+
+  it('una comida distinta pero sana cuenta como "bien"', () => {
+    const log = { [thisMonday]: [fuera('yogur', 's2', 'sana')] };
+    expect(mealScoreByPeriod(state({ plan, log }), 'mes').total.bien).toBe(1);
+  });
+
+  it('un permitido en lugar de una comida cuenta como "le pifiaste"', () => {
+    const log = { [thisMonday]: [fuera('galletas', 's1', 'permitido')] };
+    const s = mealScoreByPeriod(state({ plan, log }), 'mes');
+    expect(s.total.pifie).toBe(1);
+    expect(s.total.bien).toBe(0);
+  });
+
+  it('un permitido suelto suma una pifiada de más, sin sacarle nada a las comidas', () => {
+    const log = { [thisMonday]: [desayuno(3), fuera('alfajor', null, 'permitido')] };
+    const s = mealScoreByPeriod(state({ plan, log }), 'mes');
+    expect(s.total.bien).toBe(1);
+    expect(s.total.pifie).toBe(1);
+  });
+
+  it('los días antes del primer registro no cuentan: las semanas anteriores quedan en 0', () => {
+    const s = mealScoreByPeriod(state({ plan, log: { [thisMonday]: [desayuno(3)] } }), 'mes');
+    s.bars.slice(0, 3).forEach((b) => expect(b.bien + b.pifie + b.sinRegistrar).toBe(0));
+  });
+
+  it('cada día se mide contra el plan que regía ESE día (planOn)', () => {
+    const s = {
+      meals: {
+        plans: [
+          { id: 'viejo', startISO: '2026-01-01', endISO: '2026-03-01', slots: [{ id: 'a', name: 'A', options: [] }] },
+          { id: 'nuevo', startISO: '2026-03-01', endISO: null, slots: [] },
+        ],
+        extras: [],
+        log: {},
+      },
+    };
+    expect(planOn(s, '2026-02-10').id).toBe('viejo');
+    expect(planOn(s, '2026-03-01').id).toBe('nuevo');
+    expect(planOn(s, '2025-12-31').id).toBe('viejo'); // antes de todas: la primera
   });
 });
 

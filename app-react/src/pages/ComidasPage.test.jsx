@@ -295,7 +295,7 @@ describe('tu día', () => {
 
     const plan = activePlan(leer());
     expect(plan.slots.map((s) => s.name)).toEqual(['Desayuno', 'Almuerzo', 'Merienda', 'Cena']);
-    expect(leer().meals.extras.map((e) => e.name)).toEqual(['Alcohol', 'Comida libre']);
+    expect(leer().meals.extras.map((e) => e.name)).toEqual(['Alcohol']);
     expect(screen.getByText('Guía de tu nutricionista')).toBeInTheDocument();
   });
 
@@ -337,22 +337,50 @@ describe('tu día', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('comida libre: se anota EN la franja, diciendo qué fue (pedido explícito: "unas galletas en el desayuno")', async () => {
+  it('fuera del plan pero sano: se anota EN la franja y queda como "Fuera del plan" (pedido explícito)', async () => {
+    const user = userEvent.setup();
+    const { doc: leer } = renderScreen(<ComidasPage />, { doc: docMedible() });
+
+    await user.click(screen.getByRole('button', { name: 'Registrar Desayuno' }));
+    await user.type(screen.getByLabelText('Qué comiste fuera del plan'), 'yogur con frutas');
+    await user.click(screen.getByRole('button', { name: 'Anotar fuera del plan' }));
+
+    const [entrada] = leer().meals.log[todayISO()];
+    expect(entrada.libre).toEqual({ slotId: 's1', que: 'yogur con frutas', tipo: 'sana' });
+
+    const dia = screen.getByText('Tu día').closest('.sect');
+    expect(within(dia).getByText('Fuera del plan')).toBeInTheDocument();
+    expect(within(dia).getByText('yogur con frutas')).toBeInTheDocument();
+    expect(within(dia).getByText('Te falta: Cena.')).toBeInTheDocument();
+  });
+
+  it('un permitido en lugar de una comida cuenta como pifiada (pedido explícito: "unas galletas en el desayuno")', async () => {
     const user = userEvent.setup();
     const { doc: leer } = renderScreen(<ComidasPage />, { doc: docMedible() });
 
     await user.click(screen.getByRole('button', { name: 'Registrar Desayuno' }));
     await user.type(screen.getByLabelText('Qué comiste fuera del plan'), 'unas galletas');
-    await user.click(screen.getByRole('button', { name: 'Anotar comida libre' }));
+    await user.click(screen.getByRole('button', { name: 'Permitido' }));
+    await user.click(screen.getByRole('button', { name: 'Anotar fuera del plan' }));
 
-    const [entrada] = leer().meals.log[todayISO()];
-    expect(entrada.libre).toEqual({ slotId: 's1', que: 'unas galletas' });
-    expect(entrada.text).toBe('Desayuno: unas galletas (comida libre)');
-
+    expect(leer().meals.log[todayISO()][0].libre).toEqual({ slotId: 's1', que: 'unas galletas', tipo: 'permitido' });
     const dia = screen.getByText('Tu día').closest('.sect');
-    expect(within(dia).getByText('Libre')).toBeInTheDocument();
-    expect(within(dia).getByText('unas galletas')).toBeInTheDocument();
-    expect(within(dia).getByText('Te falta: Cena.')).toBeInTheDocument();
+    expect(within(dia).getAllByText('Permitido').length).toBeGreaterThan(0);
+    expect(within(dia).getByText('Te falta: Cena. Llevás 1 permitido.')).toBeInTheDocument();
+  });
+
+  it('un permitido suelto ("un alfajor a la tarde") no ocupa ninguna comida', async () => {
+    const user = userEvent.setup();
+    const { doc: leer } = renderScreen(<ComidasPage />, { doc: docMedible() });
+
+    await user.click(screen.getByRole('button', { name: 'Anotar un permitido suelto' }));
+    await user.type(screen.getByLabelText('Qué comiste fuera del plan'), 'un alfajor');
+    await user.click(screen.getByRole('button', { name: 'Anotar fuera del plan' }));
+
+    expect(leer().meals.log[todayISO()][0].libre).toEqual({ que: 'un alfajor', tipo: 'permitido' });
+    const dia = screen.getByText('Tu día').closest('.sect');
+    expect(within(dia).getByText('un alfajor')).toBeInTheDocument();
+    expect(within(dia).getAllByText('Pendiente')).toHaveLength(2); // las dos comidas siguen pendientes
   });
 
   it('sacar un alimento al registrar, y volver a ponerlo después desde "Editar" (pedido explícito)', async () => {

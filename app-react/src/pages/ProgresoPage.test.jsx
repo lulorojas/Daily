@@ -239,6 +239,32 @@ describe('las otras secciones', () => {
     expect(within(sect).getByText('50%')).toBeInTheDocument();
   });
 
+  it('"¿Comiste bien?" cuenta comidas bien, pifiadas y sin registrar (pedido explícito)', () => {
+    const doc = fullDoc();
+    doc.meals = {
+      plans: [{
+        id: 'p1', startISO: thisMonday, endISO: null,
+        slots: [
+          { id: 's1', name: 'Desayuno', options: [{ id: 'o1', text: 'Panes', items: [{ id: 'i1', name: 'pan', qty: 3 }] }] },
+          { id: 's2', name: 'Cena', options: [{ id: 'o2', text: 'Panes de nuevo', items: [{ id: 'i2', name: 'pan', qty: 4 }] }] },
+        ],
+      }],
+      extras: [],
+      log: {
+        [thisMonday]: [
+          { id: 'a', at: 0, text: 't', matches: { options: [{ slotId: 's1', optionId: 'o1', items: [{ itemId: 'i1', qty: 3 }] }], extras: [] } },
+          { id: 'b', at: 0, text: 't', matches: { options: [{ slotId: 's2', optionId: 'o2', items: [{ itemId: 'i2', qty: 1 }] }], extras: [] } },
+        ],
+      },
+    };
+    renderScreen(<ProgresoPage />, { doc });
+
+    const sect = screen.getByText('¿Comiste bien?').closest('.sect');
+    expect(within(sect).getByText('BIEN').nextSibling).toHaveTextContent('1');
+    expect(within(sect).getByText('LE PIFIASTE').nextSibling).toHaveTextContent('1');
+    expect(within(sect).getByText('De las 2 comidas que registraste, 50% estuvieron bien.')).toBeInTheDocument();
+  });
+
   it('tocar una celda del mapa despliega el globito con qué se entrenó ese día, y tocar afuera lo cierra', async () => {
     const user = userEvent.setup();
     const doc = fullDoc();

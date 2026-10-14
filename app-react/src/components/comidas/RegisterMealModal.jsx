@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Modal } from '../ui/Modal';
 import { MinusIcon, PlusIcon } from '../ui/Icons';
+import { OffPlanForm } from './OffPlanForm';
 import { itemsLabel, optionLabel } from '../../lib/meals';
 import { C, tint } from '../../lib/theme';
 
@@ -10,8 +11,9 @@ import { C, tint } from '../../lib/theme';
 
      1. elegir   — las opciones del plan para esta franja. Una opción sin alimentos se
                    registra de una con un toque; una medible pasa al paso 2. Abajo,
-                   "Comida libre": algo fuera del plan para ESTA franja, diciendo qué
-                   (pedido explícito: "unas galletas en el desayuno").
+                   "¿Comiste otra cosa?": algo fuera del plan para ESTA franja, diciendo
+                   qué ("unas galletas en el desayuno") y si fue distinto pero sano o un
+                   permitido (OffPlanForm).
      2. ajustar  — cada alimento arranca en lo que pide el plan; con −/+ se corrige si
                    comiste más o menos (unidades de a 1, gramos de a 10). "Sacar" lo deja
                    en 0 sin perderlo de vista, y "Volver a poner" lo devuelve a lo del plan
@@ -35,7 +37,6 @@ export function RegisterMealModal({ slot, initial = null, onClose, onSave, onLib
   const [option, setOption] = useState(inicial?.items?.length ? inicial : null);
   const [qtys, setQtys] = useState(inicial?.items?.length ? { ...qtysDelPlan(inicial), ...initial.qtys } : {});
   const [pesado, setPesado] = useState(!!initial?.pesado);
-  const [libre, setLibre] = useState('');
 
   const elegir = (o) => {
     if (!o.items?.length) {
@@ -73,28 +74,8 @@ export function RegisterMealModal({ slot, initial = null, onClose, onSave, onLib
 
         {!editando && (
           <div className="fld">
-            <div className="flabel">Comida libre</div>
-            <div className="mealotra">
-              <input
-                className="inp"
-                placeholder={`Ej: unas galletas en el ${slot.name.toLowerCase()}`}
-                aria-label="Qué comiste fuera del plan"
-                value={libre}
-                onChange={(e) => setLibre(e.target.value)}
-              />
-              <button
-                type="button"
-                className="pillbtn comidas"
-                aria-label="Anotar comida libre"
-                disabled={!libre.trim()}
-                onClick={() => onLibre(libre.trim())}
-              >
-                Anotar
-              </button>
-            </div>
-            <div className="managetypes-note">
-              Algo fuera del plan que no está mal. Queda registrado en {slot.name}, pero no suma ni resta al % del plan.
-            </div>
+            <div className="flabel">¿Comiste otra cosa?</div>
+            <OffPlanForm placeholder={`Ej: unas galletas en el ${slot.name.toLowerCase()}`} onAnotar={onLibre} />
           </div>
         )}
       </Modal>

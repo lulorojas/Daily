@@ -29,7 +29,7 @@ function docCon({ tareas = [], citas = [], habits = [], habitLog = {}, entrenoHo
 
 describe('pendingCounts', () => {
   it('cuenta nueva, sin nada: todo en cero', () => {
-    expect(pendingCounts(normalize(emptyDoc()), TODAY)).toEqual({ tareas: 0, agenda: 0, habitos: 0, entreno: 0 });
+    expect(pendingCounts(normalize(emptyDoc()), TODAY)).toEqual({ tareas: 0, agenda: 0, habitos: 0, entreno: 0, comidas: [] });
   });
 
   it('tareas de hoy sin marcar cuentan; las hechas no', () => {
@@ -102,5 +102,55 @@ describe('hasPending / summaryText', () => {
     const texto = summaryText({ tareas: 5, agenda: 0, habitos: 0, entreno: 0 });
     expect(texto).toBe('Pendiente hoy: 5 tareas.');
     expect(texto).not.toMatch(/Tarea|Dentista|Pecho/);
+  });
+});
+
+/* Comidas sin cargar (pedido explícito: "una noti a las 22 de la noche que me ponga si
+   me faltan cargar comidas"). */
+describe('comidas sin cargar', () => {
+  function docConPlan(log = {}) {
+    const d = normalize(emptyDoc());
+    d.meals = {
+      plans: [{
+        id: 'p1', startISO: TODAY, endISO: null,
+        slots: [
+          { id: 's1', name: 'Desayuno', options: [{ id: 'o1', text: 'Panes' }] },
+          { id: 's2', name: 'Merienda', options: [{ id: 'o2', text: 'Licuado' }] },
+          { id: 's3', name: 'Cena', options: [{ id: 'o3', text: 'Milanesa' }] },
+        ],
+      }],
+      extras: [],
+      log,
+    };
+    return d;
+  }
+
+  it('apagado por defecto: a la mañana no se avisa de comidas', () => {
+    expect(pendingCounts(docConPlan(), TODAY).comidas).toEqual([]);
+  });
+
+  it('prendido, nombra las comidas sin nada registrado hoy', () => {
+    const log = { [TODAY]: [{ id: 'a', at: 0, text: 't', matches: { options: [{ slotId: 's1', optionId: 'o1' }], extras: [] } }] };
+    expect(pendingCounts(docConPlan(log), TODAY, { comidas: true }).comidas).toEqual(['Merienda', 'Cena']);
+  });
+
+  it('algo fuera del plan anotado en una comida también cuenta como cargada', () => {
+    const log = { [TODAY]: [{ id: 'a', at: 0, text: 't', libre: { slotId: 's2', que: 'alfajor', tipo: 'permitido' }, matches: { options: [], extras: [] } }] };
+    expect(pendingCounts(docConPlan(log), TODAY, { comidas: true }).comidas).toEqual(['Desayuno', 'Cena']);
+  });
+
+  it('sin plan de comidas, no hay nada que reclamar', () => {
+    expect(pendingCounts(normalize(emptyDoc()), TODAY, { comidas: true }).comidas).toEqual([]);
+  });
+
+  it('el texto nombra las comidas, en una frase aparte', () => {
+    expect(summaryText({ tareas: 0, agenda: 0, habitos: 0, entreno: 0, comidas: ['Cena'] }))
+      .toBe('Te falta cargar: Cena.');
+    expect(summaryText({ tareas: 0, agenda: 0, habitos: 1, entreno: 0, comidas: ['Desayuno', 'Merienda', 'Cena'] }))
+      .toBe('Pendiente hoy: 1 hábito. Te falta cargar: Desayuno, Merienda y Cena.');
+  });
+
+  it('con todas las comidas cargadas y nada más pendiente, no hay notificación', () => {
+    expect(summaryText({ tareas: 0, agenda: 0, habitos: 0, entreno: 0, comidas: [] })).toBeNull();
   });
 });

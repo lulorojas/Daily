@@ -3,7 +3,12 @@
 `send.js` corre desde `.github/workflows/notificaciones.yml`, cuatro veces por día
 (8:00, 12:30, 18:00 y 22:00, hora Buenos Aires). Por cada cuenta con notificaciones
 activadas, calcula qué quedó pendiente hoy (Hoy, Calendario, Hábitos y Gimnasio) y manda
-**un solo mensaje agregado** por FCM — nunca uno por ítem individual.
+**un solo mensaje agregado** por FCM — nunca uno por ítem individual. En el envío de las
+22:00 suma además las comidas del plan sin cargar ("Te falta cargar: Merienda y Cena.").
+
+Ojo: el workflow corre con el código que está en GitHub, no con el que se despliega a
+Firebase Hosting. Un cambio en `app-react/src/lib/` que afecte el resumen recién llega a
+las notificaciones cuando se sube (`git push`).
 
 No corre en el navegador ni se sirve como parte de `app-react/`: es un script de Node
 aparte, con su propio `package.json`.

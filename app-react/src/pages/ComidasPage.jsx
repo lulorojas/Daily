@@ -3,6 +3,9 @@ import { WeekStrip } from '../components/ui/WeekStrip';
 import { EmptyCard, Section } from '../components/ui/Section';
 import { DayMealsCard } from '../components/comidas/DayMealsCard';
 import { RegisterMealModal } from '../components/comidas/RegisterMealModal';
+import { OffPlanForm } from '../components/comidas/OffPlanForm';
+import { Modal } from '../components/ui/Modal';
+import { C } from '../lib/theme';
 import { MealPlanCard } from '../components/comidas/MealPlanCard';
 import { MealPlanManager } from '../components/comidas/MealPlanManager';
 import { MealExtraRow } from '../components/comidas/MealExtraRow';
@@ -30,9 +33,10 @@ import { shiftWeek } from '../lib/items';
      Tu día    — una fila por franja del plan con su estado (pendiente/parcial/cumplida/
                  libre) y un botón "Registrar" que abre RegisterMealModal: elegís la opción
                  que comiste y ajustás las cantidades con −/+ (o sacás lo que no comiste),
-                 sin escribir nada — o anotás una comida libre en esa franja. "Editar" en
-                 un registro vuelve a abrirlo para corregirlo. Arriba, una frase ("Te
-                 falta: Cena.") y el % del plan del día.
+                 sin escribir nada — o anotás algo fuera del plan en esa franja (distinto
+                 pero sano, o un permitido). "Editar" en un registro vuelve a abrirlo para
+                 corregirlo. Al final, los permitidos sueltos ("un alfajor a la tarde").
+                 Arriba, una frase ("Te falta: Cena.") y el % del plan del día.
      Extras    — café, alcohol, comida libre… con cuántas veces aparecieron esta semana, y
                  un "+" para anotarlos de un toque.
      Bitácora  — todo lo registrado ese día, en orden. Abajo, el cuadro de texto libre de
@@ -81,8 +85,9 @@ export function ComidasPage() {
       : addMealLogStructured(draft, day, { slotId: slot.id, optionId, qtys, pesado })));
     setModal(null);
   };
-  const anotarLibre = (slot, que) => {
-    update((draft) => addMealLogLibre(draft, day, slot.id, que));
+  // `slot` null = un permitido suelto, fuera de las comidas.
+  const anotarLibre = (slot, que, tipo) => {
+    update((draft) => addMealLogLibre(draft, day, slot?.id ?? null, que, tipo));
     setModal(null);
   };
   const editar = (slot, registro) => setModal({
@@ -124,6 +129,7 @@ export function ComidasPage() {
               summary={resumen}
               onRegistrar={(slot) => setModal({ kind: 'registrar', slotId: slot.id })}
               onEditar={editar}
+              onPermitido={() => setModal({ kind: 'permitido' })}
             />
           ) : (
             <div className="card pad mealempty">
@@ -212,8 +218,16 @@ export function ComidasPage() {
           initial={modal.initial ?? null}
           onClose={() => setModal(null)}
           onSave={(sel) => registrar(slotsById[modal.slotId], sel)}
-          onLibre={(que) => anotarLibre(slotsById[modal.slotId], que)}
+          onLibre={(que, tipo) => anotarLibre(slotsById[modal.slotId], que, tipo)}
         />
+      )}
+      {modal?.kind === 'permitido' && (
+        <Modal title="Permitido" accent={C.violet} onClose={() => setModal(null)}>
+          <div className="fld">
+            <div className="flabel notopmargin">¿Qué te comiste?</div>
+            <OffPlanForm placeholder="Ej: un alfajor" tipos={['permitido']} onAnotar={(que) => anotarLibre(null, que, 'permitido')} />
+          </div>
+        </Modal>
       )}
       {modal?.kind === 'plan' && <MealPlanManager onClose={() => setModal(null)} recuperarDeEntrada={!!modal.recuperar} />}
       {modal?.kind === 'extras' && <MealExtrasManager onClose={() => setModal(null)} />}

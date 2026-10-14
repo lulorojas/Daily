@@ -900,17 +900,32 @@ describe('comidas', () => {
     });
 
     /* Comida libre en una franja (pedido explícito: "unas galletas en el desayuno"). */
+    /* Fuera del plan (pedido explícito: distinta pero sana = bien; permitido = pifiada). */
     describe('addMealLogLibre', () => {
-      it('guarda la franja y qué fue, y suma el extra "Comida libre" si existe', () => {
+      it('en una franja, sano por defecto: guarda la franja, qué fue y el tipo', () => {
         const d = vacio();
         const slot = m.addMealSlot(d, { name: 'Desayuno' });
-        const libre = m.addMealExtra(d, { name: 'Comida libre', color: '#fff', icon: 'corazon', quality: 'bueno' });
-        const entry = m.addMealLogLibre(d, TODAY, slot.id, '  unas galletas  ');
+        const entry = m.addMealLogLibre(d, TODAY, slot.id, '  yogur con frutas  ');
         expect(entry).toMatchObject({
-          text: 'Desayuno: unas galletas (comida libre)',
-          libre: { slotId: slot.id, que: 'unas galletas' },
-          matches: { options: [], extras: [libre.id] },
+          text: 'Desayuno: yogur con frutas (distinto del plan, sano)',
+          libre: { slotId: slot.id, que: 'yogur con frutas', tipo: 'sana' },
+          matches: { options: [], extras: [] },
         });
+      });
+
+      it('un permitido en una franja', () => {
+        const d = vacio();
+        const slot = m.addMealSlot(d, { name: 'Desayuno' });
+        const entry = m.addMealLogLibre(d, TODAY, slot.id, 'unas galletas', 'permitido');
+        expect(entry.text).toBe('Desayuno: unas galletas (permitido)');
+        expect(entry.libre).toEqual({ slotId: slot.id, que: 'unas galletas', tipo: 'permitido' });
+      });
+
+      it('un permitido suelto (sin franja) no lleva slotId', () => {
+        const d = vacio();
+        const entry = m.addMealLogLibre(d, TODAY, null, 'un alfajor', 'permitido');
+        expect(entry.text).toBe('Permitido: un alfajor');
+        expect(entry.libre).toEqual({ que: 'un alfajor', tipo: 'permitido' });
       });
 
       it('el bot igual reconoce otros extras en el texto', () => {

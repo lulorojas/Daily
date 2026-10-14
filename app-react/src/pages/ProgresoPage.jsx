@@ -3,6 +3,7 @@ import { PeriodSelector } from '../components/progreso/PeriodSelector';
 import { ProgComoVenis } from '../components/progreso/ProgComoVenis';
 import { ProgWeeklyFreq } from '../components/progreso/ProgWeeklyFreq';
 import { ProgComoComes } from '../components/progreso/ProgComoComes';
+import { ProgMealScore } from '../components/progreso/ProgMealScore';
 import { ProgBodyWeight } from '../components/progreso/ProgBodyWeight';
 import { ProgRanking } from '../components/progreso/ProgRanking';
 import { ProgBalance } from '../components/progreso/ProgBalance';
@@ -51,7 +52,8 @@ import { progStart } from '../lib/progress';
    estoy comiendo bien o mal" + "¿dónde lo mostrás? — en Progreso, junto a Cómo venís"):
    se agrega ProgComoComes, calco de ProgComoVenis para el plan de comidas — ver
    comoComes() en lib/meals.js. Tampoco tiene equivalente en vanilla, mismo tratamiento
-   que "Cómo venís" en screens.test.jsx. */
+   que "Cómo venís" en screens.test.jsx. Al lado, ProgMealScore ("¿Comiste bien?",
+   pedido explícito): cuántas comidas salieron bien y cuántas no, por columna. */
 export function ProgresoPage() {
   const { data } = useData();
   const [period, setPeriod] = useState('mes');
@@ -71,6 +73,7 @@ export function ProgresoPage() {
         <ProgComoVenis data={data} per={period} />
         <ProgWeeklyFreq data={data} per={period} />
         <ProgComoComes data={data} per={period} />
+        <ProgMealScore data={data} per={period} />
 
         <ProgBodyWeight data={data} per={period} start={start} />
         <ProgRanking data={data} per={period} start={start} />

@@ -13,7 +13,7 @@
        { id, text, items?:[ { id, name, qty, unit?: 'u'|'gr', tipo?: 'carbo'|'proteina'|'grasa' } ] },
      ] } ] } ],
      extras: [ { id, name, color, icon, quality?: 'bueno'|'malo' } ],  // catálogo libre, shape como habits
-     log:    { 'YYYY-MM-DD': [ { id, at, text, pesado?: boolean, libre?: { slotId, que }, matches:{
+     log:    { 'YYYY-MM-DD': [ { id, at, text, pesado?: boolean, libre?: { slotId?, que, tipo }, matches:{
        options:[ { slotId, optionId, items?:[{itemId,qty}] } ],
        extras:[id],
      } } ] },
@@ -31,8 +31,10 @@
    versión del plan ("pesar en cocido", porciones de proteína/hidrato…): se muestran en
    Comidas como guía, no se miden. `pesado` en una entrada es si Lulo pesó la comida en
    la balanza o la estimó a ojo (pedido explícito: "daily podría ponerle si pesé o no pesé
-   la comida para especificarle los gramos"). `libre` marca una comida libre anotada en
-   una franja ("unas galletas en el desayuno") — ver addMealLogLibre en store/mutations.js.
+   la comida para especificarle los gramos"). `libre` marca algo fuera del plan: con
+   `slotId`, en lugar de esa comida; sin él, suelto ("un alfajor a la tarde"). `tipo` es
+   'sana' (distinta del plan, pero bien) o 'permitido' (cuenta como pifiada) — ver
+   addMealLogLibre en store/mutations.js.
 
    Igual que fcmTokens, `meals` NO tiene default en normalize() (ver lib/model.js): una
    cuenta que nunca abrió Comidas no gana un campo de más en su documento. Por eso todo
@@ -56,6 +58,15 @@ import { comoVenisColumns, regularidadPorRatio, UNIT_ABBR } from './progress';
 // directo — para no tener que repetir el find() en cada lugar.
 export function activePlan(state) {
   return (state.meals?.plans ?? []).find((p) => !p.endISO) ?? null;
+}
+
+// La versión del plan que regía un día dado: la última que arrancó ese día o antes. Un
+// día anterior a todas (la bitácora puede ser más vieja que la fecha de la primera
+// versión, que se puso al migrar) usa la primera.
+export function planOn(state, dISO) {
+  const plans = [...(state.meals?.plans ?? [])].sort((a, b) => (a.startISO < b.startISO ? -1 : 1));
+  if (!plans.length) return null;
+  return plans.filter((p) => p.startISO <= dISO).pop() ?? plans[0];
 }
 
 // Para comparar: minúsculas, sin tildes, espacios colapsados. No hay stemming de
@@ -390,16 +401,30 @@ export function faltanteLabel(f) {
    varias entradas (dos registros de almuerzo), vale la mejor — no se suman, porque el
    plan pide UNA de las opciones, no varias.
    ============================================================================ */
-export function franjaStatus(pct, libre = false) {
-  if (pct === null && libre) return { key: 'libre', label: 'Libre', color: C.teal };
+/* Comida fuera del plan (ver addMealLogLibre en store/mutations.js) — pedido explícito:
+   "las que pueden estar bien son las comidas distintas del plan pero que no son
+   insalubres", y un permitido ("un alfajor") "está mal y es como una comida pifiada".
+   Entradas viejas sin `tipo` (de cuando todo lo de afuera era "comida libre") cuentan
+   como sanas, que es lo que significaban cuando se anotaron. */
+export function libreTipo(entry) {
+  return entry.libre?.tipo === 'permitido' ? 'permitido' : 'sana';
+}
+
+// `fuera`: 'permitido' | 'sana' | null — lo de fuera del plan que tuvo la franja, si la
+// franja no tiene nada del plan registrado. Un permitido manda sobre una sana.
+export function franjaStatus(pct, fuera = null) {
+  if (pct === null && fuera === 'permitido') return { key: 'permitido', label: 'Permitido', color: C.coral };
+  if (pct === null && fuera === 'sana') return { key: 'sana', label: 'Fuera del plan', color: C.teal };
   if (pct === null) return { key: 'pendiente', label: 'Pendiente', color: 'rgba(242,244,248,.45)' };
   if (pct >= 1) return { key: 'cumplida', label: 'Cumplida', color: C.green };
   if (pct >= UMBRAL_CUMPLIMIENTO) return { key: 'parcial', label: 'Parcial', color: C.amber };
   return { key: 'poco', label: 'Poco', color: C.danger };
 }
 
-export function dayMealSummary(state, dISO) {
-  const slots = activePlan(state)?.slots ?? [];
+// `plan` (opcional): contra qué versión del plan medir el día — por defecto la vigente,
+// que es la que se registra en "Tu día". mealScoreByPeriod pasa la de ESE día (planOn).
+export function dayMealSummary(state, dISO, plan = activePlan(state)) {
+  const slots = plan?.slots ?? [];
   const entradas = state.meals?.log?.[dISO] ?? [];
 
   const franjas = slots.map((slot) => {
@@ -422,41 +447,108 @@ export function dayMealSummary(state, dISO) {
     });
     const libres = entradas
       .filter((e) => e.libre?.slotId === slot.id)
-      .map((e) => ({ entryId: e.id, que: e.libre.que }));
+      .map((e) => ({ entryId: e.id, que: e.libre.que, tipo: libreTipo(e) }));
+    const fuera = libres.some((l) => l.tipo === 'permitido') ? 'permitido' : libres.length ? 'sana' : null;
     const pct = registros.length ? Math.max(...registros.map((r) => r.pct)) : null;
-    return { slot, registros, libres, pct, status: franjaStatus(pct, libres.length > 0) };
+    return { slot, registros, libres, pct, status: franjaStatus(pct, fuera) };
   });
 
+  // Permitidos que no reemplazaron una comida ("un alfajor a la tarde").
+  const sueltos = entradas
+    .filter((e) => e.libre && !e.libre.slotId)
+    .map((e) => ({ entryId: e.id, que: e.libre.que, tipo: libreTipo(e) }));
+
   /* El % del plan es el promedio de las franjas que cuentan para el plan: las que tienen
-     algo del plan registrado y las que siguen pendientes (cuentan 0). Una franja que fue
-     SOLO comida libre queda afuera — no es el plan, pero tampoco es "no comí": Lulo pidió
-     poder anotarla como algo que no está mal, no como una falta. */
-  const delPlan = franjas.filter((f) => f.status.key !== 'libre');
-  const pct = delPlan.length ? delPlan.reduce((a, f) => a + Math.min(1, f.pct ?? 0), 0) / delPlan.length : null;
+     algo del plan registrado y las pendientes (0). Una franja que fue una comida distinta
+     pero sana queda afuera — no es el plan, pero tampoco es una falta. Una que fue un
+     permitido cuenta 0: Lulo pidió que sea "como una comida pifiada". */
+  const delPlan = franjas.filter((f) => f.status.key !== 'sana');
+  const pct = delPlan.length
+    ? delPlan.reduce((a, f) => a + (f.status.key === 'permitido' ? 0 : Math.min(1, f.pct ?? 0)), 0) / delPlan.length
+    : null;
   const pendientes = franjas.filter((f) => f.status.key === 'pendiente').map((f) => f.slot.name);
   const hechas = franjas.length - pendientes.length;
-  const libres = franjas.filter((f) => f.libres.length > 0).length;
-  // Entradas que no son ni del plan, ni comida libre, ni un extra conocido: "comí otra cosa".
+  const sanas = franjas.filter((f) => f.status.key === 'sana').length;
+  const permitidos = franjas.filter((f) => f.status.key === 'permitido').length
+    + sueltos.filter((s) => s.tipo === 'permitido').length;
+  // Entradas que no son ni del plan, ni fuera del plan anotadas, ni un extra: "otra cosa".
   const fueraDePlan = entradas.filter((e) => !e.libre && !e.matches.options.length && !e.matches.extras.length).length;
 
-  return { franjas, pct, hechas, pendientes, libres, fueraDePlan, message: dayMessage(franjas, pct, hechas, pendientes, libres) };
+  return {
+    franjas, sueltos, pct, hechas, pendientes, sanas, permitidos, fueraDePlan,
+    message: dayMessage({ franjas, pct, hechas, pendientes, sanas, permitidos }),
+  };
 }
 
+function plural(n, uno, varios) { return `${n} ${n === 1 ? uno : varios}`; }
+
 // Una frase que se entienda sin mirar los números.
-function dayMessage(franjas, pct, hechas, pendientes, libres) {
+function dayMessage({ franjas, pct, hechas, pendientes, sanas, permitidos }) {
   if (!franjas.length) return null;
-  if (hechas === 0) return 'Todavía no registraste nada. Tocá una comida para empezar.';
-  if (!pendientes.length) {
-    const nLibres = `${libres} ${libres === 1 ? 'comida libre' : 'comidas libres'}`;
-    if (pct === null) return `Registraste todas las comidas, ${nLibres}.`;
-    if (pct >= 0.9) {
-      return libres
-        ? `¡Día completo! Seguiste el plan, con ${nLibres}.`
-        : '¡Día completo! Seguiste el plan en todas las comidas.';
-    }
-    return libres
-      ? `Registraste todas las comidas (${nLibres}), algunas por debajo de lo que pide el plan.`
-      : 'Registraste todas las comidas, algunas por debajo de lo que pide el plan.';
+  const conPermitidos = permitidos ? ` Llevás ${plural(permitidos, 'permitido', 'permitidos')}.` : '';
+  if (hechas === 0) {
+    return permitidos
+      ? `Todavía no registraste ninguna comida.${conPermitidos}`
+      : 'Todavía no registraste nada. Tocá una comida para empezar.';
   }
-  return `Te falta: ${pendientes.join(', ')}.`;
+  if (pendientes.length) return `Te falta: ${pendientes.join(', ')}.${conPermitidos}`;
+  if (pct === null) return 'Registraste todas las comidas, distintas del plan pero sanas.';
+  if (pct >= 0.9) {
+    if (permitidos) return `Seguiste el plan en las comidas.${conPermitidos}`;
+    return sanas
+      ? `¡Día completo! Seguiste el plan, con ${plural(sanas, 'comida distinta pero sana', 'comidas distintas pero sanas')}.`
+      : '¡Día completo! Seguiste el plan en todas las comidas.';
+  }
+  return `Registraste todas las comidas, algunas por debajo de lo que pide el plan.${conPermitidos}`;
+}
+
+/* ============================================================================
+   "¿COMISTE BIEN?" — Progreso (pedido explícito: "un gráfico que según lapsos de tiempo
+   [diga] cuántas comidas estuve bien y cuántas le pifié"). Cada comida de cada día (cada
+   franja del plan que regía ese día) cae en uno de tres baldes:
+
+     bien          — registrada del plan con al menos la mitad de lo pedido
+                     (UMBRAL_CUMPLIMIENTO, el mismo de "Cómo comés"), o una comida
+                     distinta del plan pero sana (pedido explícito: "las que pueden estar
+                     bien son las comidas distintas del plan pero que no son insalubres").
+     pifie         — registrada del plan pero con menos de la mitad, o un permitido en
+                     lugar de la comida. Un permitido suelto ("un alfajor a la tarde")
+                     suma uno más acá — pedido explícito: "es como una comida pifiada".
+     sinRegistrar  — no se anotó nada. Va aparte: no anotar no es lo mismo que comer mal.
+
+   Las columnas son las de comoVenisColumns() — el mismo recorte que el resto de Progreso
+   ("todos los gráficos deben tomar la misma medida de tiempo"). No cuentan los días
+   futuros ni los anteriores al primer registro de la bitácora: antes de empezar a usar
+   Comidas no hay nada que medir, y no corresponde que sume como "sin registrar".
+   ============================================================================ */
+export function mealScoreByPeriod(state, per) {
+  const { cols, current, winLabel } = comoVenisColumns(per);
+  const tISO = todayISO();
+  const log = state.meals?.log ?? {};
+  const primerDia = Object.keys(log).filter((d) => log[d].length).sort()[0] ?? null;
+
+  const bars = cols.map((c, i) => {
+    const bar = { label: c.label, from: c.from, to: c.to, current: i === current, bien: 0, pifie: 0, sinRegistrar: 0 };
+    if (!primerDia) return bar;
+    const desde = c.from > primerDia ? c.from : primerDia;
+    for (let d = parseISO(desde); iso(d) <= c.to && iso(d) <= tISO; d = addDays(d, 1)) {
+      const dia = iso(d);
+      const r = dayMealSummary(state, dia, planOn(state, dia));
+      r.franjas.forEach((f) => {
+        if (f.status.key === 'pendiente') bar.sinRegistrar++;
+        else if (f.status.key === 'permitido') bar.pifie++;
+        else if (f.status.key === 'sana' || f.pct >= UMBRAL_CUMPLIMIENTO) bar.bien++;
+        else bar.pifie++;
+      });
+      bar.pifie += r.sueltos.filter((s) => s.tipo === 'permitido').length;
+    }
+    return bar;
+  });
+
+  const total = bars.reduce(
+    (a, b) => ({ bien: a.bien + b.bien, pifie: a.pifie + b.pifie, sinRegistrar: a.sinRegistrar + b.sinRegistrar }),
+    { bien: 0, pifie: 0, sinRegistrar: 0 },
+  );
+  const registradas = total.bien + total.pifie;
+  return { winLabel, bars, total, pctBien: registradas ? total.bien / registradas : null };
 }

@@ -7,17 +7,21 @@ import { C } from '../../lib/theme';
    entienden solos ("Te falta: Cena." · 75% del plan); abajo, una fila por franja del
    plan con su estado, lo que se registró y el botón para registrar.
 
-   El estado de cada franja (Pendiente/Parcial/Cumplida/Poco/Libre) y la frase salen de
-   dayMealSummary() en lib/meals.js — acá solo se dibuja. Cada registro del plan tiene
-   "Editar" (pedido explícito: "sacarle algo por si lo quiero agregar después" — lo que
-   se sacó se vuelve a poner desde ahí); una comida libre se ve con lo que fue. */
+   El estado de cada franja (Pendiente/Parcial/Cumplida/Poco/Fuera del plan/Permitido) y
+   la frase salen de dayMealSummary() en lib/meals.js — acá solo se dibuja. Cada registro
+   del plan tiene "Editar" (pedido explícito: "sacarle algo por si lo quiero agregar
+   después"); lo de fuera del plan se ve con lo que fue y de qué tipo. Al final, los
+   permitidos sueltos del día ("un alfajor a la tarde") — no ocupan ninguna comida, pero
+   cuentan como pifiada (pedido explícito). */
 function itemColor(it) {
   if (it.got >= it.expected) return C.green;
   if (it.got > 0) return C.amber;
   return 'rgba(242,244,248,.35)';
 }
 
-export function DayMealsCard({ summary, onRegistrar, onEditar }) {
+const FUERA_LABEL = { sana: 'Distinta, sana', permitido: 'Permitido' };
+
+export function DayMealsCard({ summary, onRegistrar, onEditar, onPermitido }) {
   const pct = summary.pct === null ? null : Math.round(summary.pct * 100);
 
   return (
@@ -27,7 +31,7 @@ export function DayMealsCard({ summary, onRegistrar, onEditar }) {
           <div className="daymeals-msg">{summary.message}</div>
           <div className="daymeals-sub">
             {summary.hechas} de {summary.franjas.length} comidas registradas
-            {summary.fueraDePlan > 0 && ` · ${summary.fueraDePlan} fuera del plan`}
+            {summary.permitidos > 0 && ` · ${summary.permitidos} ${summary.permitidos === 1 ? 'permitido' : 'permitidos'}`}
           </div>
         </div>
         {pct !== null && (
@@ -80,13 +84,33 @@ export function DayMealsCard({ summary, onRegistrar, onEditar }) {
           {f.libres.map((l) => (
             <div className="daymeals-reg" key={l.entryId}>
               <div className="daymeals-opt">
-                <span className="daymeals-libre">Comida libre</span>
+                <span className={`daymeals-fuera ${l.tipo}`}>{FUERA_LABEL[l.tipo]}</span>
                 {l.que}
               </div>
             </div>
           ))}
         </div>
       ))}
+
+      <div className="daymeals-row daymeals-sueltos">
+        <div className="daymeals-rowtop">
+          <span className="daymeals-name">Permitidos sueltos</span>
+          <span className="grow" />
+          <button type="button" className="pillbtn comidas" aria-label="Anotar un permitido suelto" onClick={onPermitido}>
+            Anotar
+          </button>
+        </div>
+        {summary.sueltos.length === 0 ? (
+          <div className="daymeals-vacio">Un alfajor, un helado… lo que comas fuera de las comidas. Cuenta como pifiada.</div>
+        ) : summary.sueltos.map((s) => (
+          <div className="daymeals-reg" key={s.entryId}>
+            <div className="daymeals-opt">
+              <span className={`daymeals-fuera ${s.tipo}`}>{FUERA_LABEL[s.tipo]}</span>
+              {s.que}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

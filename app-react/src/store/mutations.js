@@ -690,29 +690,34 @@ export function updateMealLogStructured(draft, dISO, entryId, { slotId, optionId
   return true;
 }
 
-/* Comida libre en una franja (pedido explícito: "la comida libre la debo poder poner en
-   algún lado y decir qué, por ejemplo unas galletas en el desayuno"). La entrada guarda
-   a qué franja corresponde y qué fue en `libre: { slotId, que }` — no es una opción del plan,
-   así que no suma al cumplimiento, pero la franja deja de figurar como pendiente (ver
-   dayMealSummary en lib/meals.js). Si hay un extra que se llama "Comida libre" se le
-   suma, así cuenta en sus frecuencias y en el aviso de "Cómo comés"; y el bot igual mira
-   el texto por si menciona otro extra ("galletas con café"). */
-export function addMealLogLibre(draft, dISO, slotId, desc) {
-  const slot = activePlan(draft)?.slots.find((s) => s.id === slotId);
+/* Algo fuera del plan (pedido explícito, dos vueltas: "la comida libre la debo poder
+   poner en algún lado y decir qué, por ejemplo unas galletas en el desayuno", y después
+   "las que pueden estar bien son las comidas distintas del plan pero que no son
+   insalubres... un permitido... está mal y es como una comida pifiada").
+
+   `tipo`: 'sana' (distinta del plan, pero bien) o 'permitido' (cuenta como pifiada).
+   Con `slotId` reemplaza esa comida — la franja deja de estar pendiente; con slotId null
+   es suelto ("un alfajor a la tarde") y no ocupa ninguna franja. Ver dayMealSummary y
+   mealScoreByPeriod en lib/meals.js para cómo cuenta cada caso. El bot igual mira el
+   texto por si menciona un extra ("galletas con café"). */
+export function addMealLogLibre(draft, dISO, slotId, desc, tipo = 'sana') {
   const que = (desc || '').trim();
-  if (!slot || !que) return null;
+  if (!que) return null;
+  const slot = slotId ? activePlan(draft)?.slots.find((s) => s.id === slotId) : null;
+  if (slotId && !slot) return null;
+  const t = tipo === 'permitido' ? 'permitido' : 'sana';
   const meals = ensureMeals(draft);
 
-  const extras = new Set(matchEntry(draft, que).extras);
-  const libreExtra = meals.extras.find((e) => normalizeText(e.name) === 'comida libre');
-  if (libreExtra) extras.add(libreExtra.id);
+  let text;
+  if (!slot) text = `${t === 'permitido' ? 'Permitido' : 'Fuera del plan'}: ${que}`;
+  else text = `${slot.name}: ${que} (${t === 'permitido' ? 'permitido' : 'distinto del plan, sano'})`;
 
   const entry = {
     id: uid(),
     at: Date.now(),
-    text: `${slot.name}: ${que} (comida libre)`,
-    libre: { slotId: slot.id, que },
-    matches: { options: [], extras: [...extras] },
+    text,
+    libre: { ...(slot ? { slotId: slot.id } : {}), que, tipo: t },
+    matches: { options: [], extras: matchEntry(draft, que).extras },
   };
   (meals.log[dISO] ||= []).push(entry);
   return entry;

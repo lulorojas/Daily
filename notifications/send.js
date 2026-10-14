@@ -42,8 +42,22 @@ import { pendingCounts, summaryText } from '../app-react/src/lib/notifications.j
 // Argentina es UTC-3 fijo (sin horario de verano desde 2009): un corrimiento constante
 // alcanza, sin tirar de ninguna librería de zonas horarias. toISOString() siempre da la
 // hora en UTC sin importar en qué huso corra el runner de GitHub Actions (UTC, de por sí).
+function ahoraEnBuenosAires() {
+  return new Date(Date.now() - 3 * 60 * 60 * 1000);
+}
+
 function hoyEnBuenosAires() {
-  return new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  return ahoraEnBuenosAires().toISOString().slice(0, 10);
+}
+
+/* Las comidas sin cargar se reclaman solo en el envío de la noche (pedido explícito:
+   "una noti a las 22 de la noche que me ponga si me faltan cargar comidas") — en los de
+   las 8, 12:30 y 18 todavía no se comió lo que "falta". Se mira la hora y no qué cron
+   disparó, porque el workflow no le pasa eso al script; de 21 a 23 cubre las demoras de
+   GitHub Actions sin pasar a medianoche, donde "hoy" ya sería el día siguiente. */
+function esElEnvioDeLaNoche() {
+  const h = ahoraEnBuenosAires().getUTCHours();
+  return h >= 21 && h <= 23;
 }
 
 // Tokens que FCM avisa como definitivamente inválidos: el dispositivo desinstaló la app,
@@ -74,6 +88,7 @@ async function main() {
   const db = getFirestore(app);
   const messaging = getMessaging(app);
   const hoy = hoyEnBuenosAires();
+  const comidas = esElEnvioDeLaNoche();
 
   const snap = await db.collection('users').get();
 
@@ -88,7 +103,7 @@ async function main() {
     if (!Array.isArray(tokens) || tokens.length === 0) { sinTokens++; continue; }
 
     const estado = normalize(raw);
-    const texto = summaryText(pendingCounts(estado, hoy));
+    const texto = summaryText(pendingCounts(estado, hoy, { comidas }));
     if (!texto) { sinPendientes++; continue; } // nada pendiente: no hay resumen que mandar.
 
     const resp = await messaging.sendEachForMulticast({

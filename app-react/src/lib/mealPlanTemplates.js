@@ -228,8 +228,9 @@ export const PLAN_NUTRI_2026_10 = {
     { name: 'Merienda', options: DESAYUNO_MERIENDA },
     { name: 'Cena', options: ALMUERZO_CENA },
   ],
+  // Lo que se come fuera del plan (una comida distinta pero sana, o un permitido) no va
+  // como extra: se anota con su tipo desde "Registrar" (ver addMealLogLibre).
   extras: [
     { name: 'Alcohol', color: '#FF9B93', icon: 'llama', quality: 'malo' },
-    { name: 'Comida libre', color: '#6FD2D2', icon: 'corazon', quality: 'bueno' },
   ],
 };
