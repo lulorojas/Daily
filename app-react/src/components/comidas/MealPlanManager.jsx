@@ -5,9 +5,11 @@ import { ManageMealOptionsModal } from './ManageMealOptionsModal';
 import { MealOptionFormModal } from './MealOptionFormModal';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { useData } from '../../hooks/useData';
-import { activePlan, optionLabel } from '../../lib/meals';
+import { activePlan, faltanteLabel, missingFromTemplate, optionLabel } from '../../lib/meals';
 import { PLAN_NUTRI_2026_10 } from '../../lib/mealPlanTemplates';
-import { deleteMealOption, deleteMealSlot, loadMealPlanTemplate, moveMealSlot, startNewMealPlan } from '../../store/mutations';
+import {
+  deleteMealOption, deleteMealSlot, loadMealPlanTemplate, moveMealSlot, restoreFromMealTemplate, startNewMealPlan,
+} from '../../store/mutations';
 
 /* ----------------------------- FLUJO DE "ADMINISTRAR EL PLAN" -----------------------------
    Misma máquina de estados que TypesManager.jsx (gimnasio), con un nivel más: el plan
@@ -28,15 +30,22 @@ import { deleteMealOption, deleteMealSlot, loadMealPlanTemplate, moveMealSlot, s
    cuando y Lulo quiere guardar las versiones viejas, no pisarlas. "Nuevo plan" (botón al
    pie de ManageMealSlotsModal) archiva la activa y arranca otra; nada de lo de acá arriba
    —franja-form/opciones/opcion-form— crea una versión nueva, solo edita la vigente. */
-export function MealPlanManager({ onClose }) {
+// `recuperarDeEntrada`: abrir directo en la confirmación de "recuperar lo borrado" (el
+// aviso de la sección Plan en ComidasPage lleva acá sin pasar por la lista).
+export function MealPlanManager({ onClose, recuperarDeEntrada = false }) {
   const { data, update } = useData();
   const [paso, setPaso] = useState({ vista: 'franjas' });
   const [borrandoSlot, setBorrandoSlot] = useState(null);
   const [borrandoOpcion, setBorrandoOpcion] = useState(null);
   const [nuevoPlan, setNuevoPlan] = useState(false);
   const [cargarPlan, setCargarPlan] = useState(false);
+  const [recuperar, setRecuperar] = useState(recuperarDeEntrada);
 
   const slots = activePlan(data)?.slots ?? [];
+  // Lo que falta del plan de la nutricionista — solo si el plan vigente salió de ahí
+  // (ver `parecido` en missingFromTemplate, lib/meals.js).
+  const diff = missingFromTemplate(activePlan(data), PLAN_NUTRI_2026_10);
+  const faltan = diff.parecido ? diff.faltan : [];
   const slotActual = paso.slotId ? slots.find((s) => s.id === paso.slotId) : null;
 
   const handleDeleteSlot = () => {
@@ -64,6 +73,11 @@ export function MealPlanManager({ onClose }) {
     setCargarPlan(false);
   };
 
+  const handleRecuperar = () => {
+    update((draft) => restoreFromMealTemplate(draft, PLAN_NUTRI_2026_10));
+    setRecuperar(false);
+  };
+
   return (
     <>
       {paso.vista === 'franjas' && (
@@ -77,6 +91,8 @@ export function MealPlanManager({ onClose }) {
           onMove={(id, dir) => update((draft) => moveMealSlot(draft, id, dir))}
           onNewPlan={() => setNuevoPlan(true)}
           onLoadTemplate={pedirCargarPlan}
+          faltantes={faltan.length}
+          onRestore={() => setRecuperar(true)}
         />
       )}
 
@@ -134,6 +150,16 @@ export function MealPlanManager({ onClose }) {
           okLabel="Empezar"
           onConfirm={handleNuevoPlan}
           onCancel={() => setNuevoPlan(false)}
+        />
+      )}
+
+      {recuperar && faltan.length > 0 && (
+        <ConfirmDialog
+          title="¿Recuperar lo borrado?"
+          description={`Se vuelve a agregar, en su lugar de siempre: ${faltan.map(faltanteLabel).join('; ')}. Lo que agregaste o cambiaste vos no se toca.`}
+          okLabel="Recuperar"
+          onConfirm={handleRecuperar}
+          onCancel={() => setRecuperar(false)}
         />
       )}
 

@@ -7,15 +7,17 @@ import { C } from '../../lib/theme';
    entienden solos ("Te falta: Cena." · 75% del plan); abajo, una fila por franja del
    plan con su estado, lo que se registró y el botón para registrar.
 
-   El estado de cada franja (Pendiente/Parcial/Cumplida/Poco) y la frase salen de
-   dayMealSummary() en lib/meals.js — acá solo se dibuja. */
+   El estado de cada franja (Pendiente/Parcial/Cumplida/Poco/Libre) y la frase salen de
+   dayMealSummary() en lib/meals.js — acá solo se dibuja. Cada registro del plan tiene
+   "Editar" (pedido explícito: "sacarle algo por si lo quiero agregar después" — lo que
+   se sacó se vuelve a poner desde ahí); una comida libre se ve con lo que fue. */
 function itemColor(it) {
   if (it.got >= it.expected) return C.green;
   if (it.got > 0) return C.amber;
   return 'rgba(242,244,248,.35)';
 }
 
-export function DayMealsCard({ summary, onRegistrar }) {
+export function DayMealsCard({ summary, onRegistrar, onEditar }) {
   const pct = summary.pct === null ? null : Math.round(summary.pct * 100);
 
   return (
@@ -50,8 +52,20 @@ export function DayMealsCard({ summary, onRegistrar }) {
           {f.registros.map((r) => (
             <div className="daymeals-reg" key={`${r.entryId}-${r.option.id}`}>
               <div className="daymeals-opt">
-                {optionLabel(r.option)}
-                {r.pesado && <span className="daymeals-pesado">pesado</span>}
+                <span className="grow">
+                  {optionLabel(r.option)}
+                  {r.pesado && <span className="daymeals-pesado">pesado</span>}
+                </span>
+                {r.detalle && (
+                  <button
+                    type="button"
+                    className="daymeals-edit"
+                    aria-label={`Editar ${f.slot.name}: ${optionLabel(r.option)}`}
+                    onClick={() => onEditar(f.slot, r)}
+                  >
+                    Editar
+                  </button>
+                )}
               </div>
               {r.detalle && (
                 <div className="daymeals-items">
@@ -60,6 +74,15 @@ export function DayMealsCard({ summary, onRegistrar }) {
                   ))}
                 </div>
               )}
+            </div>
+          ))}
+
+          {f.libres.map((l) => (
+            <div className="daymeals-reg" key={l.entryId}>
+              <div className="daymeals-opt">
+                <span className="daymeals-libre">Comida libre</span>
+                {l.que}
+              </div>
             </div>
           ))}
         </div>

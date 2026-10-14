@@ -617,21 +617,82 @@ export function addMealLogEntry(draft, dISO, text) {
    escrita (texto + matches), así la bitácora, "Tu día" y "Cómo comés" no distinguen de
    dónde vino. `qtys` es { itemId: cantidad }; un ítem que no viene cuenta lo del plan.
    `pesado` (si lo pesó en la balanza) solo se guarda cuando es true. */
-export function addMealLogStructured(draft, dISO, { slotId, optionId, qtys = {}, pesado = false }) {
+/* El match y el texto de una entrada registrada tocando. Lo que se sacó (cantidad 0) no
+   se lista como "0 fruta" sino aparte, "sin fruta" — así se lee qué faltó. */
+function buildStructured(draft, { slotId, optionId, qtys = {} }) {
   const slot = activePlan(draft)?.slots.find((s) => s.id === slotId);
   const option = slot?.options.find((o) => o.id === optionId);
   if (!option) return null;
-  const meals = ensureMeals(draft);
 
   const match = { slotId, optionId };
   let text = `${slot.name}: ${optionLabel(option)}`;
   if (option.items?.length) {
     match.items = option.items.map((it) => ({ itemId: it.id, qty: Math.max(0, Number(qtys[it.id] ?? it.qty) || 0) }));
-    text += ` (${itemsLabel(option.items.map((it, i) => ({ ...it, qty: match.items[i].qty })))})`;
+    const conQty = option.items.map((it, i) => ({ ...it, qty: match.items[i].qty }));
+    const comidos = conQty.filter((it) => it.qty > 0);
+    const sacados = conQty.filter((it) => it.qty === 0);
+    const partes = [];
+    if (comidos.length) partes.push(itemsLabel(comidos));
+    if (sacados.length) partes.push(`sin ${sacados.map((it) => it.name).join(', ')}`);
+    if (partes.length) text += ` (${partes.join(' — ')})`;
   }
+  return { match, text };
+}
 
-  const entry = { id: uid(), at: Date.now(), text, matches: { options: [match], extras: [] } };
+export function addMealLogStructured(draft, dISO, { slotId, optionId, qtys = {}, pesado = false }) {
+  const built = buildStructured(draft, { slotId, optionId, qtys });
+  if (!built) return null;
+  const meals = ensureMeals(draft);
+
+  const entry = { id: uid(), at: Date.now(), text: built.text, matches: { options: [built.match], extras: [] } };
   if (pesado) entry.pesado = true;
+  (meals.log[dISO] ||= []).push(entry);
+  return entry;
+}
+
+/* Corregir algo ya registrado (pedido explícito: "elegir una opción y sacarle algo por si
+   lo quiero agregar después"): se reemplaza SOLO el match de esa franja/opción dentro de
+   la entrada, sin tocar la hora ni otros matches que pudiera tener. El texto se rearma
+   solo si la entrada no tiene nada más (una registrada tocando); si vino de la bitácora
+   escrita, el texto es lo que escribió Lulo y se respeta. */
+export function updateMealLogStructured(draft, dISO, entryId, { slotId, optionId, prevOptionId = optionId, qtys = {}, pesado = false }) {
+  const entry = draft.meals?.log?.[dISO]?.find((e) => e.id === entryId);
+  if (!entry) return false;
+  const built = buildStructured(draft, { slotId, optionId, qtys });
+  if (!built) return false;
+
+  const i = entry.matches.options.findIndex((m) => m.slotId === slotId && m.optionId === prevOptionId);
+  if (i === -1) return false;
+  entry.matches.options[i] = built.match;
+  if (entry.matches.options.length === 1 && !entry.matches.extras.length) entry.text = built.text;
+  if (pesado) entry.pesado = true; else delete entry.pesado;
+  return true;
+}
+
+/* Comida libre en una franja (pedido explícito: "la comida libre la debo poder poner en
+   algún lado y decir qué, por ejemplo unas galletas en el desayuno"). La entrada guarda
+   a qué franja corresponde y qué fue en `libre: { slotId, que }` — no es una opción del plan,
+   así que no suma al cumplimiento, pero la franja deja de figurar como pendiente (ver
+   dayMealSummary en lib/meals.js). Si hay un extra que se llama "Comida libre" se le
+   suma, así cuenta en sus frecuencias y en el aviso de "Cómo comés"; y el bot igual mira
+   el texto por si menciona otro extra ("galletas con café"). */
+export function addMealLogLibre(draft, dISO, slotId, desc) {
+  const slot = activePlan(draft)?.slots.find((s) => s.id === slotId);
+  const que = (desc || '').trim();
+  if (!slot || !que) return null;
+  const meals = ensureMeals(draft);
+
+  const extras = new Set(matchEntry(draft, que).extras);
+  const libreExtra = meals.extras.find((e) => normalizeText(e.name) === 'comida libre');
+  if (libreExtra) extras.add(libreExtra.id);
+
+  const entry = {
+    id: uid(),
+    at: Date.now(),
+    text: `${slot.name}: ${que} (comida libre)`,
+    libre: { slotId: slot.id, que },
+    matches: { options: [], extras: [...extras] },
+  };
   (meals.log[dISO] ||= []).push(entry);
   return entry;
 }
@@ -685,6 +746,45 @@ export function loadMealPlanTemplate(draft, template) {
     meals.extras.push({ id: nid(), name: ex.name, color: ex.color, icon: ex.icon, ...(ex.quality ? { quality: ex.quality } : {}) });
   });
   return plan;
+}
+
+/* Recuperar lo borrado sin querer (pedido explícito: "restablecé lo del queso que borré
+   sin querer"): vuelve a poner en el plan vigente las opciones y alimentos de la
+   plantilla que ya no están (ver missingFromTemplate en lib/meals.js), en la MISMA
+   posición que tenían en la plantilla — no al final. No borra ni cambia nada de lo que
+   ya hay: lo que Lulo agregó o ajustó (cantidades, macros) queda como está. */
+export function restoreFromMealTemplate(draft, template) {
+  const plan = ensureActivePlan(draft);
+  const base = uid();
+  let n = 0;
+  const nid = () => base + (n++).toString(36);
+  const mismo = (a, b) => normalizeText(a) === normalizeText(b);
+  let restaurados = 0;
+
+  template.slots.forEach((ts) => {
+    let slot = plan.slots.find((s) => mismo(s.name, ts.name));
+    if (!slot) {
+      slot = { id: nid(), name: ts.name, options: [] };
+      plan.slots.push(slot);
+    }
+    ts.options.forEach((to, oi) => {
+      const opt = slot.options.find((o) => mismo(o.text, to.text));
+      if (!opt) {
+        const nueva = { id: nid(), ...normalizeOptionFields({ text: to.text, items: (to.items ?? []).map((it) => ({ ...it, id: nid() })) }) };
+        slot.options.splice(Math.min(oi, slot.options.length), 0, nueva);
+        restaurados++;
+        return;
+      }
+      (to.items ?? []).forEach((ti, ii) => {
+        if ((opt.items ?? []).some((i) => mismo(i.name, ti.name))) return;
+        opt.items ||= [];
+        opt.items.splice(Math.min(ii, opt.items.length), 0, cleanItem({ ...ti, id: nid() }));
+        restaurados++;
+      });
+    });
+  });
+  if (!plan.guide?.length && template.guide?.length) plan.guide = [...template.guide];
+  return restaurados;
 }
 
 export function deleteMealLogEntry(draft, dISO, entryId) {

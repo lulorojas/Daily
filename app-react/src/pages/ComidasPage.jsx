@@ -11,10 +11,11 @@ import { MealLogBubble } from '../components/comidas/MealLogBubble';
 import { MealLogComposer } from '../components/comidas/MealLogComposer';
 import { PencilIcon } from '../components/ui/Icons';
 import { useData } from '../hooks/useData';
-import { activePlan, dayMealSummary, extraCount, extraStreak } from '../lib/meals';
+import { activePlan, dayMealSummary, extraCount, extraStreak, missingFromTemplate } from '../lib/meals';
 import { PLAN_NUTRI_2026_10 } from '../lib/mealPlanTemplates';
 import {
-  addMealExtraEntry, addMealLogEntry, addMealLogStructured, deleteMealLogEntry, loadMealPlanTemplate,
+  addMealExtraEntry, addMealLogEntry, addMealLogLibre, addMealLogStructured, deleteMealLogEntry, loadMealPlanTemplate,
+  updateMealLogStructured,
 } from '../store/mutations';
 import { iso, mondayOf, parseISO, todayISO } from '../lib/dates';
 import { shiftWeek } from '../lib/items';
@@ -26,16 +27,19 @@ import { shiftWeek } from '../lib/items';
    explícito: "que yo pueda llevar de una manera fácil, clara y didáctica el registro de
    mis comidas con lo que te expliqué y el plan que te mandé"):
 
-     Tu día    — una fila por franja del plan con su estado (pendiente/parcial/cumplida)
-                 y un botón "Registrar" que abre RegisterMealModal: elegís la opción que
-                 comiste y ajustás las cantidades con −/+, sin escribir nada. Arriba, una
-                 frase ("Te falta: Cena.") y el % del plan del día.
+     Tu día    — una fila por franja del plan con su estado (pendiente/parcial/cumplida/
+                 libre) y un botón "Registrar" que abre RegisterMealModal: elegís la opción
+                 que comiste y ajustás las cantidades con −/+ (o sacás lo que no comiste),
+                 sin escribir nada — o anotás una comida libre en esa franja. "Editar" en
+                 un registro vuelve a abrirlo para corregirlo. Arriba, una frase ("Te
+                 falta: Cena.") y el % del plan del día.
      Extras    — café, alcohol, comida libre… con cuántas veces aparecieron esta semana, y
                  un "+" para anotarlos de un toque.
      Bitácora  — todo lo registrado ese día, en orden. Abajo, el cuadro de texto libre de
                  siempre: lo que escribas lo sigue reconociendo el bot (matchEntry).
      Plan      — lo que tenés que comer, de solo lectura, con la guía del nutricionista;
-                 se edita desde "Editar".
+                 se edita desde "Editar". Si falta algo del plan de la nutricionista
+                 (borrado sin querer), un aviso ofrece recuperarlo.
 
    Sin plan todavía, "Tu día" ofrece cargar de un toque el plan que mandó Lulo en PDF
    (PLAN_NUTRI_2026_10 en lib/mealPlanTemplates.js) — o armarlo a mano.
@@ -55,6 +59,8 @@ export function ComidasPage() {
   const log = data.meals?.log ?? {};
   const entradas = log[day] ?? [];
   const resumen = dayMealSummary(data, day);
+  const diff = missingFromTemplate(plan, PLAN_NUTRI_2026_10);
+  const faltanDelPlan = diff.parecido ? diff.faltan.length : 0;
 
   // Para resolver el nombre de cada coincidencia sin recorrer el plan entero por burbuja.
   const slotsById = Object.fromEntries(slots.map((s) => [s.id, s]));
@@ -67,14 +73,27 @@ export function ComidasPage() {
   const borrar = (id) => update((draft) => deleteMealLogEntry(draft, day, id));
   const cargarPlan = () => update((draft) => loadMealPlanTemplate(draft, PLAN_NUTRI_2026_10));
 
+  // `modal.entryId` presente = se está corrigiendo un registro de "Tu día" (Editar).
   const registrar = (slot, { optionId, qtys, pesado }) => {
-    update((draft) => addMealLogStructured(draft, day, { slotId: slot.id, optionId, qtys, pesado }));
+    update((draft) => (modal.entryId
+      ? updateMealLogStructured(draft, day, modal.entryId, { slotId: slot.id, optionId, prevOptionId: modal.initial.optionId, qtys, pesado })
+      : addMealLogStructured(draft, day, { slotId: slot.id, optionId, qtys, pesado })));
     setModal(null);
   };
-  const otraCosa = (text) => {
-    escribir(text);
+  const anotarLibre = (slot, que) => {
+    update((draft) => addMealLogLibre(draft, day, slot.id, que));
     setModal(null);
   };
+  const editar = (slot, registro) => setModal({
+    kind: 'registrar',
+    slotId: slot.id,
+    entryId: registro.entryId,
+    initial: {
+      optionId: registro.option.id,
+      qtys: Object.fromEntries((registro.match.items ?? []).map((m) => [m.itemId, m.qty])),
+      pesado: !!registro.pesado,
+    },
+  });
 
   const editarPlan = (
     <button type="button" className="pillbtn comidas" onClick={() => setModal({ kind: 'plan' })}>
@@ -100,7 +119,11 @@ export function ComidasPage() {
 
         <Section label="Tu día">
           {slots.length ? (
-            <DayMealsCard summary={resumen} onRegistrar={(slot) => setModal({ kind: 'registrar', slotId: slot.id })} />
+            <DayMealsCard
+              summary={resumen}
+              onRegistrar={(slot) => setModal({ kind: 'registrar', slotId: slot.id })}
+              onEditar={editar}
+            />
           ) : (
             <div className="card pad mealempty">
               <div className="mealempty-title">Todavía no tenés un plan cargado.</div>
@@ -156,6 +179,17 @@ export function ComidasPage() {
         </Section>
 
         <Section label="Plan de comidas" action={editarPlan}>
+          {faltanDelPlan > 0 && (
+            <div className="card pad mealrecover">
+              <span className="grow">
+                Falta algo del plan de la nutricionista ({faltanDelPlan}). ¿Lo borraste sin querer?
+              </span>
+              <button type="button" className="pillbtn comidas" onClick={() => setModal({ kind: 'plan', recuperar: true })}>
+                Recuperar
+              </button>
+            </div>
+          )}
+
           {slots.length
             ? <MealPlanCard slots={slots} />
             : <EmptyCard>Todavía no armaste tu plan. Tocá &quot;Editar&quot; para crear la primera franja.</EmptyCard>}
@@ -174,12 +208,13 @@ export function ComidasPage() {
       {modal?.kind === 'registrar' && slotsById[modal.slotId] && (
         <RegisterMealModal
           slot={slotsById[modal.slotId]}
+          initial={modal.initial ?? null}
           onClose={() => setModal(null)}
           onSave={(sel) => registrar(slotsById[modal.slotId], sel)}
-          onOtraCosa={otraCosa}
+          onLibre={(que) => anotarLibre(slotsById[modal.slotId], que)}
         />
       )}
-      {modal?.kind === 'plan' && <MealPlanManager onClose={() => setModal(null)} />}
+      {modal?.kind === 'plan' && <MealPlanManager onClose={() => setModal(null)} recuperarDeEntrada={!!modal.recuperar} />}
       {modal?.kind === 'extras' && <MealExtrasManager onClose={() => setModal(null)} />}
     </div>
   );

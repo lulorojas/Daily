@@ -11,7 +11,7 @@ import { clickable } from '../ui/clickable';
    borra — las tres acciones de más (mover/editar/borrar) cortan la propagación con
    clickable()/stopPropagation, igual que TaskRow hace con su checkbox: tocar la fila abre
    las opciones, tocar un botón de adentro NO. */
-export function ManageMealSlotsModal({ slots, onClose, onNew, onOpenOptions, onEdit, onDelete, onMove, onNewPlan, onLoadTemplate }) {
+export function ManageMealSlotsModal({ slots, onClose, onNew, onOpenOptions, onEdit, onDelete, onMove, onNewPlan, onLoadTemplate, faltantes = 0, onRestore }) {
   return (
     <Modal title="Plan de comidas" onClose={onClose}>
       <div className="fld">
@@ -74,6 +74,11 @@ export function ManageMealSlotsModal({ slots, onClose, onNew, onOpenOptions, onE
         {slots.length > 0 && (
           <button type="button" className="pillbtn comidas comidas-newplan" onClick={onNewPlan}>
             Nuevo plan (el nutricionista me dio uno distinto)
+          </button>
+        )}
+        {faltantes > 0 && onRestore && (
+          <button type="button" className="pillbtn comidas comidas-newplan" onClick={onRestore}>
+            Recuperar lo borrado del plan de la nutricionista ({faltantes})
           </button>
         )}
         {onLoadTemplate && (

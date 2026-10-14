@@ -13,7 +13,7 @@
        { id, text, items?:[ { id, name, qty, unit?: 'u'|'gr', tipo?: 'carbo'|'proteina'|'grasa' } ] },
      ] } ] } ],
      extras: [ { id, name, color, icon, quality?: 'bueno'|'malo' } ],  // catálogo libre, shape como habits
-     log:    { 'YYYY-MM-DD': [ { id, at, text, pesado?: boolean, matches:{
+     log:    { 'YYYY-MM-DD': [ { id, at, text, pesado?: boolean, libre?: { slotId, que }, matches:{
        options:[ { slotId, optionId, items?:[{itemId,qty}] } ],
        extras:[id],
      } } ] },
@@ -31,7 +31,8 @@
    versión del plan ("pesar en cocido", porciones de proteína/hidrato…): se muestran en
    Comidas como guía, no se miden. `pesado` en una entrada es si Lulo pesó la comida en
    la balanza o la estimó a ojo (pedido explícito: "daily podría ponerle si pesé o no pesé
-   la comida para especificarle los gramos").
+   la comida para especificarle los gramos"). `libre` marca una comida libre anotada en
+   una franja ("unas galletas en el desayuno") — ver addMealLogLibre en store/mutations.js.
 
    Igual que fcmTokens, `meals` NO tiene default en normalize() (ver lib/model.js): una
    cuenta que nunca abrió Comidas no gana un campo de más en su documento. Por eso todo
@@ -337,13 +338,53 @@ export function comoComes(state, per) {
 }
 
 /* ============================================================================
+   RECUPERAR LO BORRADO (pedido explícito: "restablecé lo del queso que borré sin
+   querer"). Compara el plan vigente contra la plantilla de la que salió (ver
+   lib/mealPlanTemplates.js) y devuelve qué opciones o alimentos de la plantilla ya no
+   están — por nombre, sin tildes ni mayúsculas. No mira lo que Lulo agregó de más: eso
+   no se toca nunca.
+
+   `parecido` es cuántas opciones de la plantilla siguen en el plan: si es menos de la
+   mitad, el plan claramente NO salió de esa plantilla (lo armó a mano, o es otro
+   nutricionista) y ofrecer "recuperar" sería ofrecer meterle un plan ajeno.
+   ============================================================================ */
+export function missingFromTemplate(plan, template) {
+  const faltan = [];
+  let encontradas = 0, total = 0;
+  const slots = plan?.slots ?? [];
+  template.slots.forEach((ts) => {
+    const slot = slots.find((s) => normalizeText(s.name) === normalizeText(ts.name));
+    ts.options.forEach((to) => {
+      total++;
+      const opt = slot?.options.find((o) => normalizeText(o.text) === normalizeText(to.text));
+      if (!opt) {
+        faltan.push({ slot: ts.name, option: to.text });
+        return;
+      }
+      encontradas++;
+      (to.items ?? []).forEach((ti) => {
+        if ((opt.items ?? []).some((i) => normalizeText(i.name) === normalizeText(ti.name))) return;
+        faltan.push({ slot: ts.name, option: to.text, item: ti.name });
+      });
+    });
+  });
+  return { faltan, parecido: total > 0 && encontradas >= total / 2 };
+}
+
+// "Desayuno › Panes con queso y huevo › cucharadas de queso untable"
+export function faltanteLabel(f) {
+  return [f.slot, f.option, f.item].filter(Boolean).join(' › ');
+}
+
+/* ============================================================================
    "TU DÍA" — lo primero que muestra Comidas (pedido explícito: "que yo pueda llevar de una
    manera fácil, clara y didáctica el registro de mis comidas"). Por cada franja del plan
    vigente: qué se registró ese día y qué tan cerca del plan quedó. Si una franja tiene
    varias entradas (dos registros de almuerzo), vale la mejor — no se suman, porque el
    plan pide UNA de las opciones, no varias.
    ============================================================================ */
-export function franjaStatus(pct) {
+export function franjaStatus(pct, libre = false) {
+  if (pct === null && libre) return { key: 'libre', label: 'Libre', color: C.teal };
   if (pct === null) return { key: 'pendiente', label: 'Pendiente', color: 'rgba(242,244,248,.45)' };
   if (pct >= 1) return { key: 'cumplida', label: 'Cumplida', color: C.green };
   if (pct >= UMBRAL_CUMPLIMIENTO) return { key: 'parcial', label: 'Parcial', color: C.amber };
@@ -365,32 +406,49 @@ export function dayMealSummary(state, dISO) {
         registros.push({
           entryId: e.id,
           option,
+          match: m,
           pesado: e.pesado,
           pct: medible ? itemsCompliance(option, m.items) : 1,
           detalle: medible ? itemsBreakdown(option, m.items) : null,
         });
       });
     });
+    const libres = entradas
+      .filter((e) => e.libre?.slotId === slot.id)
+      .map((e) => ({ entryId: e.id, que: e.libre.que }));
     const pct = registros.length ? Math.max(...registros.map((r) => r.pct)) : null;
-    return { slot, registros, pct, status: franjaStatus(pct) };
+    return { slot, registros, libres, pct, status: franjaStatus(pct, libres.length > 0) };
   });
 
-  const pct = franjas.length ? franjas.reduce((a, f) => a + Math.min(1, f.pct ?? 0), 0) / franjas.length : null;
-  const pendientes = franjas.filter((f) => f.pct === null).map((f) => f.slot.name);
+  /* El % del plan es el promedio de las franjas que cuentan para el plan: las que tienen
+     algo del plan registrado y las que siguen pendientes (cuentan 0). Una franja que fue
+     SOLO comida libre queda afuera — no es el plan, pero tampoco es "no comí": Lulo pidió
+     poder anotarla como algo que no está mal, no como una falta. */
+  const delPlan = franjas.filter((f) => f.status.key !== 'libre');
+  const pct = delPlan.length ? delPlan.reduce((a, f) => a + Math.min(1, f.pct ?? 0), 0) / delPlan.length : null;
+  const pendientes = franjas.filter((f) => f.status.key === 'pendiente').map((f) => f.slot.name);
   const hechas = franjas.length - pendientes.length;
-  // Entradas que no son ni del plan ni un extra conocido: "comí otra cosa".
-  const fueraDePlan = entradas.filter((e) => !e.matches.options.length && !e.matches.extras.length).length;
+  const libres = franjas.filter((f) => f.libres.length > 0).length;
+  // Entradas que no son ni del plan, ni comida libre, ni un extra conocido: "comí otra cosa".
+  const fueraDePlan = entradas.filter((e) => !e.libre && !e.matches.options.length && !e.matches.extras.length).length;
 
-  return { franjas, pct, hechas, pendientes, fueraDePlan, message: dayMessage(franjas, pct, hechas, pendientes) };
+  return { franjas, pct, hechas, pendientes, libres, fueraDePlan, message: dayMessage(franjas, pct, hechas, pendientes, libres) };
 }
 
 // Una frase que se entienda sin mirar los números.
-function dayMessage(franjas, pct, hechas, pendientes) {
+function dayMessage(franjas, pct, hechas, pendientes, libres) {
   if (!franjas.length) return null;
   if (hechas === 0) return 'Todavía no registraste nada. Tocá una comida para empezar.';
   if (!pendientes.length) {
-    return pct >= 0.9
-      ? '¡Día completo! Seguiste el plan en todas las comidas.'
+    const nLibres = `${libres} ${libres === 1 ? 'comida libre' : 'comidas libres'}`;
+    if (pct === null) return `Registraste todas las comidas, ${nLibres}.`;
+    if (pct >= 0.9) {
+      return libres
+        ? `¡Día completo! Seguiste el plan, con ${nLibres}.`
+        : '¡Día completo! Seguiste el plan en todas las comidas.';
+    }
+    return libres
+      ? `Registraste todas las comidas (${nLibres}), algunas por debajo de lo que pide el plan.`
       : 'Registraste todas las comidas, algunas por debajo de lo que pide el plan.';
   }
   return `Te falta: ${pendientes.join(', ')}.`;

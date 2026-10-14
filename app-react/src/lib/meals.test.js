@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   activePlan, breakdownLabel, comoComes, dayMealSummary, extraCount, extraLoggedOn, extraMatchDates, extraStreak,
-  itemsBreakdown, itemsCompliance, itemsLabel, matchEntry, normalizeText, optionLabel, qtyLabel,
+  itemsBreakdown, itemsCompliance, itemsLabel, matchEntry, missingFromTemplate, normalizeText, optionLabel, qtyLabel,
 } from './meals';
 import { mondayAgo, thisMonday } from '../test/fixtures';
 
@@ -215,6 +215,54 @@ describe('dayMealSummary', () => {
     const r = dayMealSummary({}, DIA);
     expect(r.franjas).toEqual([]);
     expect(r.message).toBeNull();
+  });
+
+  /* Comida libre (pedido explícito: "unas galletas en el desayuno"): la franja deja de
+     estar pendiente, pero no suma ni resta al % del plan. */
+  it('una franja con solo comida libre queda "Libre" y fuera del % del plan', () => {
+    const log = { [DIA]: [
+      { id: 'l', at: 0, text: 'Desayuno: galletas (comida libre)', libre: { slotId: 's1', que: 'galletas' }, matches: { options: [], extras: [] } },
+      entrada([{ slotId: 's2', optionId: 'o2' }]),
+    ] };
+    const r = dayMealSummary(state({ plan, log }), DIA);
+    expect(r.franjas[0].status.key).toBe('libre');
+    expect(r.franjas[0].libres).toEqual([{ entryId: 'l', que: 'galletas' }]);
+    expect(r.pct).toBe(1);           // solo cuenta la cena, cumplida
+    expect(r.fueraDePlan).toBe(0);   // la comida libre no es "otra cosa suelta"
+    expect(r.message).toBe('¡Día completo! Seguiste el plan, con 1 comida libre.');
+  });
+});
+
+/* Recuperar lo borrado (pedido explícito: "restablecé lo del queso que borré"). */
+describe('missingFromTemplate', () => {
+  const plantilla = {
+    slots: [{
+      name: 'Desayuno',
+      options: [
+        { text: 'Panes con queso', items: [{ name: 'pan', qty: 3 }, { name: 'queso', qty: 3 }] },
+        { text: 'Tortita', items: [{ name: 'banana', qty: 200 }] },
+      ],
+    }],
+  };
+
+  it('encuentra un alimento borrado de una opción (sin importar tildes/mayúsculas del resto)', () => {
+    const plan = { slots: [{ name: 'DESAYUNO', options: [
+      { text: 'panes con queso', items: [{ name: 'Pan', qty: 2 }] },
+      { text: 'Tortita', items: [{ name: 'banana', qty: 200 }] },
+    ] }] };
+    expect(missingFromTemplate(plan, plantilla)).toEqual({
+      faltan: [{ slot: 'Desayuno', option: 'Panes con queso', item: 'queso' }],
+      parecido: true,
+    });
+  });
+
+  it('un plan armado a mano, que no se parece, no ofrece "recuperar"', () => {
+    const plan = { slots: [{ name: 'Desayuno', options: [{ text: 'Mate con facturas' }] }] };
+    expect(missingFromTemplate(plan, plantilla).parecido).toBe(false);
+  });
+
+  it('sin plan, nada es "parecido"', () => {
+    expect(missingFromTemplate(null, plantilla).parecido).toBe(false);
   });
 });
 

@@ -6,6 +6,8 @@ import { renderScreen } from '../test/utils';
 import { emptyDoc } from '../test/fixtures';
 import { todayISO } from '../lib/dates';
 import { activePlan } from '../lib/meals';
+import { PLAN_NUTRI_2026_10 } from '../lib/mealPlanTemplates';
+import { loadMealPlanTemplate } from '../store/mutations';
 
 /* ============================================================================
    COMIDAS
@@ -335,15 +337,64 @@ describe('tu día', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('"¿Comiste otra cosa?" anota texto libre en la bitácora', async () => {
+  it('comida libre: se anota EN la franja, diciendo qué fue (pedido explícito: "unas galletas en el desayuno")', async () => {
     const user = userEvent.setup();
     const { doc: leer } = renderScreen(<ComidasPage />, { doc: docMedible() });
 
-    await user.click(screen.getByRole('button', { name: 'Registrar Cena' }));
-    await user.type(screen.getByLabelText('Comí otra cosa'), 'pastel de carne');
-    await user.click(screen.getByRole('button', { name: 'Anotar otra cosa' }));
+    await user.click(screen.getByRole('button', { name: 'Registrar Desayuno' }));
+    await user.type(screen.getByLabelText('Qué comiste fuera del plan'), 'unas galletas');
+    await user.click(screen.getByRole('button', { name: 'Anotar comida libre' }));
 
-    expect(leer().meals.log[todayISO()][0].text).toBe('pastel de carne');
+    const [entrada] = leer().meals.log[todayISO()];
+    expect(entrada.libre).toEqual({ slotId: 's1', que: 'unas galletas' });
+    expect(entrada.text).toBe('Desayuno: unas galletas (comida libre)');
+
+    const dia = screen.getByText('Tu día').closest('.sect');
+    expect(within(dia).getByText('Libre')).toBeInTheDocument();
+    expect(within(dia).getByText('unas galletas')).toBeInTheDocument();
+    expect(within(dia).getByText('Te falta: Cena.')).toBeInTheDocument();
+  });
+
+  it('sacar un alimento al registrar, y volver a ponerlo después desde "Editar" (pedido explícito)', async () => {
+    const user = userEvent.setup();
+    const { doc: leer } = renderScreen(<ComidasPage />, { doc: docMedible() });
+
+    await user.click(screen.getByRole('button', { name: 'Registrar Desayuno' }));
+    await user.click(screen.getByRole('button', { name: /Panes con huevo/ }));
+    await user.click(screen.getByRole('button', { name: 'Sacar fruta' }));
+    await user.click(screen.getByRole('button', { name: 'Registrar' }));
+
+    let [entrada] = leer().meals.log[todayISO()];
+    expect(entrada.matches.options[0].items).toEqual([{ itemId: 'i1', qty: 3 }, { itemId: 'i2', qty: 0 }]);
+    expect(entrada.text).toBe('Desayuno: Panes con huevo (3 pan — sin fruta)');
+
+    // Más tarde: comió la fruta.
+    await user.click(screen.getByRole('button', { name: 'Editar Desayuno: Panes con huevo' }));
+    await user.click(screen.getByRole('button', { name: 'Volver a poner fruta' }));
+    await user.click(screen.getByRole('button', { name: 'Guardar' }));
+
+    const entradas = leer().meals.log[todayISO()];
+    expect(entradas).toHaveLength(1); // se corrigió la misma entrada, no se sumó otra
+    [entrada] = entradas;
+    expect(entrada.matches.options[0].items).toEqual([{ itemId: 'i1', qty: 3 }, { itemId: 'i2', qty: 200 }]);
+    expect(within(screen.getByText('Tu día').closest('.sect')).getByText('Cumplida')).toBeInTheDocument();
+  });
+
+  it('si se borró algo del plan de la nutricionista, avisa y lo recupera (pedido explícito: "restablecé lo del queso")', async () => {
+    const user = userEvent.setup();
+    const doc = { ...emptyDoc(), meals: { plans: [], extras: [], log: {} } };
+    // El plan cargado, con el queso borrado de "Panes con queso y huevo" del desayuno.
+    const plantilla = structuredClone(PLAN_NUTRI_2026_10);
+    plantilla.slots[0].options[0].items = plantilla.slots[0].options[0].items.filter((i) => !i.name.includes('queso'));
+    loadMealPlanTemplate(doc, plantilla);
+    const { doc: leer } = renderScreen(<ComidasPage />, { doc });
+
+    await user.click(within(screen.getByText('Plan de comidas').closest('.sect')).getByRole('button', { name: 'Recuperar' }));
+    expect(screen.getByText(/Desayuno › Panes con queso y huevo › cucharadas de queso untable/)).toBeInTheDocument();
+    await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Recuperar' }));
+
+    const items = activePlan(leer()).slots[0].options[0].items.map((i) => i.name);
+    expect(items).toEqual(['pan', 'cucharadas de queso untable', 'huevo', 'fruta']); // en su lugar, no al final
   });
 
   it('el "+" de un extra lo anota de un toque', async () => {

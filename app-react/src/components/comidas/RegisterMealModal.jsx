@@ -8,24 +8,34 @@ import { C, tint } from '../../lib/theme';
    Pedido explícito: "que yo pueda llevar de una manera fácil, clara y didáctica el
    registro de mis comidas". En vez de escribir y esperar que el bot entienda, se toca:
 
-     1. elegir   — las opciones del plan para esta franja. Una opción sin ítems se
-                   registra de una con un toque; una medible pasa al paso 2.
-     2. ajustar  — cada ítem arranca en lo que pide el plan; con −/+ se corrige si comiste
-                   más o menos ("comí 2 tostadas en vez de 3"). Unidades de a 1, gramos de
-                   a 10 (también se puede escribir el número). Si hay algo en gramos,
-                   aparece "Lo pesé en la balanza" (pedido explícito: "si pesé o no pesé").
+     1. elegir   — las opciones del plan para esta franja. Una opción sin alimentos se
+                   registra de una con un toque; una medible pasa al paso 2. Abajo,
+                   "Comida libre": algo fuera del plan para ESTA franja, diciendo qué
+                   (pedido explícito: "unas galletas en el desayuno").
+     2. ajustar  — cada alimento arranca en lo que pide el plan; con −/+ se corrige si
+                   comiste más o menos (unidades de a 1, gramos de a 10). "Sacar" lo deja
+                   en 0 sin perderlo de vista, y "Volver a poner" lo devuelve a lo del plan
+                   (pedido explícito: "elegir una opción y sacarle algo por si lo quiero
+                   agregar después"). Si hay algo en gramos aparece "Lo pesé en la balanza".
 
-   Abajo de la lista, "¿Comiste otra cosa?" anota texto libre en la bitácora — el bot igual
-   lo mira (extras como "Comida libre" o "Alcohol" se reconocen solos).
+   Con `initial` (corregir algo ya registrado desde "Tu día") arranca directo en el paso 2
+   con lo que se había guardado — así "lo agrego después" es volver acá y ponerlo.
 
    El acento va explícito (C.violet): el modal vive fuera de #app y no lee var(--accent). */
 const ACCENT = C.violet;
 
-export function RegisterMealModal({ slot, onClose, onSave, onOtraCosa }) {
-  const [option, setOption] = useState(null);
-  const [qtys, setQtys] = useState({});
-  const [pesado, setPesado] = useState(false);
-  const [otra, setOtra] = useState('');
+function qtysDelPlan(option) {
+  return Object.fromEntries(option.items.map((it) => [it.id, it.qty]));
+}
+
+export function RegisterMealModal({ slot, initial = null, onClose, onSave, onLibre }) {
+  const editando = !!initial;
+  const inicial = initial ? slot.options.find((o) => o.id === initial.optionId) ?? null : null;
+
+  const [option, setOption] = useState(inicial?.items?.length ? inicial : null);
+  const [qtys, setQtys] = useState(inicial?.items?.length ? { ...qtysDelPlan(inicial), ...initial.qtys } : {});
+  const [pesado, setPesado] = useState(!!initial?.pesado);
+  const [libre, setLibre] = useState('');
 
   const elegir = (o) => {
     if (!o.items?.length) {
@@ -33,13 +43,12 @@ export function RegisterMealModal({ slot, onClose, onSave, onOtraCosa }) {
       return;
     }
     setOption(o);
-    setQtys(Object.fromEntries(o.items.map((it) => [it.id, it.qty])));
+    setQtys(qtysDelPlan(o));
     setPesado(false);
   };
 
-  const cambiar = (it, delta) => {
-    setQtys((q) => ({ ...q, [it.id]: Math.max(0, (Number(q[it.id]) || 0) + delta) }));
-  };
+  const fijar = (it, valor) => setQtys((q) => ({ ...q, [it.id]: Math.max(0, valor) }));
+  const cambiar = (it, delta) => fijar(it, (Number(qtys[it.id]) || 0) + delta);
 
   const hayPeso = option?.items.some((it) => it.unit === 'gr');
 
@@ -47,7 +56,7 @@ export function RegisterMealModal({ slot, onClose, onSave, onOtraCosa }) {
     return (
       <Modal title={slot.name} accent={ACCENT} onClose={onClose}>
         <div className="fld">
-          <div className="flabel notopmargin">¿Qué comiste?</div>
+          <div className="flabel notopmargin">¿Qué comiste del plan?</div>
           {slot.options.length === 0 ? (
             <div className="empty">Esta franja todavía no tiene opciones. Cargalas desde &quot;Editar&quot; en el plan.</div>
           ) : (
@@ -62,30 +71,32 @@ export function RegisterMealModal({ slot, onClose, onSave, onOtraCosa }) {
           )}
         </div>
 
-        <div className="fld">
-          <div className="flabel">¿Comiste otra cosa?</div>
-          <div className="mealotra">
-            <input
-              className="inp"
-              placeholder="Ej: pastel de carne, comida libre"
-              aria-label="Comí otra cosa"
-              value={otra}
-              onChange={(e) => setOtra(e.target.value)}
-            />
-            <button
-              type="button"
-              className="pillbtn comidas"
-              aria-label="Anotar otra cosa"
-              disabled={!otra.trim()}
-              onClick={() => onOtraCosa(otra.trim())}
-            >
-              Anotar
-            </button>
+        {!editando && (
+          <div className="fld">
+            <div className="flabel">Comida libre</div>
+            <div className="mealotra">
+              <input
+                className="inp"
+                placeholder={`Ej: unas galletas en el ${slot.name.toLowerCase()}`}
+                aria-label="Qué comiste fuera del plan"
+                value={libre}
+                onChange={(e) => setLibre(e.target.value)}
+              />
+              <button
+                type="button"
+                className="pillbtn comidas"
+                aria-label="Anotar comida libre"
+                disabled={!libre.trim()}
+                onClick={() => onLibre(libre.trim())}
+              >
+                Anotar
+              </button>
+            </div>
+            <div className="managetypes-note">
+              Algo fuera del plan que no está mal. Queda registrado en {slot.name}, pero no suma ni resta al % del plan.
+            </div>
           </div>
-          <div className="managetypes-note">
-            Queda en la bitácora. Si es algo que no está mal, agregá &quot;comida libre&quot; al texto para que cuente como fuera del plan pero bien.
-          </div>
-        </div>
+        )}
       </Modal>
     );
   }
@@ -94,14 +105,14 @@ export function RegisterMealModal({ slot, onClose, onSave, onOtraCosa }) {
     <Modal
       title={slot.name}
       accent={ACCENT}
-      saveLabel="Registrar"
+      saveLabel={editando ? 'Guardar' : 'Registrar'}
       onSave={() => onSave({ optionId: option.id, qtys, pesado: hayPeso && pesado })}
       onClose={onClose}
     >
       <div className="fld">
         <div className="flabel notopmargin">{optionLabel(option)}</div>
         <div className="managetypes-note mealajustar-hint">
-          Arranca con lo que pide el plan. Ajustá si comiste más o menos.
+          Arranca con lo que pide el plan. Ajustá si comiste más o menos, o sacá lo que no comiste.
         </div>
 
         <div className="mealajustar">
@@ -109,11 +120,23 @@ export function RegisterMealModal({ slot, onClose, onSave, onOtraCosa }) {
             const gr = it.unit === 'gr';
             const paso = gr ? 10 : 1;
             const valor = qtys[it.id] ?? 0;
+            const sacado = valor === 0;
             return (
-              <div className="mealajustar-row" key={it.id}>
+              <div className={`mealajustar-row${sacado ? ' off' : ''}`} key={it.id}>
                 <div className="grow">
                   <div className="mealajustar-name">{it.name}</div>
-                  <div className="mealajustar-plan">plan: {gr ? `${it.qty} gr` : it.qty}</div>
+                  <div className="mealajustar-plan">
+                    plan: {gr ? `${it.qty} gr` : it.qty}
+                    {' · '}
+                    <button
+                      type="button"
+                      className="mealajustar-toggle"
+                      aria-label={sacado ? `Volver a poner ${it.name}` : `Sacar ${it.name}`}
+                      onClick={() => fijar(it, sacado ? it.qty : 0)}
+                    >
+                      {sacado ? 'Volver a poner' : 'Sacar'}
+                    </button>
+                  </div>
                 </div>
                 <button type="button" className="stepbtn dec" onClick={() => cambiar(it, -paso)} aria-label={`Menos ${it.name}`}>
                   <MinusIcon color="#F2F4F8" strokeWidth="2.8" />
@@ -125,7 +148,7 @@ export function RegisterMealModal({ slot, onClose, onSave, onOtraCosa }) {
                   inputMode="numeric"
                   aria-label={`Cantidad de ${it.name}`}
                   value={valor}
-                  onChange={(e) => setQtys((q) => ({ ...q, [it.id]: Math.max(0, Number(e.target.value) || 0) }))}
+                  onChange={(e) => fijar(it, Number(e.target.value) || 0)}
                 />
                 <span className="mealajustar-unit">{gr ? 'gr' : 'u'}</span>
                 <button type="button" className="stepbtn" style={{ background: tint(ACCENT, '2E') }} onClick={() => cambiar(it, paso)} aria-label={`Más ${it.name}`}>
