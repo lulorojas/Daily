@@ -1,52 +1,144 @@
+import { useState } from 'react';
 import { EmptyCard, Section } from '../ui/Section';
-import { comoComes } from '../../lib/meals';
-import { tint } from '../../lib/theme';
+import { activePlan, comoComes, comoComesPorDia } from '../../lib/meals';
+import { DOW_SHORT, dow, parseISO, shortDate } from '../../lib/dates';
+import { C, tint } from '../../lib/theme';
 
 /* ----------------------------- CÓMO COMÉS -----------------------------
    Pedido explícito: "quiero que a nivel seguimiento daily entienda si estoy comiendo bien
-   o mal" + "¿dónde lo mostrás? — en Progreso, junto a Cómo venís". Calco casi literal de
-   ProgComoVenis.jsx (misma tabla invertida, franja = columna, período = fila, mismas
-   clases `comovenis-*`) pero alimentado por comoComes() (lib/meals.js) — reusa la misma
-   ventana de tiempo y los mismos 4 baldes de regularidad que "Cómo venís" ("todos los
-   gráficos deben tomar la misma medida de tiempo"), así que las dos tablas se leen con la
-   misma vara aunque midan cosas distintas.
+   o mal", y después "el gráfico tiene que ser por día, no la cantidad de comidas sino
+   cómo vengo comiendo por día, y ver cuántas comidas y qué comidas le pifié, los
+   permitidos de una semana". Por eso, en vez de una matriz de cantidades:
 
-   Segunda vuelta, pedido explícito ("las mediciones podrian hacerse en carbohidratos y
-   proteinas para tambien tener un registro de con que soy mas regular"): si el plan tiene
-   ítems con cantidad clasificados por macro, se suma una lista chica de % de cumplimiento
-   por macro — mismo patrón visual que ProgWeeklyFreq (reusa `.cargas-resto`). */
-function cellStyle(cell, color) {
-  if (cell.futuro) return { background: 'transparent' };
-  if (cell.v === 0) return { background: 'rgba(255,255,255,.04)' };
-  const bg = cell.v >= 3 ? color : cell.v === 2 ? tint(color, 'B3') : tint(color, '55');
-  return { background: bg, color: cell.v >= 2 ? '#0A0C11' : '#F2F4F8' };
+     - arriba, tres números del período: días bien, días con pifiadas, permitidos;
+     - un día por fila (el más nuevo arriba): cada comida como una píldora del color de
+       su estado, el % del plan del día, y abajo qué le pifiaste y qué permitidos hubo;
+     - "Dónde más le pifiás" (por comida) y la lista de permitidos del período;
+     - lo que ya estaba: cumplimiento por macro y los avisos de extras (comoComes()).
+
+   La ventana es la del selector de arriba, igual que el resto de Progreso. Con Año o
+   Todo serían cientos de filas: se muestran 14 días y "Ver más días" agrega de a 14. */
+const DE_A = 14;
+
+const LEYENDA = [
+  { label: 'Cumplida', color: C.green },
+  { label: 'Parcial', color: C.amber },
+  { label: 'Poco', color: C.danger },
+  { label: 'Permitido', color: C.coral },
+  { label: 'Distinta, sana', color: C.teal },
+  { label: 'Sin registrar', color: 'rgba(242,244,248,.45)' },
+];
+
+function diaLabel(dISO) {
+  return `${DOW_SHORT[dow(parseISO(dISO))]} ${shortDate(dISO)}`;
+}
+
+// Las píldoras de color sólido necesitan su color de fondo con alfa — "Sin registrar" ya
+// viene con alfa (rgba), así que va con un gris fijo.
+function pildoraStyle(status) {
+  if (status.key === 'pendiente') return { background: 'rgba(255,255,255,.05)', color: status.color };
+  return { background: tint(status.color, '2E'), color: status.color };
 }
 
 export function ProgComoComes({ data, per }) {
-  const v = comoComes(data, per);
-  const sinPlan = v.rows.length === 0;
-  const hayDatos = v.rows.some((r) => r.total > 0);
-  const cols = `52px repeat(${Math.max(v.rows.length, 1)}, minmax(0, 1fr))`;
+  const [cuantos, setCuantos] = useState(DE_A);
+  const sinPlan = !activePlan(data)?.slots.length;
+  const v = comoComesPorDia(data, per);
+  const extra = comoComes(data, per);
+  const visibles = v.days.slice(0, cuantos);
 
   return (
     <Section label="Cómo comés" wide action={<span className="mono comovenis-win">{v.winLabel.toUpperCase()}</span>}>
       <div className="bigcard">
         {sinPlan ? (
           <EmptyCard size="tight">Armá tu plan de comidas (sección Comidas) para ver el seguimiento acá.</EmptyCard>
+        ) : v.days.length === 0 ? (
+          <EmptyCard size="tight">Todavía no hay registros en este período.</EmptyCard>
         ) : (
           <>
             <div className="tiles">
-              {v.stats.map((s) => (
-                <div className="tile" key={s.k}>
-                  <div className="mono tile-k">{s.k}</div>
-                  <div className="v comovenis-statv">{s.v}</div>
+              <div className="tile">
+                <div className="mono tile-k">DÍAS BIEN</div>
+                <div className="v comovenis-statv" style={{ color: C.green }}>{v.diasBien}/{v.days.length}</div>
+              </div>
+              <div className="tile">
+                <div className="mono tile-k">CON PIFIADAS</div>
+                <div className="v comovenis-statv" style={{ color: C.danger }}>{v.diasConPifiadas}</div>
+              </div>
+              <div className="tile">
+                <div className="mono tile-k">PERMITIDOS</div>
+                <div className="v comovenis-statv" style={{ color: C.coral }}>{v.permitidos.length}</div>
+              </div>
+            </div>
+
+            <div className="comedias">
+              {visibles.map((d) => (
+                <div className="comedia" key={d.dISO}>
+                  <div className="comedia-top">
+                    <span className="mono comedia-fecha">{diaLabel(d.dISO)}</span>
+                    <span className="comedia-franjas">
+                      {d.franjas.map((f) => (
+                        <span
+                          key={f.name}
+                          className="comedia-pill"
+                          style={pildoraStyle(f.status)}
+                          title={`${f.name}: ${f.status.label}`}
+                          aria-label={`${f.name}: ${f.status.label}`}
+                        >
+                          {f.name.slice(0, 3)}
+                        </span>
+                      ))}
+                    </span>
+                    <span className="mono comedia-pct">{d.pct === null ? '—' : `${Math.round(d.pct * 100)}%`}</span>
+                  </div>
+                  {(d.pifiadas.length > 0 || d.permitidos.length > 0) && (
+                    <div className="comedia-det">
+                      {d.pifiadas.length > 0 && (
+                        <span style={{ color: C.danger }}>Le pifiaste: {d.pifiadas.join(', ')}</span>
+                      )}
+                      {d.permitidos.length > 0 && (
+                        <span style={{ color: C.coral }}>Permitido: {d.permitidos.join(', ')}</span>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
 
-            {v.macros.length > 0 && (
+            {v.days.length > cuantos && (
+              <button type="button" className="comedia-mas" onClick={() => setCuantos((n) => n + DE_A)}>
+                Ver más días ({v.days.length - cuantos})
+              </button>
+            )}
+
+            <div className="comedia-leyenda">
+              {LEYENDA.map((l) => (
+                <span key={l.label}><span className="cargas-dot" style={{ background: l.color }} />{l.label}</span>
+              ))}
+            </div>
+
+            {(v.pifiadasPorFranja.length > 0 || v.permitidos.length > 0) && (
+              <div className="comovenis-alerts">
+                {v.pifiadasPorFranja.length > 0 && (
+                  <div className="comovenis-alert">
+                    <span className="comovenis-alert-ic" style={{ background: tint(C.danger, '26'), color: C.danger }}>!</span>
+                    <span>Dónde más le pifiás: {v.pifiadasPorFranja.map((p) => `${p.name} (${p.n})`).join(', ')}</span>
+                  </div>
+                )}
+                {v.permitidos.length > 0 && (
+                  <div className="comovenis-alert">
+                    <span className="comovenis-alert-ic" style={{ background: tint(C.coral, '26'), color: C.coral }}>●</span>
+                    <span>
+                      Permitidos: {v.permitidos.map((p) => `${p.que} (${diaLabel(p.dISO)})`).join(', ')}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {extra.macros.length > 0 && (
               <div className="card cargas-resto">
-                {v.macros.map((m) => (
+                {extra.macros.map((m) => (
                   <div className="cargas-restrow" key={m.tipo}>
                     <span className="cargas-restname">{m.label}</span>
                     <span className="mono cargas-restgain">{m.pct}%</span>
@@ -55,53 +147,15 @@ export function ProgComoComes({ data, per }) {
               </div>
             )}
 
-            {hayDatos ? (
-              <>
-                <div className="comovenis-grid comovenis-headrow" style={{ gridTemplateColumns: cols }}>
-                  <span />
-                  {v.rows.map((r) => (
-                    <div className="comovenis-colhead" key={r.id}>
-                      <span className="comovenis-colhead-name"><span className="comovenis-dot" style={{ background: r.color }} />{r.name}</span>
-                      <span className="mono comovenis-status" style={{ color: r.status.color }}>{r.status.label}</span>
-                    </div>
-                  ))}
-                </div>
-
-                {v.cols.map((c, i) => (
-                  <div className="comovenis-grid" style={{ gridTemplateColumns: cols }} key={i}>
-                    <span className={`mono comovenis-rowlabel${i === v.current ? ' on' : ''}`}>{c.label}</span>
-                    {v.rows.map((r) => (
-                      <div
-                        key={r.id}
-                        className={`mono comovenis-cell${r.cells[i].current ? ' current' : ''}`}
-                        style={cellStyle(r.cells[i], r.color)}
-                      >
-                        {r.cells[i].futuro ? '' : r.cells[i].v || '·'}
-                      </div>
-                    ))}
+            {extra.alerts.length > 0 && (
+              <div className="comovenis-alerts">
+                {extra.alerts.map((a, i) => (
+                  <div className="comovenis-alert" key={i}>
+                    <span className="comovenis-alert-ic" style={{ background: tint(a.color, '26'), color: a.color }}>{a.icon}</span>
+                    <span>{a.text}</span>
                   </div>
                 ))}
-
-                <div className="comovenis-grid comovenis-totalrow" style={{ gridTemplateColumns: cols }}>
-                  <span className="mono comovenis-rowlabel">TOTAL</span>
-                  {v.rows.map((r) => (
-                    <span key={r.id} className="fr comovenis-totalcell">{r.total}</span>
-                  ))}
-                </div>
-
-                {v.alerts.length > 0 && (
-                  <div className="comovenis-alerts">
-                    {v.alerts.map((a, i) => (
-                      <div className="comovenis-alert" key={i}>
-                        <span className="comovenis-alert-ic" style={{ background: tint(a.color, '26'), color: a.color }}>{a.icon}</span>
-                        <span>{a.text}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </>
-            ) : (
-              <EmptyCard size="tight">Todavía no hay registros en este período.</EmptyCard>
+              </div>
             )}
           </>
         )}

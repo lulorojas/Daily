@@ -552,3 +552,65 @@ export function mealScoreByPeriod(state, per) {
   const registradas = total.bien + total.pifie;
   return { winLabel, bars, total, pctBien: registradas ? total.bien / registradas : null };
 }
+
+/* ============================================================================
+   "CÓMO COMÉS", DÍA POR DÍA (pedido explícito: "el gráfico tiene que ser por día, no la
+   cantidad de comidas sino cómo vengo comiendo por día, y ver cuántas comidas y qué
+   comidas le pifié, los permitidos de una semana"). Para cada día de la ventana del
+   período elegido (la misma de "Cómo venís"), del más nuevo al más viejo: el estado de
+   cada comida, el % del plan del día, qué comidas le pifiaste y qué permitidos hubo. Y
+   sobre toda la ventana: cuántos días salieron bien, en qué comida le pifiás más, y la
+   lista de permitidos.
+
+   Una comida "pifiada" es la misma que en mealScoreByPeriod: registrada del plan con
+   menos de la mitad, o un permitido en su lugar. Un día "bien" es uno sin comidas
+   pifiadas, sin permitidos sueltos y sin comidas sin registrar.
+
+   Igual que mealScoreByPeriod, no hay días anteriores al primer registro ni futuros.
+   ============================================================================ */
+const PIFIADA = new Set(['poco', 'permitido']);
+
+export function comoComesPorDia(state, per) {
+  const { cols, winLabel } = comoVenisColumns(per);
+  const tISO = todayISO();
+  const log = state.meals?.log ?? {};
+  const primerDia = Object.keys(log).filter((d) => log[d].length).sort()[0] ?? null;
+  const hasta = cols[cols.length - 1].to < tISO ? cols[cols.length - 1].to : tISO;
+  const desde = primerDia && primerDia > cols[0].from ? primerDia : cols[0].from;
+
+  const days = [];
+  if (primerDia) {
+    for (let d = parseISO(hasta); iso(d) >= desde; d = addDays(d, -1)) {
+      const dISO = iso(d);
+      const r = dayMealSummary(state, dISO, planOn(state, dISO));
+      if (!r.franjas.length) continue;
+      days.push({
+        dISO,
+        pct: r.pct,
+        franjas: r.franjas.map((f) => ({ name: f.slot.name, status: f.status })),
+        pifiadas: r.franjas.filter((f) => PIFIADA.has(f.status.key)).map((f) => f.slot.name),
+        sinRegistrar: r.pendientes.length,
+        permitidos: [
+          ...r.franjas.flatMap((f) => f.libres.filter((l) => l.tipo === 'permitido').map((l) => l.que)),
+          ...r.sueltos.filter((s) => s.tipo === 'permitido').map((s) => s.que),
+        ],
+        sueltos: r.sueltos.filter((s) => s.tipo === 'permitido').length,
+      });
+    }
+  }
+
+  const porFranja = {};
+  days.forEach((d) => d.pifiadas.forEach((n) => { porFranja[n] = (porFranja[n] ?? 0) + 1; }));
+  const pifiadasPorFranja = Object.entries(porFranja)
+    .map(([name, n]) => ({ name, n }))
+    .sort((a, b) => b.n - a.n);
+
+  return {
+    winLabel,
+    days,
+    diasBien: days.filter((d) => !d.pifiadas.length && !d.sueltos && !d.sinRegistrar).length,
+    diasConPifiadas: days.filter((d) => d.pifiadas.length || d.sueltos).length,
+    pifiadasPorFranja,
+    permitidos: days.flatMap((d) => d.permitidos.map((que) => ({ dISO: d.dISO, que }))),
+  };
+}

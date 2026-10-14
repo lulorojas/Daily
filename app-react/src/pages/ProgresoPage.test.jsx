@@ -210,8 +210,36 @@ describe('las otras secciones', () => {
     renderScreen(<ProgresoPage />, { doc });
 
     const sect = screen.getByText('Cómo comés').closest('.sect');
-    expect(within(sect).getByText('Almuerzo')).toBeInTheDocument();
+    expect(within(sect).getByLabelText('Almuerzo: Cumplida')).toBeInTheDocument();
     expect(within(sect).getByText(/Alcohol: 1 vez en este período/)).toBeInTheDocument();
+  });
+
+  it('"Cómo comés" va día por día: qué comida le pifiaste y qué permitidos hubo (pedido explícito)', () => {
+    const doc = fullDoc();
+    doc.meals = {
+      plans: [{
+        id: 'p1', startISO: thisMonday, endISO: null,
+        slots: [
+          { id: 's1', name: 'Desayuno', options: [{ id: 'o1', text: 'Panes', items: [{ id: 'i1', name: 'pan', qty: 3 }] }] },
+          { id: 's2', name: 'Cena', options: [{ id: 'o2', text: 'Milanesa' }] },
+        ],
+      }],
+      extras: [],
+      log: {
+        [thisMonday]: [
+          { id: 'a', at: 0, text: 't', matches: { options: [{ slotId: 's1', optionId: 'o1', items: [{ itemId: 'i1', qty: 1 }] }], extras: [] } },
+          { id: 'b', at: 0, text: 't', libre: { slotId: 's2', que: 'pizza', tipo: 'permitido' }, matches: { options: [], extras: [] } },
+          { id: 'c', at: 0, text: 't', libre: { que: 'un alfajor', tipo: 'permitido' }, matches: { options: [], extras: [] } },
+        ],
+      },
+    };
+    renderScreen(<ProgresoPage />, { doc });
+
+    const sect = screen.getByText('Cómo comés').closest('.sect');
+    expect(within(sect).getByText('Le pifiaste: Desayuno, Cena')).toBeInTheDocument();
+    expect(within(sect).getByText('Permitido: pizza, un alfajor')).toBeInTheDocument();
+    expect(within(sect).getByText('PERMITIDOS').nextSibling).toHaveTextContent('2');
+    expect(within(sect).getByText(/Dónde más le pifiás: Desayuno \(1\), Cena \(1\)/)).toBeInTheDocument();
   });
 
   it('"Cómo comés" desglosa el cumplimiento por macro cuando hay ítems clasificados (pedido explícito: "con qué soy más regular")', () => {

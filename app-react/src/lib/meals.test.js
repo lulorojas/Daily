@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  activePlan, breakdownLabel, comoComes, dayMealSummary, extraCount, extraLoggedOn, extraMatchDates, extraStreak,
+  activePlan, breakdownLabel, comoComes, comoComesPorDia, dayMealSummary, extraCount, extraLoggedOn, extraMatchDates, extraStreak,
   itemsBreakdown, itemsCompliance, itemsLabel, matchEntry, mealScoreByPeriod, missingFromTemplate, normalizeText,
   optionLabel, planOn, qtyLabel,
 } from './meals';
@@ -335,6 +335,54 @@ describe('mealScoreByPeriod', () => {
     expect(planOn(s, '2026-02-10').id).toBe('viejo');
     expect(planOn(s, '2026-03-01').id).toBe('nuevo');
     expect(planOn(s, '2025-12-31').id).toBe('viejo'); // antes de todas: la primera
+  });
+});
+
+/* "Cómo comés" día por día (pedido explícito: "por día... ver cuántas comidas y qué
+   comidas le pifié, los permitidos de una semana"). */
+describe('comoComesPorDia', () => {
+  const plan = [
+    { id: 's1', name: 'Desayuno', options: [{ id: 'o1', text: 'Panes', items: [{ id: 'i1', name: 'pan', qty: 3 }] }] },
+    { id: 's2', name: 'Cena', options: [{ id: 'o2', text: 'Milanesa' }] },
+  ];
+  const desayuno = (qty) => ({ id: `d${qty}`, at: 0, text: 't', matches: { options: [{ slotId: 's1', optionId: 'o1', items: [{ itemId: 'i1', qty }] }], extras: [] } });
+  const cena = { id: 'c', at: 0, text: 't', matches: { options: [{ slotId: 's2', optionId: 'o2' }], extras: [] } };
+  const permitido = (que, slotId) => ({ id: que, at: 0, text: 't', libre: { ...(slotId ? { slotId } : {}), que, tipo: 'permitido' }, matches: { options: [], extras: [] } });
+
+  it('un día por fila, del más nuevo al más viejo, desde el primer registro', () => {
+    const v = comoComesPorDia(state({ plan, log: { [thisMonday]: [desayuno(3), cena] } }), 'mes');
+    expect(v.days[v.days.length - 1].dISO).toBe(thisMonday);
+    expect(v.days[0].dISO).toBe(TODAY);
+  });
+
+  it('un día con todo cumplido es "bien"; uno sin registrar no', () => {
+    const v = comoComesPorDia(state({ plan, log: { [thisMonday]: [desayuno(3), cena] } }), 'mes');
+    const lunes = v.days.find((d) => d.dISO === thisMonday);
+    expect(lunes.pifiadas).toEqual([]);
+    expect(lunes.franjas.map((f) => f.status.key)).toEqual(['cumplida', 'cumplida']);
+    expect(v.diasBien).toBe(1); // el resto de los días de la semana quedan sin registrar
+  });
+
+  it('dice qué comidas le pifiaste y qué permitidos hubo, cada día', () => {
+    const log = { [thisMonday]: [desayuno(1), permitido('pizza', 's2'), permitido('alfajor')] };
+    const v = comoComesPorDia(state({ plan, log }), 'mes');
+    const lunes = v.days.find((d) => d.dISO === thisMonday);
+    expect(lunes.pifiadas).toEqual(['Desayuno', 'Cena']);
+    expect(lunes.permitidos).toEqual(['pizza', 'alfajor']);
+    expect(v.diasConPifiadas).toBe(1);
+    expect(v.permitidos).toEqual([{ dISO: thisMonday, que: 'pizza' }, { dISO: thisMonday, que: 'alfajor' }]);
+    expect(v.pifiadasPorFranja).toEqual([{ name: 'Desayuno', n: 1 }, { name: 'Cena', n: 1 }]);
+  });
+
+  it('un permitido suelto solo ya hace que el día no sea "bien"', () => {
+    const log = { [thisMonday]: [desayuno(3), cena, permitido('alfajor')] };
+    const v = comoComesPorDia(state({ plan, log }), 'mes');
+    expect(v.diasBien).toBe(0);
+    expect(v.diasConPifiadas).toBe(1);
+  });
+
+  it('sin registros, no hay días', () => {
+    expect(comoComesPorDia(state({ plan }), 'mes').days).toEqual([]);
   });
 });
 
