@@ -1,4 +1,5 @@
-import { breakdownLabel, optionLabel, qtyLabel } from '../../lib/meals';
+import { breakdownLabel, optionLabel, qtyLabel, slotMeta } from '../../lib/meals';
+import { DayOrbit } from './DayOrbit';
 import { C } from '../../lib/theme';
 
 /* ----------------------------- TU DÍA -----------------------------
@@ -21,34 +22,32 @@ function itemColor(it) {
 
 const FUERA_LABEL = { sana: 'Distinta, sana', permitido: 'Permitido' };
 
-export function DayMealsCard({ summary, onRegistrar, onEditar, onPermitido }) {
-  const pct = summary.pct === null ? null : Math.round(summary.pct * 100);
-
+export function DayMealsCard({ summary, onRegistrar, onEditar, onPermitido, isToday, isPast, canOpen = true, title }) {
   return (
-    <div className="card daymeals">
-      <div className="daymeals-head">
-        <div className="grow">
-          <div className="daymeals-msg">{summary.message}</div>
-          <div className="daymeals-sub">
-            {summary.hechas} de {summary.franjas.length} comidas registradas
-            {summary.permitidos > 0 && ` · ${summary.permitidos} ${summary.permitidos === 1 ? 'permitido' : 'permitidos'}`}
-          </div>
-        </div>
-        {pct !== null && (
-          <div className="daymeals-pct" style={{ color: pct >= 90 ? C.green : pct >= 50 ? C.amber : 'rgba(242,244,248,.6)' }}>
-            <span className="fr">{pct}%</span>
-            <span className="daymeals-pctlbl">del plan</span>
-          </div>
-        )}
+    <div className="card daymeals sweep">
+      <div className="daymeals-title">
+        <span>{title}</span>
+        <span className="daymeals-count">{summary.hechas} de {summary.franjas.length} registradas{summary.permitidos > 0 && ` · ${summary.permitidos} ${summary.permitidos === 1 ? 'permitido' : 'permitidos'}`}</span>
       </div>
 
-      {summary.franjas.map((f) => (
-        <div className="daymeals-row" key={f.slot.id}>
+      <DayOrbit
+        franjas={summary.franjas}
+        pct={summary.pct}
+        message={summary.message}
+        isToday={isToday}
+        isPast={isPast}
+        canOpen={canOpen}
+        onOpen={onRegistrar}
+      />
+
+      {summary.franjas.map((f, i) => (
+        <div className="daymeals-row" key={f.slot.id} style={{ '--estado': f.status.key === 'pendiente' ? '#75798c' : f.status.color }}>
           <div className="daymeals-rowtop">
+            <span className="daymeals-time">{slotMeta(f.slot, i, summary.franjas.length).time}</span>
             <span className="daymeals-name">{f.slot.name}</span>
             <span className="mono daymeals-status" style={{ color: f.status.color }}>{f.status.label}</span>
             <span className="grow" />
-            <button type="button" className="pillbtn comidas" onClick={() => onRegistrar(f.slot)} aria-label={`Registrar ${f.slot.name}`}>
+            <button type="button" className="pillbtn comidas" disabled={!canOpen} onClick={() => onRegistrar(f.slot)} aria-label={`Registrar ${f.slot.name}`}>
               Registrar
             </button>
           </div>
@@ -99,7 +98,7 @@ export function DayMealsCard({ summary, onRegistrar, onEditar, onPermitido }) {
         <div className="daymeals-rowtop">
           <span className="daymeals-name">Permitidos sueltos</span>
           <span className="grow" />
-          <button type="button" className="pillbtn comidas" aria-label="Anotar un permitido suelto" onClick={onPermitido}>
+          <button type="button" className="pillbtn comidas" disabled={!canOpen} aria-label="Anotar un permitido suelto" onClick={onPermitido}>
             Anotar
           </button>
         </div>

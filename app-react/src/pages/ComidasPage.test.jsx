@@ -455,3 +455,96 @@ describe('tu día', () => {
     expect(leer().meals.log[todayISO()][0].matches.extras).toEqual(['e1']);
   });
 });
+
+/* Rediseño Nocturne (sección 8 del handoff): días pasados, la grilla de la semana, el
+   calendario de Alcohol y de Permitido, y la bitácora que recupera lo que faltó. */
+describe('rediseño Nocturne', () => {
+  function docNocturne() {
+    return {
+      ...emptyDoc(),
+      meals: {
+        plans: [{
+          id: 'p1', startISO: '2020-01-01', endISO: null,
+          slots: [
+            { id: 's1', name: 'Almuerzo', options: [{ id: 'o1', text: 'Pollo con verdura', items: [{ id: 'i1', name: 'pollo', qty: 250, unit: 'gr' }, { id: 'i2', name: 'verdura', qty: 200, unit: 'gr' }] }] },
+            { id: 's2', name: 'Cena', options: [{ id: 'o2', text: 'Milanesa' }] },
+          ],
+        }],
+        extras: [{ id: 'alc', name: 'Alcohol', color: '#FF9B93', icon: 'agua', quality: 'malo' }],
+        log: {},
+      },
+    };
+  }
+
+  it('la grilla de la semana abre el registro de ESE día y esa comida (días pasados se pueden completar)', async () => {
+    const user = userEvent.setup();
+    const { doc: leer } = renderScreen(<ComidasPage />, { doc: docNocturne() });
+    // Una celda pendiente de un día de la semana que ya pasó o es hoy: "+ Registrar".
+    const celdas = screen.getAllByRole('button', { name: /Almuerzo: Pendiente/ });
+    await user.click(celdas[0]);
+    await user.click(screen.getByRole('button', { name: /Pollo con verdura/ }));
+    await user.click(screen.getByRole('button', { name: 'Registrar' }));
+
+    const dias = Object.keys(leer().meals.log);
+    expect(dias).toHaveLength(1);
+    expect(leer().meals.log[dias[0]][0].matches.options[0].slotId).toBe('s1');
+  });
+
+  it('Alcohol: el calendario anota vasos y hora en el día elegido', async () => {
+    const user = userEvent.setup();
+    const { doc: leer } = renderScreen(<ComidasPage />, { doc: docNocturne() });
+
+    await user.click(screen.getByRole('button', { name: 'Alcohol: abrir el calendario' }));
+    await user.click(screen.getByRole('button', { name: /Anotar hoy/ }));
+    const form = within(screen.getByRole('dialog', { name: 'Anotar alcohol' }));
+    await user.click(form.getByRole('button', { name: 'Un vaso más' }));
+    await user.click(form.getByRole('button', { name: 'Un vaso más' }));
+    await user.clear(form.getByLabelText('Hora'));
+    await user.type(form.getByLabelText('Hora'), '22:30');
+    await user.click(form.getByRole('button', { name: 'Anotar' }));
+
+    const [entrada] = leer().meals.log[todayISO()];
+    expect(entrada).toMatchObject({ time: '22:30', qty: 3, matches: { extras: ['alc'] } });
+    // Vuelve al calendario: ese día ya muestra los vasos.
+    expect(screen.getByText('3 vasos en el mes')).toBeInTheDocument();
+  });
+
+  it('Permitido: se anota con hora y "en lugar de" una comida, y cuenta como pifiada de esa franja', async () => {
+    const user = userEvent.setup();
+    const { doc: leer } = renderScreen(<ComidasPage />, { doc: docNocturne() });
+
+    await user.click(screen.getByRole('button', { name: 'Permitido: abrir el calendario' }));
+    await user.click(screen.getByRole('button', { name: /Anotar hoy/ }));
+    const form = within(screen.getByRole('dialog', { name: 'Anotar permitido' }));
+    await user.type(form.getByLabelText('Qué comiste'), 'pizza');
+    await user.click(form.getByRole('button', { name: 'Cena' }));
+    await user.click(form.getByRole('button', { name: 'Anotar' }));
+
+    const [entrada] = leer().meals.log[todayISO()];
+    expect(entrada.libre).toEqual({ slotId: 's2', que: 'pizza', tipo: 'permitido' });
+    expect(entrada.time).toBeTruthy();
+  });
+
+  it('un día de la semana que todavía no llegó se ve, pero no se puede registrar', () => {
+    renderScreen(<ComidasPage />, { doc: docNocturne() });
+    // Si hoy es domingo no hay días futuros en la semana: no hay nada que comprobar.
+    const futuras = document.querySelectorAll('.weekgrid-cell.futuro');
+    futuras.forEach((c) => expect(c.tagName).toBe('DIV'));
+  });
+
+  it('"al final comí la verdura": se suma al almuerzo ya registrado y la bitácora lo cuenta', async () => {
+    const user = userEvent.setup();
+    const doc = docNocturne();
+    doc.meals.log[todayISO()] = [{
+      id: 'a1', at: Date.now(), text: 'Almuerzo: Pollo con verdura (250 gr pollo — sin verdura)',
+      matches: { options: [{ slotId: 's1', optionId: 'o1', items: [{ itemId: 'i1', qty: 250 }, { itemId: 'i2', qty: 0 }] }], extras: [] },
+    }];
+    const { doc: leer } = renderScreen(<ComidasPage />, { doc });
+
+    await user.type(screen.getByLabelText('Qué comiste'), 'al final comí la verdura');
+    await user.click(screen.getByRole('button', { name: 'Anotar' }));
+
+    expect(leer().meals.log[todayISO()][0].matches.options[0].items[1].qty).toBe(200);
+    expect(screen.getByText('→ sumó a Almuerzo: verdura ✓')).toBeInTheDocument();
+  });
+});

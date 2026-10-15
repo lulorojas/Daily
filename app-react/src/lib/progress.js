@@ -28,8 +28,8 @@ export function progStart(key) {
   switch (periodOf(key)[0]) {
     case 'semana': return iso(mondayOf(t));
     case 'mes': return iso(addDays(mondayOf(t), -21));           // esta semana + las 3 anteriores
-    // 3 y 6 meses (rediseño Nocturne): el mes en curso + los 2 / 5 anteriores, desde el 1º.
-    case '3m': return iso(new Date(t.getFullYear(), t.getMonth() - 2, 1));
+    // 3 y 6 meses (rediseño Nocturne): 3 meses son 13 semanas completas (como "Mes", más largo);
+    case '3m': return iso(addDays(mondayOf(t), -12 * 7));                // 13 semanas completas, contando la actual
     case '6m': return iso(new Date(t.getFullYear(), t.getMonth() - 5, 1));
     case 'ano': return iso(new Date(t.getFullYear(), t.getMonth() - 11, 1));
     default: return null;                                         // 'todo'
@@ -174,15 +174,24 @@ export function comoVenisColumns(per) {
     });
     return { cols, current: 3, unit: 'semana', unitPl: 'semanas', winLabel: 'Últimas 4 semanas' };
   }
-  if (per === '3m' || per === '6m') {
-    // Una columna por mes de calendario, con el nombre abreviado (hay lugar de sobra).
-    const n = per === '3m' ? 3 : 6;
-    const cols = Array.from({ length: n }, (_, i) => {
-      const m = new Date(t.getFullYear(), t.getMonth() - (n - 1 - i), 1);
+  if (per === '3m') {
+    // 13 semanas, una columna por semana (rótulo: el domingo con que cierra, como "Mes").
+    const curMon = mondayOf(t);
+    const cols = Array.from({ length: 13 }, (_, i) => {
+      const mon = addDays(curMon, (i - 12) * 7);
+      const sun = addDays(mon, 6);
+      return { from: iso(mon), to: iso(sun), label: `${sun.getDate()}/${sun.getMonth() + 1}` };
+    });
+    return { cols, current: 12, unit: 'semana', unitPl: 'semanas', winLabel: 'Últimos 3 meses' };
+  }
+  if (per === '6m') {
+    // Una columna por mes de calendario, con el nombre abreviado.
+    const cols = Array.from({ length: 6 }, (_, i) => {
+      const m = new Date(t.getFullYear(), t.getMonth() - (5 - i), 1);
       const end = new Date(m.getFullYear(), m.getMonth() + 1, 0);
       return { from: iso(m), to: iso(end), label: MONTHS[m.getMonth()].slice(0, 3) };
     });
-    return { cols, current: n - 1, unit: 'mes', unitPl: 'meses', winLabel: `Últimos ${n} meses` };
+    return { cols, current: 5, unit: 'mes', unitPl: 'meses', winLabel: 'Últimos 6 meses' };
   }
   if (per === 'ano') {
     const cols = Array.from({ length: 12 }, (_, i) => {

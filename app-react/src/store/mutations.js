@@ -20,7 +20,7 @@ import { PALETTE } from '../lib/theme';
 import { emptyWeekPlan, REST } from '../lib/gym';
 import { moveInArray } from '../lib/arrays';
 import { habitMarks } from '../lib/habits';
-import { activePlan, itemsLabel, matchEntry, normalizeText, optionLabel } from '../lib/meals';
+import { activePlan, itemsLabel, matchEntry, normalizeText, optionLabel, recuperarFaltantes } from '../lib/meals';
 import { todayISO } from '../lib/dates';
 
 /* ============================ agenda (items) ============================ */
@@ -606,8 +606,25 @@ export function addMealLogEntry(draft, dISO, text) {
   if (!trimmed) return null;
   const meals = ensureMeals(draft);
   const matches = matchEntry(draft, trimmed);
-  matches.options = unaFranjaPorPlato(draft, meals.log[dISO] ?? [], matches.options);
+  const delDia = meals.log[dISO] ?? [];
+  matches.options = unaFranjaPorPlato(draft, delDia, matches.options);
   const entry = { id: uid(), at: Date.now(), text: trimmed, matches };
+
+  /* "Al final comí la verdura" (rediseño Nocturne): si el texto nombra un alimento que le
+     faltó a una comida ya registrada ese día, ese alimento se suma a ESA comida y la
+     burbuja lo cuenta ("→ sumó a Almuerzo: verdura ✓"). Como el texto no es una comida
+     nueva sino el complemento de una vieja, no se registra además como otra opción del
+     plan (la verdura de una ensalada de la cena no cuenta como cena). */
+  const recuperados = recuperarFaltantes(draft, delDia, trimmed);
+  if (recuperados.length) {
+    recuperados.forEach((r) => {
+      const m = delDia.find((x) => x.id === r.entryId).matches.options.find((o) => o.slotId === r.slotId && o.optionId === r.optionId);
+      const it = m.items.find((x) => x.itemId === r.itemId);
+      if (it) it.qty += r.add; else m.items.push({ itemId: r.itemId, qty: r.add });
+    });
+    entry.matches.options = [];
+    entry.recupera = recuperados.map(({ slotName, name }) => ({ slotName, name }));
+  }
   (meals.log[dISO] ||= []).push(entry);
   return entry;
 }
@@ -723,7 +740,7 @@ export function updateMealLogStructured(draft, dISO, entryId, { slotId, optionId
    es suelto ("un alfajor a la tarde") y no ocupa ninguna franja. Ver dayMealSummary y
    mealScoreByPeriod en lib/meals.js para cómo cuenta cada caso. El bot igual mira el
    texto por si menciona un extra ("galletas con café"). */
-export function addMealLogLibre(draft, dISO, slotId, desc, tipo = 'sana') {
+export function addMealLogLibre(draft, dISO, slotId, desc, tipo = 'sana', { time } = {}) {
   const que = (desc || '').trim();
   if (!que) return null;
   const slot = slotId ? activePlan(draft)?.slots.find((s) => s.id === slotId) : null;
@@ -741,17 +758,24 @@ export function addMealLogLibre(draft, dISO, slotId, desc, tipo = 'sana') {
     text,
     libre: { ...(slot ? { slotId: slot.id } : {}), que, tipo: t },
     matches: { options: [], extras: matchEntry(draft, que).extras },
+    ...(time ? { time } : {}),
   };
   (meals.log[dISO] ||= []).push(entry);
   return entry;
 }
 
 // Un toque en un extra (café, alcohol…) lo anota en la bitácora de ese día, sin escribir.
-export function addMealExtraEntry(draft, dISO, extraId) {
+// `time` ("HH:MM") y `qty` (cuántos, p. ej. vasos de alcohol) son opcionales: sin ellos la
+// entrada es la de siempre, un toque sin más datos.
+export function addMealExtraEntry(draft, dISO, extraId, { time, qty } = {}) {
   const meals = ensureMeals(draft);
   const extra = meals.extras.find((e) => e.id === extraId);
   if (!extra) return null;
-  const entry = { id: uid(), at: Date.now(), text: extra.name, matches: { options: [], extras: [extra.id] } };
+  const entry = {
+    id: uid(), at: Date.now(), text: extra.name, matches: { options: [], extras: [extra.id] },
+    ...(time ? { time } : {}),
+    ...(qty && qty !== 1 ? { qty } : {}),
+  };
   (meals.log[dISO] ||= []).push(entry);
   return entry;
 }
@@ -834,6 +858,34 @@ export function restoreFromMealTemplate(draft, template) {
   });
   if (!plan.guide?.length && template.guide?.length) plan.guide = [...template.guide];
   return restaurados;
+}
+
+/* Corregir una entrada de Alcohol o de Permitido desde su calendario: hora, cantidad, qué
+   fue y en lugar de qué comida. `toDISO` la mueve a otro día (en el calendario se puede
+   cambiar la fecha). Un permitido deja de ser "en lugar de una comida" con slotId null. */
+export function updateMealEntryDetails(draft, dISO, entryId, { time, qty, que, slotId, toDISO } = {}) {
+  const meals = ensureMeals(draft);
+  const dia = meals.log[dISO];
+  const entry = dia?.find((e) => e.id === entryId);
+  if (!entry) return false;
+
+  if (time !== undefined) { if (time) entry.time = time; else delete entry.time; }
+  if (qty !== undefined) { if (qty && qty !== 1) entry.qty = qty; else delete entry.qty; }
+  if (entry.libre) {
+    if (que !== undefined && que.trim()) entry.libre.que = que.trim();
+    if (slotId !== undefined) {
+      const nuevo = slotId ? activePlan(draft)?.slots.find((s) => s.id === slotId) : null;
+      if (nuevo) entry.libre.slotId = nuevo.id; else delete entry.libre.slotId;
+    }
+    const slot = entry.libre.slotId ? activePlan(draft)?.slots.find((s) => s.id === entry.libre.slotId) : null;
+    entry.text = slot ? `${slot.name}: ${entry.libre.que} (permitido)` : `Permitido: ${entry.libre.que}`;
+  }
+
+  if (toDISO && toDISO !== dISO) {
+    meals.log[dISO] = dia.filter((e) => e.id !== entryId);
+    (meals.log[toDISO] ||= []).push(entry);
+  }
+  return true;
 }
 
 export function deleteMealLogEntry(draft, dISO, entryId) {

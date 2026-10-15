@@ -1,5 +1,5 @@
 import { CrossIcon } from '../ui/Icons';
-import { breakdownLabel, itemsBreakdown, optionLabel, qtyLabel } from '../../lib/meals';
+import { breakdownLabel, entryTime, itemsBreakdown, optionLabel, qtyLabel } from '../../lib/meals';
 import { C, tint } from '../../lib/theme';
 
 /* ----------------------------- UNA ENTRADA DE LA BITÁCORA -----------------------------
@@ -22,9 +22,10 @@ function itemColor(got, expected) {
 }
 
 export function MealLogBubble({ entry, slotsById, extrasById, onDelete }) {
-  // 24 horas siempre, como el resto de la app (las horas de tareas y citas se guardan y
-  // se muestran así); con el default del locale, algunos navegadores dan "02:36 a. m.".
-  const hora = new Date(entry.at).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
+  // 24 horas siempre, como el resto de la app. La hora es la anotada a mano (Alcohol y
+  // Permitido), si no la de la comida a la que pertenece, y si no, la de cuando se escribió
+  // (ver entryTime en lib/meals.js) — así la bitácora de un día se lee en orden.
+  const hora = entryTime(entry, Object.values(slotsById));
 
   const opciones = entry.matches.options
     .map(({ slotId, optionId, items, suma }) => {
@@ -66,9 +67,15 @@ export function MealLogBubble({ entry, slotsById, extrasById, onDelete }) {
               key={ex.id}
               style={{ background: tint(ex.color, '24'), color: ex.color }}
             >
-              {ex.name}
+              {ex.name}{entry.qty > 1 && ` · ${entry.qty} vasos`}
             </span>
           ))}
+        </div>
+      )}
+
+      {entry.recupera?.length > 0 && (
+        <div className="mealrecupera">
+          {entry.recupera.map((r) => `→ sumó a ${r.slotName}: ${r.name} ✓`).join(' · ')}
         </div>
       )}
 

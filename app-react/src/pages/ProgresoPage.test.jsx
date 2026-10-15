@@ -194,12 +194,12 @@ describe('las otras secciones', () => {
     expect(container.querySelectorAll('.venis-total').length).toBeGreaterThan(0);
   });
 
-  it('el selector tiene 3 y 6 meses, y recortan a una columna por mes', async () => {
+  it('el selector tiene 3 y 6 meses: 13 columnas semanales y 6 mensuales', async () => {
     const user = userEvent.setup();
     const { container } = renderScreen(<ProgresoPage />, { doc: fullDoc() });
     await user.click(screen.getByRole('button', { name: '3 meses' }));
     expect(container.querySelector('.venis-head')).toHaveTextContent(/TIPO.*TOTAL/);
-    expect(container.querySelector('.venis-head').children).toHaveLength(3 + 2); // tipo + 3 meses + total
+    expect(container.querySelector('.venis-head').children).toHaveLength(13 + 2); // tipo + 13 semanas + total
     await user.click(screen.getByRole('button', { name: '6 meses' }));
     expect(container.querySelector('.venis-head').children).toHaveLength(6 + 2);
   });

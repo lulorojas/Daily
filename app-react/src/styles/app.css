@@ -90,12 +90,12 @@ button.slot:disabled { cursor: default; }
    cada una. Acá <WeekStrip> es un solo componente (ver components/ui/WeekStrip.jsx) y el
    color sale de var(--accent)/var(--accent-47), que App.jsx calcula por página: en Hoy da
    ámbar, en Hábitos da verde, sin que esta hoja tenga que saber de ninguno de los dos. */
-.wring { background: rgba(255, 255, 255, .07); }
-.wcell.past .wring { background: var(--accent-47); }
-.wcell.sel .wring { background: var(--accent); }
-.wcirc { background: var(--bg); color: rgba(242, 244, 248, .45); }
-.wcell.past .wcirc { color: rgba(242, 244, 248, .75); }
-.wcell.sel .wcirc { background: var(--accent); color: #0A0C11; }
+
+
+
+
+
+
 .wdot { background: transparent; }
 .wdot.on { background: var(--accent); }
 .wdow.on { color: var(--accent); }
@@ -235,24 +235,24 @@ button.slot:disabled { cursor: default; }
 .freqlbl { font-size: 8.5px; color: rgba(242, 244, 248, .42); }
 
 /* "Cómo comés", día por día (ProgComoComes). */
-.comedias { display: flex; flex-direction: column; margin-top: 12px; }
+
 .comedia { padding: 9px 0; border-bottom: 1px solid rgba(255, 255, 255, .06); }
 .comedia:last-child { border-bottom: none; }
-.comedia-top { display: flex; align-items: center; gap: 8px; }
-.comedia-fecha { width: 76px; flex: none; font-size: 11px; color: rgba(242, 244, 248, .6); }
-.comedia-franjas { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 4px; }
-.comedia-pill { font-size: 10.5px; font-weight: 700; padding: 3px 7px; border-radius: 99px; }
-.comedia-pct { width: 40px; flex: none; text-align: right; font-size: 12px; font-weight: 700; }
-.comedia-det { display: flex; flex-wrap: wrap; gap: 2px 12px; padding-left: 84px; margin-top: 4px; font-size: 11.5px; }
+
+
+
+
+
+
 .comedia-mas { margin-top: 8px; font-size: 12.5px; font-weight: 600; color: var(--teal); cursor: pointer; }
-.comedia-leyenda { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 12px; font-size: 11px; color: rgba(242, 244, 248, .55); }
-.comedia-leyenda > span { display: inline-flex; align-items: center; gap: 5px; }
+
+
 
 /* "¿Comiste bien?" (ProgMealScore, Progreso) — reusa las barras de arriba. */
-.mealscore-msg { font-size: 13px; line-height: 1.4; color: rgba(242, 244, 248, .75); margin-top: 12px; }
-.freqlbl.mealscore-now { color: #F2F4F8; font-weight: 700; }
-.mealscore-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 12px; font-size: 11.5px; color: rgba(242, 244, 248, .6); }
-.mealscore-legend > span { display: inline-flex; align-items: center; gap: 6px; }
+
+
+
+
 .planday:not(:last-child) .gday { border-bottom: 1px solid rgba(255, 255, 255, .05); }
 .gtag { color: rgba(242, 244, 248, .38); }
 .gtag.today { color: var(--accent); }
@@ -268,7 +268,7 @@ button.slot:disabled { cursor: default; }
 .turno-quitar::after { content: ''; position: absolute; inset: -12px; }
 .turno-agregar { display: flex; align-items: center; gap: 6px; margin: 2px 10px 4px; padding: 6px 2px; font-size: 12px; font-weight: 600; color: rgba(242, 244, 248, .35); cursor: pointer; align-self: flex-start; }
 .turno-agregar:hover { color: rgba(242, 244, 248, .6); }
-.sectcount { font-size: 12px; color: rgba(242, 244, 248, .35); }
+
 
 /* ---- peso corporal (Gimnasio y Progreso comparten estas clases: son el mismo dibujo) ----
    .bigcard ya existe en styles.css (el degradé de fondo). Acá va lo de adentro, que en
@@ -376,8 +376,8 @@ a.rcover { display: block; }
 
 .sectrow-baseline-inline { display: flex; align-items: baseline; gap: 8px; margin: 0 2px; }
 .sectlabel-note { font-size: 12px; color: rgba(242, 244, 248, .35); font-weight: 400; text-transform: none; letter-spacing: 0; }
-.streakrow-title { font-weight: 600; font-size: 15px; }
-.streakrow-sub { font-size: 12.5px; color: rgba(242, 244, 248, .5); margin-top: 2px; }
+
+
 .habicon.sm { width: 36px; height: 36px; }
 
 /* ============================ COMIDAS ============================
@@ -411,12 +411,12 @@ a.rcover { display: block; }
 
 /* ---- "Tu día" (DayMealsCard) ---- */
 .daymeals { padding: 16px 16px 6px; }
-.daymeals-head { display: flex; align-items: center; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid rgba(255, 255, 255, .07); }
-.daymeals-msg { font-size: 15px; font-weight: 600; line-height: 1.35; }
-.daymeals-sub { font-size: 12.5px; color: rgba(242, 244, 248, .5); margin-top: 3px; }
-.daymeals-pct { display: flex; flex-direction: column; align-items: flex-end; flex: none; }
-.daymeals-pct .fr { font-size: 26px; font-weight: 800; letter-spacing: -.8px; line-height: 1; }
-.daymeals-pctlbl { font-size: 11px; color: rgba(242, 244, 248, .45); margin-top: 2px; }
+
+
+
+
+
+
 .daymeals-row { padding: 12px 0; }
 .daymeals-row:not(:last-child) { border-bottom: 1px solid rgba(255, 255, 255, .06); }
 .daymeals-rowtop { display: flex; align-items: center; gap: 8px; }
@@ -532,50 +532,50 @@ textarea.mealinp { min-height: 0; height: 48px; padding: 13px 16px; line-height:
    grande") — músculo = columna, período = fila. Antes era al revés (una fila ancha por
    músculo, una columna angosta por período), que con 'año' (12 columnas) se volvía
    ilegible; con pocos músculos pero muchos períodos, apilar los períodos entra mejor. */
-.comovenis-win { color: #B5EDED; font-size: 10px; letter-spacing: 1px; white-space: nowrap; }
-.comovenis-statv { font-size: 17px; letter-spacing: -.4px; }
-.comovenis-grid { display: grid; gap: 4px; align-items: center; margin-top: 4px; }
-.comovenis-headrow { align-items: stretch; margin-bottom: 2px; }
-.comovenis-colhead { min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 0 8px; text-align: center; }
-.comovenis-colhead-name { display: flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-.comovenis-dot { width: 6px; height: 6px; border-radius: 2px; flex: none; }
-.comovenis-status { font-size: 7px; letter-spacing: .3px; line-height: 1.2; white-space: nowrap; }
-.comovenis-rowlabel { font-size: 8.5px; font-weight: 700; color: rgba(242, 244, 248, .45); white-space: nowrap; }
-.comovenis-rowlabel.on { color: #F2F4F8; }
-.comovenis-cell { height: 28px; border-radius: 7px; display: grid; place-items: center; font-size: 10.5px; font-weight: 700; transition: background .3s; }
-.comovenis-cell.current { box-shadow: inset 0 0 0 1.5px rgba(242, 244, 248, .4); color: rgba(242, 244, 248, .25); }
-.comovenis-totalrow { margin-top: 6px; padding-top: 8px; border-top: 1px solid rgba(255, 255, 255, .08); }
-.comovenis-totalcell { text-align: center; font-size: 13px; font-weight: 700; }
-.comovenis-alerts { display: flex; flex-direction: column; gap: 7px; margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, .07); }
-.comovenis-alert { display: flex; align-items: center; gap: 9px; font-size: 12.5px; line-height: 1.35; color: rgba(242, 244, 248, .85); }
-.comovenis-alert-ic { width: 18px; height: 18px; flex: none; border-radius: 6px; display: grid; place-items: center; font-size: 10px; font-weight: 700; }
 
-.tile-ic { width: 26px; height: 26px; border-radius: 9px; display: grid; place-items: center; }
 
-.rankcard { padding: 16px 18px; display: flex; flex-direction: column; gap: 14px; }
-.rankrow-head { display: flex; align-items: baseline; justify-content: space-between; }
-.rankrow-type { font-size: 13.5px; font-weight: 600; }
-.rankrow-count { font-size: 12px; color: rgba(242, 244, 248, .42); }
 
-.balancecard { padding: 18px; display: flex; align-items: center; gap: 18px; }
-.balance-donut { position: relative; width: 124px; height: 124px; flex: none; }
-.balance-donut-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-.balance-total { font-weight: 800; font-size: 25px; letter-spacing: -.8px; line-height: 1; }
-.balance-total-lbl { font-size: 10.5px; color: rgba(242, 244, 248, .4); }
-.balance-legend { display: flex; flex-direction: column; gap: 9px; }
-.balance-legend-row { display: flex; align-items: center; gap: 8px; }
-.balance-dot { width: 9px; height: 9px; border-radius: 3px; flex: none; }
-.balance-legend-name { font-size: 12.5px; color: rgba(242, 244, 248, .62); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.balance-legend-pct { font-size: 12.5px; font-weight: 600; }
 
-.cargascard { padding: 18px; gap: 14px; }
-.cargas-top { display: flex; align-items: flex-start; justify-content: space-between; }
-.cargas-top-name { display: flex; flex-direction: column; gap: 3px; }
-.cargas-name { font-size: 15px; font-weight: 600; }
-.cargas-sub { font-size: 12px; color: rgba(242, 244, 248, .45); }
-.cargas-top-val { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
-.cargas-cur { font-weight: 800; font-size: 24px; letter-spacing: -.8px; line-height: 1; }
-.cargas-gain { font-size: 12px; font-weight: 600; }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 .cargas-resto { padding-top: 13px; border-top: 1px solid rgba(255, 255, 255, .08); display: flex; flex-direction: column; gap: 8px; }
 .cargas-restrow { display: flex; align-items: center; gap: 8px; }
 .cargas-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
@@ -591,17 +591,17 @@ textarea.mealinp { min-height: 0; height: 48px; padding: 13px 16px; line-height:
    margin-left compensa el ancho + gap de .heatrow-dow) y el globito por celda
    (.heatcell-tip), que reutiliza el look de .charttip pero anclado a la celda misma
    (position:relative en .heatcell) en vez de a un punto de un SVG. */
-.heatmapcard { padding: 16px 16px 14px; }
-.heatmonths { display: grid; gap: 3px; margin: 0 0 4px 18px; font-size: 8.5px; font-weight: 600; color: rgba(242, 244, 248, .3); }
-.heatrow { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
-.heatrow-dow { width: 12px; font-size: 8.5px; font-weight: 600; color: rgba(242, 244, 248, .3); text-align: center; flex: none; }
-.heatrow-cells { flex: 1; display: grid; gap: 3px; }
-.heatcell { height: 15px; border-radius: 4px; position: relative; }
-.heatcell.today { box-shadow: inset 0 0 0 1.5px rgba(242, 244, 248, .55); }
-.heatcell:disabled { cursor: default; }
-.heatcell-tip { left: 50%; top: 0; }
-.heatlegend { display: flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 500; color: rgba(242, 244, 248, .3); margin-top: 10px; }
-.heatlegend-dot { width: 9px; height: 9px; border-radius: 2px; }
+
+
+
+
+
+
+
+
+
+
+
 
 /* La aclaración chica bajo un textarea (el detalle de un ejercicio de rutina). */
 .fieldhint { font-size: 12px; color: rgba(242, 244, 248, .35); margin: 2px 2px 0; }

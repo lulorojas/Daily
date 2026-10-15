@@ -12,15 +12,18 @@ import { MealExtraRow } from '../components/comidas/MealExtraRow';
 import { MealExtrasManager } from '../components/comidas/MealExtrasManager';
 import { MealLogBubble } from '../components/comidas/MealLogBubble';
 import { MealLogComposer } from '../components/comidas/MealLogComposer';
+import { BookOpenText, Cookie, Plus, Wine } from '@phosphor-icons/react';
+import { WeekGrid } from '../components/comidas/WeekGrid';
+import { ExtraCalendarSheet } from '../components/comidas/ExtraCalendarSheet';
 import { PencilIcon } from '../components/ui/Icons';
 import { useData } from '../hooks/useData';
-import { activePlan, dayMealSummary, extraCount, extraStreak, missingFromTemplate } from '../lib/meals';
+import { activePlan, alcoholExtra, dayMealSummary, extraCount, extraEntriesDelMes, extraStreak, missingFromTemplate, sortedLog, vasosDeAlcohol } from '../lib/meals';
 import { PLAN_NUTRI_2026_10 } from '../lib/mealPlanTemplates';
 import {
   addMealExtraEntry, addMealLogEntry, addMealLogLibre, addMealLogStructured, deleteMealLogEntry, loadMealPlanTemplate,
-  updateMealLogStructured,
+  updateMealEntryDetails, updateMealLogStructured,
 } from '../store/mutations';
-import { iso, mondayOf, parseISO, todayISO } from '../lib/dates';
+import { DOW_FULL, MONTHS, addDays, dow, iso, mondayOf, parseISO, todayISO } from '../lib/dates';
 import { shiftWeek } from '../lib/items';
 
 /* ============================================================================
@@ -74,6 +77,16 @@ export function ComidasPage() {
   // "Esta semana" es la semana del día que se está mirando, no siempre la actual.
   const lunes = iso(mondayOf(parseISO(day)));
 
+  const hoy = todayISO();
+  const esHoy = day === hoy;
+  const esFuturo = day > hoy;
+  const alcohol = alcoholExtra(data);
+  const vasosSemana = vasosDeAlcohol(data, lunes, iso(addDays(parseISO(lunes), 6)));
+  const permitidosDelMes = extraEntriesDelMes(data, 'permitido', day.slice(0, 7));
+  const permitidosDelDia = (log[day] ?? []).filter((e) => e.libre?.tipo === 'permitido').length;
+  const d = parseISO(day);
+  const tituloDia = esHoy ? `Hoy · ${DOW_FULL[dow(d)].toLowerCase()} ${d.getDate()}` : `${DOW_FULL[dow(d)]} ${d.getDate()}`;
+
   const escribir = (text) => update((draft) => addMealLogEntry(draft, day, text));
   const borrar = (id) => update((draft) => deleteMealLogEntry(draft, day, id));
   const cargarPlan = () => update((draft) => loadMealPlanTemplate(draft, PLAN_NUTRI_2026_10));
@@ -102,6 +115,13 @@ export function ComidasPage() {
     },
   });
 
+  // Los calendarios de Alcohol y Permitido: anotar con hora y cantidad, corregir y borrar.
+  const anotarExtra = (kind, { dISO, time, qty, que, slotId }) => update((draft) => (kind === 'alcohol'
+    ? addMealExtraEntry(draft, dISO, alcohol.id, { time, qty })
+    : addMealLogLibre(draft, dISO, slotId, que, 'permitido', { time })));
+  const corregirExtra = (entryId, desdeISO, campos) => update((draft) => updateMealEntryDetails(draft, desdeISO, entryId, campos));
+  const borrarExtra = (dISO, entryId) => update((draft) => deleteMealLogEntry(draft, dISO, entryId));
+
   const editarPlan = (
     <button type="button" className="pillbtn comidas" onClick={() => setModal({ kind: 'plan' })}>
       <PencilIcon size={14} />
@@ -112,8 +132,17 @@ export function ComidasPage() {
   return (
     <div className="view">
       <div className="head">
-        <h1>Comidas</h1>
-        <div className="sub">Tu plan, y lo que vas comiendo.</div>
+        <div className="htop">
+          <div className="htop-main">
+            <div className="kicker accent">{DOW_FULL[dow(d)].toUpperCase()} {d.getDate()} DE {MONTHS[d.getMonth()].toUpperCase()}</div>
+            <h1>Comidas</h1>
+            <div className="sub">Tu plan, y lo que vas comiendo.</div>
+          </div>
+          <button type="button" className="planbtn" onClick={() => setModal({ kind: 'plan' })} aria-label="Plan de comidas">
+            <BookOpenText size={18} aria-hidden="true" />
+            <span>Plan</span>
+          </button>
+        </div>
       </div>
 
       <div className="body">
@@ -124,41 +153,79 @@ export function ComidasPage() {
           hasMark={(dISO) => (log[dISO] ?? []).length > 0}
         />
 
-        <Section label="Tu día">
-          {slots.length ? (
-            <DayMealsCard
-              summary={resumen}
-              onRegistrar={(slot) => setModal({ kind: 'registrar', slotId: slot.id })}
-              onEditar={editar}
-              onPermitido={() => setModal({ kind: 'permitido' })}
-            />
-          ) : (
-            <div className="card pad mealempty">
-              <div className="mealempty-title">Todavía no tenés un plan cargado.</div>
-              <div className="mealempty-sub">
-                Cargá el plan que te dio tu nutricionista ({PLAN_NUTRI_2026_10.name}) y empezá a registrar tocando cada comida.
+        <div className="com-dia">
+          <Section label="Tu día">
+            {slots.length ? (
+              <DayMealsCard
+                summary={resumen}
+                title={tituloDia}
+                isToday={esHoy}
+                isPast={day < hoy}
+                canOpen={!esFuturo}
+                onRegistrar={(slot) => setModal({ kind: 'registrar', slotId: slot.id })}
+                onEditar={editar}
+                onPermitido={() => setModal({ kind: 'permitido' })}
+              />
+            ) : (
+              <div className="card pad mealempty">
+                <div className="mealempty-title">Todavía no tenés un plan cargado.</div>
+                <div className="mealempty-sub">
+                  Cargá el plan que te dio tu nutricionista ({PLAN_NUTRI_2026_10.name}) y empezá a registrar tocando cada comida.
+                </div>
+                <button type="button" className="pillbtn comidas mealempty-btn" onClick={cargarPlan}>
+                  Cargar el plan de la nutricionista
+                </button>
+                <button type="button" className="mealempty-alt" onClick={() => setModal({ kind: 'plan' })}>
+                  o armalo a mano
+                </button>
               </div>
-              <button type="button" className="pillbtn comidas mealempty-btn" onClick={cargarPlan}>
-                Cargar el plan de la nutricionista
-              </button>
-              <button type="button" className="mealempty-alt" onClick={() => setModal({ kind: 'plan' })}>
-                o armalo a mano
-              </button>
-            </div>
-          )}
-        </Section>
+            )}
+          </Section>
+        </div>
 
-        <Section
-          label="Extras"
-          action={(
-            <button type="button" className="pillbtn comidas" onClick={() => setModal({ kind: 'extras' })}>
-              <PencilIcon size={14} />
-              Editar
+        {slots.length > 0 && (
+          <div className="com-semana">
+            <WeekGrid
+              data={data}
+              day={day}
+              slots={slots}
+              onSemana={(dir) => setDay(shiftWeek(day, dir))}
+              onOpen={(dISO, slot) => { setDay(dISO); setModal({ kind: 'registrar', slotId: slot.id }); }}
+            />
+          </div>
+        )}
+
+        <div className="card comextras">
+          <Section
+            label="Extras"
+            action={(
+              <button type="button" className="pillbtn comidas" onClick={() => setModal({ kind: 'extras' })}>
+                <PencilIcon size={14} />
+                Editar
+              </button>
+            )}
+          >
+            {alcohol && (
+              <button type="button" className="extrabtn alcohol" onClick={() => setModal({ kind: 'xcal', tipo: 'alcohol' })} aria-label="Alcohol: abrir el calendario">
+                <span className="extrabtn-ic"><Wine size={18} aria-hidden="true" /></span>
+                <span className="grow">
+                  <span className="extrabtn-name">Alcohol</span>
+                  <span className="extrabtn-sub">{vasosSemana} {vasosSemana === 1 ? 'vaso' : 'vasos'} esta semana</span>
+                </span>
+                <Plus size={16} aria-hidden="true" />
+              </button>
+            )}
+            <button type="button" className="extrabtn permitido" onClick={() => setModal({ kind: 'xcal', tipo: 'permitido' })} aria-label="Permitido: abrir el calendario">
+              <span className="extrabtn-ic"><Cookie size={18} aria-hidden="true" /></span>
+              <span className="grow">
+                <span className="extrabtn-name">Permitido</span>
+                <span className="extrabtn-sub">
+                  {permitidosDelDia ? `${permitidosDelDia} este día · cuenta como pifiada` : permitidosDelMes.length ? `${permitidosDelMes.length} este mes` : 'Con día y hora'}
+                </span>
+              </span>
+              <Plus size={16} aria-hidden="true" />
             </button>
-          )}
-        >
-          {extras.length
-            ? extras.map((ex) => (
+            {extras.filter((ex) => ex.id !== alcohol?.id).map((ex) => (
               <MealExtraRow
                 key={ex.id}
                 extra={ex}
@@ -166,25 +233,26 @@ export function ComidasPage() {
                 racha={extraStreak(data, ex.id, day)}
                 onAdd={() => update((draft) => addMealExtraEntry(draft, day, ex.id))}
               />
-            ))
-            : <EmptyCard size="sm">Café, alcohol, permitidos… agregá los que quieras seguir.</EmptyCard>}
-        </Section>
+            ))}
+            {extras.length === 0 && <EmptyCard size="sm">Café, alcohol, permitidos… agregá los que quieras seguir.</EmptyCard>}
+          </Section>
 
-        <Section label="Bitácora" note={entradas.length ? String(entradas.length) : null}>
-          {entradas.length
-            ? entradas.map((e) => (
-              <MealLogBubble
-                key={e.id}
-                entry={e}
-                slotsById={slotsById}
-                extrasById={extrasById}
-                onDelete={() => borrar(e.id)}
-              />
-            ))
-            : <EmptyCard size="sm">Nada anotado todavía para este día.</EmptyCard>}
+          <Section label="Bitácora" note={entradas.length ? String(entradas.length) : null}>
+            {entradas.length
+              ? sortedLog(entradas, slots).map((e) => (
+                <MealLogBubble
+                  key={e.id}
+                  entry={e}
+                  slotsById={slotsById}
+                  extrasById={extrasById}
+                  onDelete={() => borrar(e.id)}
+                />
+              ))
+              : <EmptyCard size="sm">Nada anotado todavía para este día.</EmptyCard>}
 
-          <MealLogComposer onSend={escribir} />
-        </Section>
+            <MealLogComposer onSend={escribir} />
+          </Section>
+        </div>
 
         <Section label="Plan de comidas" action={editarPlan}>
           {faltanDelPlan > 0 && (
@@ -229,6 +297,18 @@ export function ComidasPage() {
             <OffPlanForm placeholder="Ej: un alfajor" tipos={['permitido']} onAnotar={(que) => anotarLibre(null, que, 'permitido')} />
           </div>
         </Modal>
+      )}
+      {modal?.kind === 'xcal' && (
+        <ExtraCalendarSheet
+          kind={modal.tipo}
+          data={data}
+          slots={slots}
+          initialDate={day}
+          onClose={() => setModal(null)}
+          onAdd={(x) => anotarExtra(modal.tipo, x)}
+          onUpdate={corregirExtra}
+          onDelete={borrarExtra}
+        />
       )}
       {modal?.kind === 'plan' && <MealPlanManager onClose={() => setModal(null)} recuperarDeEntrada={!!modal.recuperar} />}
       {modal?.kind === 'extras' && <MealExtrasManager onClose={() => setModal(null)} />}

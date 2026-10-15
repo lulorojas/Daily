@@ -338,18 +338,20 @@ describe('comoVenis: regularidad por ratio (cuenta la semana actual)', () => {
 
 /* Rediseño Nocturne: los períodos de 3 y 6 meses y "Último entreno". */
 describe('3 y 6 meses (rediseño Nocturne)', () => {
-  it('arrancan el 1º del mes, 2 y 5 meses atrás (el mes en curso cuenta)', () => {
+  it('3 meses son 13 semanas desde el lunes; 6 meses arrancan el 1º del mes, 5 meses atrás', () => {
     const t = todayD();
-    expect(progStart('3m')).toBe(iso(new Date(t.getFullYear(), t.getMonth() - 2, 1)));
+    expect(progStart('3m')).toBe(iso(addDays(mondayOf(t), -84)));
     expect(progStart('6m')).toBe(iso(new Date(t.getFullYear(), t.getMonth() - 5, 1)));
   });
 
-  it('"Cómo venís" tiene una columna por mes y la última es la actual', () => {
+  it('"Cómo venís": 3 meses = 13 columnas semanales, 6 meses = 6 mensuales; la última es la actual', () => {
     const c3 = comoVenisColumns('3m'), c6 = comoVenisColumns('6m');
-    expect(c3.cols).toHaveLength(3);
+    expect(c3.cols).toHaveLength(13);
+    expect(c3.current).toBe(12);
+    expect(c3.cols[0].from).toBe(progStart('3m'));
     expect(c6.cols).toHaveLength(6);
     expect(c6.current).toBe(5);
-    expect(c3.cols[2].from).toBe(iso(new Date(todayD().getFullYear(), todayD().getMonth(), 1)));
+    expect(c6.cols[5].from).toBe(iso(new Date(todayD().getFullYear(), todayD().getMonth(), 1)));
   });
 });
 

@@ -694,3 +694,119 @@ export function comoComesPorDia(state, per) {
     permitidos: days.flatMap((d) => d.permitidos.map((que) => ({ dISO: d.dISO, que }))),
   };
 }
+
+/* ============================================================================
+   RECUPERAR LO QUE FALTÓ, ALCOHOL Y PERMITIDOS CON HORA (rediseño Nocturne, sección 8 del
+   handoff)
+   ============================================================================ */
+
+/* Horario e ícono de cada comida. El modelo no guarda la hora de una franja, así que se
+   infiere del nombre (Desayuno 08:00, Almuerzo 13:00, Merienda 17:00, Cena 21:00); una
+   franja con otro nombre se reparte en el día según su lugar en el plan. `icon` es la clave
+   del ícono Phosphor que usa la pantalla. */
+const HORARIOS = [
+  { re: /desayun/, time: '08:00', icon: 'coffee' },
+  { re: /almuerz/, time: '13:00', icon: 'bowl' },
+  { re: /meriend/, time: '17:00', icon: 'orange' },
+  { re: /cena/, time: '21:00', icon: 'moon' },
+];
+
+export function slotMeta(slot, index = 0, total = 1) {
+  const norm = normalizeText(slot.name);
+  const conocido = HORARIOS.find((h) => h.re.test(norm));
+  if (conocido) return { time: conocido.time, icon: conocido.icon };
+  const hora = Math.round(8 + (index / Math.max(1, total - 1)) * 13);
+  return { time: `${String(hora).padStart(2, '0')}:00`, icon: 'fork' };
+}
+
+const horaDe = (ts) => {
+  const d = new Date(ts);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+};
+
+/* La hora de una entrada de la bitácora ("HH:MM"), para mostrarla y ordenarla: la que se
+   anotó a mano (`time`, en Alcohol y Permitido), si no la de la comida a la que pertenece,
+   y si no, la hora en que se escribió. */
+export function entryTime(entry, slots) {
+  if (entry.time) return entry.time;
+  const slotId = entry.libre?.slotId ?? entry.matches?.options?.[0]?.slotId;
+  const i = slots.findIndex((s) => s.id === slotId);
+  if (i >= 0) return slotMeta(slots[i], i, slots.length).time;
+  return horaDe(entry.at);
+}
+
+// La bitácora de un día, ordenada por hora (empate: por el orden en que se anotó).
+export function sortedLog(entries, slots) {
+  return entries
+    .map((e, i) => ({ e, i, t: entryTime(e, slots) }))
+    .sort((a, b) => (a.t < b.t ? -1 : a.t > b.t ? 1 : a.i - b.i))
+    .map((x) => x.e);
+}
+
+/* "Al final comí la verdura": si lo que se escribe nombra un alimento que le FALTÓ a una
+   comida ya registrada ese día (comido menos de lo que pedía la opción), ese alimento pasa
+   a contar como comido. Si el texto trae cantidad ("200 gr de verdura") se suma esa; si
+   no, lo que faltaba. Devuelve qué se recuperó; quien llama lo aplica (ver
+   addMealLogEntry en store/mutations.js). */
+export function recuperarFaltantes(state, entradasDelDia, text) {
+  const norm = normalizeText(text);
+  const slots = activePlan(state)?.slots ?? [];
+  const out = [];
+  const yaTocado = new Set();
+  entradasDelDia.forEach((e) => {
+    e.matches.options.forEach((m) => {
+      if (!m.items) return;
+      const slot = slots.find((s) => s.id === m.slotId);
+      const option = slot?.options.find((o) => o.id === m.optionId);
+      if (!option?.items) return;
+      option.items.forEach((item) => {
+        const nombre = normalizeText(item.name);
+        const clave = `${m.slotId}|${nombre}`;
+        if (!nombre || !norm.includes(nombre) || yaTocado.has(clave)) return;
+        const got = m.items.find((x) => x.itemId === item.id)?.qty ?? 0;
+        if (got >= item.qty) return;
+        const conNumero = norm.match(new RegExp(`(\\d+)\\s*(?:gramos|grs|gr|g)?\\.?\\s*(?:de\\s+)?${escapeRegex(nombre)}`));
+        yaTocado.add(clave);
+        out.push({
+          entryId: e.id, slotId: m.slotId, optionId: m.optionId, itemId: item.id,
+          slotName: slot.name, name: item.name, add: conNumero ? parseInt(conNumero[1], 10) : item.qty - got,
+        });
+      });
+    });
+  });
+  return out;
+}
+
+// El extra "Alcohol" (el que tiene calendario propio), o null si no existe.
+export function alcoholExtra(state) {
+  return (state.meals?.extras ?? []).find((x) => normalizeText(x.name) === 'alcohol') ?? null;
+}
+
+/* Todo lo anotado de Alcohol o de Permitido en un mes ("YYYY-MM"), por día. Cada elemento
+   es { dISO, entry, qty, que, slotId } — alcohol cuenta vasos (`qty`, 1 si no se dijo);
+   un permitido cuenta de a uno. Es lo que dibujan los calendarios de esos dos extras. */
+export function extraEntriesDelMes(state, kind, mes) {
+  const log = state.meals?.log ?? {};
+  const alc = alcoholExtra(state);
+  const out = [];
+  Object.keys(log).filter((d) => d.startsWith(mes)).sort().forEach((dISO) => {
+    log[dISO].forEach((entry) => {
+      if (kind === 'alcohol') {
+        if (alc && entry.matches.extras.includes(alc.id)) out.push({ dISO, entry, qty: entry.qty ?? 1 });
+      } else if (entry.libre?.tipo === 'permitido') {
+        out.push({ dISO, entry, qty: 1, que: entry.libre.que, slotId: entry.libre.slotId ?? null });
+      }
+    });
+  });
+  return out;
+}
+
+// Vasos de alcohol entre dos fechas (inclusive).
+export function vasosDeAlcohol(state, desdeISO, hastaISO) {
+  const alc = alcoholExtra(state);
+  if (!alc) return 0;
+  const log = state.meals?.log ?? {};
+  return Object.keys(log)
+    .filter((d) => d >= desdeISO && d <= hastaISO)
+    .reduce((a, d) => a + log[d].filter((e) => e.matches.extras.includes(alc.id)).reduce((s, e) => s + (e.qty ?? 1), 0), 0);
+}
