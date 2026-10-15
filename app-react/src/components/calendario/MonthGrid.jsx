@@ -3,7 +3,7 @@ import { DOW_MINI, todayISO } from '../../lib/dates';
 import { monthCells } from '../../lib/calendar';
 import { itemsDe } from '../../lib/agenda';
 import { ITEM_COLOR } from '../../lib/items';
-import { tint } from '../../lib/theme';
+import { C, tint } from '../../lib/theme';
 
 // Cuántas etiquetas entran en un casillero antes de pasar a "+N".
 const MAX_TAGS = 2;
@@ -19,11 +19,17 @@ const MAX_TAGS = 2;
    itemsDe() es el que resuelve lo importante: junta las tareas con fecha de ese día, las
    citas de ese día y las fechas anuales que caen en ese mes+día de CUALQUIER año. Por eso
    un cumpleaños cargado en 1990 aparece todos los agostos. */
-export function MonthGrid({ data, view, selected, onSelect }) {
+export function MonthGrid({ data, view, selected, onSelect, className = '' }) {
   const tISO = todayISO();
 
   return (
-    <div className="card calcard">
+    <div className={`card calcard sweep ${className}`}>
+      <div className="legend">
+        <div className="li"><span style={{ background: C.amber, boxShadow: `0 0 6px ${C.amber}` }} />Tareas</div>
+        <div className="li"><span style={{ background: C.coral, boxShadow: `0 0 6px ${C.coral}` }} />Citas</div>
+        <div className="li"><span style={{ background: C.violet, boxShadow: `0 0 6px ${C.violet}` }} />Anuales</div>
+      </div>
+
       <div className="cal-grid dows">
         {DOW_MINI.map((d, i) => <div className="dow" key={i}>{d}</div>)}
       </div>
@@ -43,6 +49,11 @@ export function MonthGrid({ data, view, selected, onSelect }) {
               {...clickable(() => onSelect(cell.dISO), { label: cell.dISO })}
             >
               <div className={`cnum${cell.dISO === tISO ? ' today' : ''}`}>{cell.day}</div>
+              {/* Celular: puntitos de color. Escritorio: las etiquetas con el texto (las dos cosas
+                  están en el DOM y el CSS elige cuál mostrar según el ancho). */}
+              <div className="cdots">
+                {items.slice(0, 3).map((e) => <span key={e.id} style={{ background: ITEM_COLOR[e.kind], boxShadow: `0 0 5px ${ITEM_COLOR[e.kind]}` }} />)}
+              </div>
               {items.slice(0, MAX_TAGS).map((e) => (
                 <div
                   key={e.id}

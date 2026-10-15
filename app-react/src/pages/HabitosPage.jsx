@@ -2,7 +2,10 @@ import { useState } from 'react';
 import { WeekStrip } from '../components/ui/WeekStrip';
 import { HabitRow } from '../components/habitos/HabitRow';
 import { BestStreakBanner } from '../components/habitos/BestStreakBanner';
-import { EmptyCard, Section } from '../components/ui/Section';
+import { DaySummary } from '../components/habitos/DaySummary';
+import { EmptyCard } from '../components/ui/Section';
+import { ListCard } from '../components/ui/ListCard';
+import { Plus } from '@phosphor-icons/react';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { useData } from '../hooks/useData';
 import { useHabitForms } from '../hooks/useHabitForms';
@@ -37,10 +40,10 @@ export function HabitosPage() {
   const marks = habitDayMarks(data, habitDate);
   const possible = habitDayPossible(data);
 
-  let best = 0, bestName = '';
+  let best = 0, bestName = '', bestId = null;
   data.habits.forEach((h) => {
     const s = habitBestStreak(data, h.id);
-    if (s > best) { best = s; bestName = h.name; }
+    if (s > best) { best = s; bestName = h.name; bestId = h.id; }
   });
 
   const markHabit = (id, slot) => update((draft) => setHabitSlot(draft, id, habitDate, slot));
@@ -53,7 +56,7 @@ export function HabitosPage() {
             <h1>Hábitos</h1>
             <div className="sub">{habitsSubtitle({ total, isToday, marks, possible, day: parseISO(habitDate).getDate() })}</div>
           </div>
-          <button type="button" className="pillbtn habits" onClick={() => openHabit(null)}>Nuevo</button>
+          <button type="button" className="pillbtn habits" onClick={() => openHabit(null)}><Plus size={16} aria-hidden="true" />Nuevo</button>
         </div>
       </div>
 
@@ -65,9 +68,10 @@ export function HabitosPage() {
           hasMark={(dISO) => total > 0 && habitDoneCount(data, dISO) > 0}
         />
 
-        {best > 0 && <BestStreakBanner best={best} name={bestName} />}
+        {best > 0 && <div className="hab-best"><BestStreakBanner best={best} name={bestName} data={data} habitId={bestId} /></div>}
 
-        <Section label="Mis hábitos" note={habitsWhen(isToday, isFuture)}>
+        <div className="hab-list">
+        <ListCard title="Mis hábitos" count={habitsWhen(isToday, isFuture)} accent="var(--color-neutral-500)">
           {total === 0 ? (
             <EmptyCard size="lg">Todavía no hay hábitos.<br />Creá el primero con el botón Nuevo.</EmptyCard>
           ) : (
@@ -89,7 +93,10 @@ export function HabitosPage() {
               <button type="button" className="dashed" style={{ marginTop: '2px' }} onClick={() => openHabit(null)}>+ Nuevo hábito</button>
             </>
           )}
-        </Section>
+        </ListCard>
+        </div>
+
+        <div className="hab-day"><DaySummary marks={marks} possible={possible} /></div>
       </div>
 
       {deleting && (

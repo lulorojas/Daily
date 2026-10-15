@@ -116,7 +116,7 @@ describe('navegar por día (retroactivo)', () => {
 
   it('mirando hoy, dice "hoy"', () => {
     renderScreen(<HabitosPage />, { doc: fullDoc() });
-    expect(screen.getByText(/· hoy/)).toBeInTheDocument();
+    expect(document.querySelector(".listcard-count")).toHaveTextContent("hoy");
   });
 });
 

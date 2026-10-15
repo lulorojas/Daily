@@ -231,6 +231,10 @@ function habitosVanilla(doc, day) {
 
 function habitosReact(doc) {
   const { container } = renderScreen(<HabitosPage />, { doc: clone(doc) });
+  /* Rediseño Nocturne: la barra de los últimos 28 días de la mejor racha y la tarjeta
+     "Marcas de hoy" son datos nuevos sin equivalente en vanilla. Se sacan; el resto de
+     Hábitos sigue comparándose igual. */
+  container.querySelectorAll('.beststreak-month, .daysummary').forEach((el) => el.remove());
   return texto(container);
 }
 

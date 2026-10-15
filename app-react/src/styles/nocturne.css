@@ -343,3 +343,141 @@ body {
 .hoy-tareas > .listcard, .hoy-habitos > .listcard { flex: 1; }
 .agtime .h { white-space: nowrap; }
 .agtime { flex: none; }
+
+/* ============================================================
+   CALENDARIO
+   ============================================================ */
+.sweep { position: relative; overflow: hidden; }
+.cal-head { display: flex; align-items: flex-end; gap: 8px; padding: calc(var(--safe-top) + 30px) 16px 0; }
+.cal-head > div:first-child { flex: 1; min-width: 0; }
+.cal-head .kicker { font-size: 10.5px; font-weight: 500; letter-spacing: .16em; color: var(--accent); }
+.cal-head h1 {
+  margin: 4px 0 0; font-size: 34px; font-weight: 500; letter-spacing: -.03em; line-height: 1.1;
+  background: none; color: var(--color-text); -webkit-background-clip: border-box; background-clip: border-box; animation: none;
+}
+.cal-nav { gap: 8px; }
+.navbtn {
+  width: 40px; height: 40px; border-radius: 12px; background: none; backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: none;
+  border: 1px solid rgba(233, 233, 237, .12); color: var(--color-neutral-300); transition: border-color .2s, color .2s;
+}
+.navbtn:hover { border-color: color-mix(in srgb, var(--accent) 50%, transparent); color: var(--accent); }
+
+.card.calcard { padding: 14px; }
+.card.calcard.sweep::before { background: linear-gradient(90deg, transparent, var(--coral) 40%, var(--violet) 70%, transparent); background-size: 200% 100%; }
+.legend { display: flex; gap: 14px; padding: 0 2px 12px; }
+.legend .li { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--color-neutral-400); }
+.legend .li span { width: 7px; height: 7px; border-radius: 50%; }
+.cal-grid.cells, .cal-grid.dows { gap: 4px; }
+.cal-grid.dows { margin-bottom: 0; }
+.dow { font-size: 9.5px; font-weight: 400; letter-spacing: .12em; color: var(--color-neutral-500); padding-bottom: 4px; }
+.cell { height: 54px; border-radius: 12px; padding: 6px 2px; gap: 3px; background: none; border: 1px solid transparent; transition: all .15s; }
+.cell:not(.blank) { border-color: rgba(233, 233, 237, .04); background: rgba(22, 24, 38, .35); }
+.cell:not(.blank):hover { border-color: rgba(255, 168, 119, .35); }
+.cell.sel { background: rgba(255, 168, 119, .12); border-color: var(--coral); box-shadow: 0 0 16px rgba(255, 168, 119, .22), inset 0 0 10px rgba(255, 168, 119, .1); }
+.cnum { width: auto; height: auto; border-radius: 0; background: none; font-family: 'Inter', sans-serif; font-weight: 400; font-size: 13.5px; font-variant-numeric: tabular-nums; color: var(--color-neutral-300); }
+.cnum.today { background: none; color: var(--coral); font-weight: 500; text-shadow: 0 0 10px rgba(255, 168, 119, .6); }
+.cell.sel .cnum { color: var(--color-text); }
+.cdots { display: flex; gap: 3px; justify-content: center; min-height: 5px; }
+.cdots span { width: 5px; height: 5px; border-radius: 50%; }
+.ctag { display: none; border-radius: 5px; font-size: 10.5px; font-weight: 400; line-height: 1.2; padding: 2px 5px; }
+.cmore { display: none; font-size: 10px; font-weight: 400; color: var(--color-neutral-500); }
+
+/* detalle del día: una tarjeta con tinte coral */
+.softcard.daydetail {
+  padding: 16px; gap: 0; border-radius: 22px;
+  background: linear-gradient(180deg, rgba(255, 168, 119, .08), rgba(35, 37, 50, .7) 40%); border: 1px solid rgba(255, 168, 119, .18);
+}
+.dd-head { align-items: flex-start; gap: 10px; }
+.dd-head > div:first-child { flex: 1; }
+.dd-title { font-family: 'Inter', sans-serif; font-weight: 500; font-size: 22px; letter-spacing: -.02em; }
+.dd-sub { font-size: 12.5px; color: var(--color-neutral-400); margin-top: 0; }
+button.dd-add {
+  display: flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px; border-radius: 12px; font-size: 13px; font-weight: 400;
+  border: 1px solid var(--coral); color: #FFD3B8; box-shadow: 0 0 16px rgba(255, 168, 119, .25); background: none; flex: none;
+}
+.dd-add:hover { background: rgba(255, 168, 119, .12); }
+.dd-list { gap: 8px; margin-top: 14px; flex: 1; }
+.softcard.daydetail .dashed {
+  flex: 1; min-height: 90px; margin-top: 14px; border-radius: 14px; border: 1px dashed rgba(255, 168, 119, .3); color: var(--coral);
+  font-size: 13px; font-weight: 400; background: none;
+}
+.dd-list .trow {
+  padding: 12px; border-radius: 14px; background: rgba(22, 24, 38, .55); border: 1px solid rgba(233, 233, 237, .06);
+}
+.dd-list .trow:first-child { border-top: 1px solid rgba(233, 233, 237, .06); }
+.dd-list .evrow { flex: none; padding: 12px; border-radius: 14px; background: rgba(22, 24, 38, .55); border: 1px solid rgba(233, 233, 237, .06); }
+
+/* los íconos de evento son de 30px salvo en el entreno de Hoy */
+.evic { width: 30px; height: 30px; border-radius: 9px; }
+.evic svg { width: 16px; height: 16px; }
+.hoy-entreno .evic { width: 44px; height: 44px; border-radius: 12px; }
+.hoy-entreno .evic svg { width: 21px; height: 21px; }
+.evrow { background: rgba(22, 24, 38, .55); border: 1px solid rgba(233, 233, 237, .06); }
+
+@media (min-width: 900px) {
+  .view:not(.auth) .cal-head { max-width: 1260px; margin: 0 auto; padding: 36px 40px 0; }
+  .view:not(.auth) .cal-head h1 { font-size: 44px; }
+  .cell { height: 96px; align-items: stretch; padding: 6px; }
+  .cnum { align-self: flex-start; }
+  .cdots { display: none; }
+  .ctag { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: auto; }
+  .cmore { display: block; }
+}
+
+/* ============================================================
+   HÁBITOS
+   ============================================================ */
+button.pillbtn.habits {
+  display: flex; align-items: center; gap: 6px; height: 40px; padding: 0 14px; border-radius: 12px; font-size: 14px; font-weight: 400;
+  background: none; border: 1px solid var(--green); color: #BDF0CC; box-shadow: 0 0 18px rgba(134, 217, 160, .25);
+}
+button.pillbtn.habits:hover { background: rgba(134, 217, 160, .1); }
+
+/* mejor racha: tarjeta con halo verde y los últimos 28 días */
+.beststreak {
+  position: relative; border-radius: 22px; padding: 18px; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; gap: 16px;
+  background: radial-gradient(80% 100% at 0% 100%, rgba(134, 217, 160, .18), transparent 70%), var(--card-bg);
+  border: 1px solid rgba(134, 217, 160, .22); backdrop-filter: none; -webkit-backdrop-filter: none;
+}
+.beststreak.sweep::before { background: linear-gradient(90deg, transparent, var(--green) 40%, var(--teal) 70%, transparent); background-size: 200% 100%; }
+.beststreak-top { display: flex; align-items: center; gap: 14px; }
+.beststreak-icon { width: 58px; height: 58px; border-radius: 18px; background: rgba(134, 217, 160, .14); box-shadow: 0 0 28px rgba(134, 217, 160, .35); }
+.beststreak-icon svg { filter: drop-shadow(0 0 8px var(--green)); }
+.beststreak-label { font-size: 10px; font-weight: 400; letter-spacing: .16em; color: var(--color-neutral-500); }
+.beststreak-n { font-family: 'Inter', sans-serif; font-weight: 500; font-size: 40px; line-height: 1.05; letter-spacing: -.03em; color: #BDF0CC; text-shadow: 0 0 22px rgba(134, 217, 160, .5); }
+.beststreak-sub { font-size: 14px; color: var(--color-neutral-300); }
+.beststreak-monthhead { display: flex; justify-content: space-between; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--color-neutral-500); margin-bottom: 6px; }
+.beststreak-bars { display: grid; grid-template-columns: repeat(28, minmax(0, 1fr)); gap: 2px; }
+.beststreak-bars span { height: 18px; border-radius: 3px; background: rgba(233, 233, 237, .07); }
+.beststreak-bars span.on { background: var(--green); box-shadow: 0 0 6px rgba(134, 217, 160, .6); }
+
+/* marcas de hoy: anillo + frase */
+.daysummary { display: flex; align-items: center; gap: 16px; padding: 16px; }
+.daysummary-ring { position: relative; width: 76px; height: 76px; flex: none; }
+.daysummary-fill { filter: drop-shadow(0 0 6px var(--green)); animation: dcDraw 1.6s cubic-bezier(.2, .8, .2, 1) .3s both; transition: stroke-dasharray .4s; }
+.daysummary-n { position: absolute; inset: 0; display: grid; place-items: center; font-size: 16px; font-variant-numeric: tabular-nums; }
+.daysummary-label { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--color-neutral-500); }
+.daysummary-msg { font-size: 14px; margin-top: 3px; text-wrap: pretty; }
+
+/* lista: el menú "⋯" se muestra como tres puntos verticales, y el botón de nuevo es punteado */
+.hmenubtn { width: 28px; height: 28px; border-radius: 8px; font-size: 18px; color: var(--color-neutral-500); transform: rotate(90deg); }
+.hmenubtn:hover { background: rgba(233, 233, 237, .06); }
+.hmenu { background: rgba(26, 28, 42, .96); border: 1px solid rgba(233, 233, 237, .1); border-radius: 14px; }
+.listcard .dashed {
+  width: 100%; margin-top: 10px; height: 44px; padding: 0; border-radius: 12px; font-size: 13px; font-weight: 400;
+  border: 1px dashed rgba(134, 217, 160, .4); color: var(--green); background: rgba(134, 217, 160, .04);
+}
+
+.hab-best, .hab-list, .hab-day { display: flex; flex-direction: column; min-width: 0; }
+.hab-best > *, .hab-list > *, .hab-day > * { flex: 1; }
+
+@media (min-width: 900px) {
+  /* la lista ocupa dos filas a la izquierda; mejor racha y marcas de hoy se apilan a la derecha */
+  .view:not(.auth) .body > .hab-list { grid-column: 1 / span 7; grid-row: 2 / span 2; }
+  .view:not(.auth) .body > .hab-best { grid-column: 8 / span 5; grid-row: 2; }
+  .view:not(.auth) .body > .hab-day { grid-column: 8 / span 5; grid-row: 3; }
+}
+@media (prefers-reduced-motion: reduce) { .daysummary-fill { animation: none !important; } }
+.beststreak-month { min-width: 0; }
+.beststreak { align-items: stretch; }
+.beststreak-month { width: 100%; }

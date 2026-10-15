@@ -8,7 +8,6 @@ import { useItemForms } from '../hooks/useItemForms';
 import { useSelectedDay } from '../hooks/useSelectedDay';
 import { monthOf, shiftMonth } from '../lib/calendar';
 import { MONTHS } from '../lib/dates';
-import { C } from '../lib/theme';
 import { toggleTaskDone } from '../store/mutations';
 
 /* ============================================================================
@@ -67,15 +66,11 @@ export function CalendarioPage() {
       </div>
 
       <div className="body">
-        <div className="legend">
-          <div className="li"><span style={{ background: C.amber }} />Tareas</div>
-          <div className="li"><span style={{ background: C.coral }} />Citas</div>
-          <div className="li"><span style={{ background: C.violet }} />Anuales</div>
-        </div>
-
-        <MonthGrid data={data} view={view} selected={day} onSelect={setDay} />
+        {/* La leyenda de colores ahora vive adentro de la tarjeta del mes (ver MonthGrid). */}
+        <MonthGrid className="span-7" data={data} view={view} selected={day} onSelect={setDay} />
 
         <DayDetail
+          className="span-5"
           data={data}
           day={day}
           onOpenTask={(t) => openTask(t)}
