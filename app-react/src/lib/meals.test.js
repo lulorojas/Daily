@@ -703,10 +703,9 @@ describe('dayMealSummary: lo que sobra de un alimento cubre lo que faltó en otr
     expect(dayMealSummary(state({ plan, log }), DIA).pct).toBeCloseTo((0.5 + 1 + 1) / 3);
   });
 
-  it('la compensación es parcial si sobró menos de lo que faltó', () => {
-    const log = { [DIA]: [reg(0, 1, 0), reg(1, 1, 300), reg(2, 1, 200)] };
-    // faltan 200, sobran 100: la fruta del desayuno queda a la mitad -> (1 + .5) / 2 = .75
-    expect(dayMealSummary(state({ plan, log }), DIA).franjas[0].pctDia).toBeCloseTo(0.75);
+  it('la fruta se cuenta por pieza: "2 frutas" anotadas en una comida cubren la que faltó en otra', () => {
+    const log = { [DIA]: [reg(0, 1, 0), reg(1, 1, 2), reg(2, 1, 200)] };
+    expect(dayMealSummary(state({ plan, log }), DIA).franjas[0].pctDia).toBeCloseTo(1);
   });
 
   it('una comida pendiente no se rellena con lo que sobró: sigue valiendo 0', () => {

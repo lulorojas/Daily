@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { claveAlimento, compensaEntreComidas, cumplimientoDeAlimento, toleranciaDe } from './mealRules';
+import { cantidadEfectiva, claveAlimento, compensaEntreComidas, cumplimientoDeAlimento, esOpcional, toleranciaDe } from './mealRules';
 import { dayMealSummary, itemsCompliance } from './meals';
 
 /* ============================================================================
@@ -67,8 +67,8 @@ describe('equivalencias', () => {
     });
   });
 
-  it('una ensalada a secas, o una frutilla de adorno en otro plato, no mezcla grupos', () => {
-    expect(claveAlimento('ensalada')).toBe('ensalada');
+  it('una ensalada a secas es verdura, no fruta; el resto se compara por su nombre', () => {
+    expect(claveAlimento('ensalada')).toBe('verdura');
     expect(claveAlimento('pollo')).toBe('pollo');
   });
 
@@ -130,5 +130,40 @@ describe('compensación en el día', () => {
   it('carbohidrato: tampoco compensa entre comidas', () => {
     const r = dayMealSummary(state('arroz', 'carbo', 'gr', [0, 100, 100]), DIA);
     expect(r.pct).toBeCloseTo(2 / 3);
+  });
+});
+
+describe('la fruta se cuenta por pieza, no por gramos', () => {
+  const fruta = { name: 'fruta', tipo: 'carbo', unit: 'gr', qty: 200 };
+
+  it('comer una fruta cubre la del plan aunque no se pese', () => {
+    expect(cumplimientoDeAlimento(fruta, 100)).toBe(1);
+    expect(cumplimientoDeAlimento(fruta, 150)).toBe(1);
+  });
+
+  it('no comer fruta es 0, sin tolerancia (aunque la fruta sea "carbo")', () => {
+    expect(cumplimientoDeAlimento(fruta, 0)).toBe(0);
+  });
+
+  it('un número chico ("2 frutas") se lee como piezas', () => {
+    expect(cantidadEfectiva('fruta', 2, 'gr', 200)).toBe(2);
+    expect(cantidadEfectiva('banana', 400, 'gr', 200)).toBe(2);
+  });
+});
+
+describe('las verduras no bajan la nota', () => {
+  it('una verdura o ensalada que falta cuenta como cumplida', () => {
+    expect(cumplimientoDeAlimento({ name: 'verdura', unit: 'gr', qty: 200 }, 0)).toBe(1);
+    expect(cumplimientoDeAlimento({ name: 'ensalada', unit: 'gr', qty: 200 }, 0)).toBe(1);
+    expect(esOpcional('tomate y zanahoria')).toBe(true);
+  });
+
+  it('ni entra al promedio de la comida: pollo completo + sin verdura = cumplida; sin pollo + sin verdura = 0', () => {
+    const option = { items: [
+      { id: 'a', name: 'pollo', qty: 250, unit: 'gr', tipo: 'proteina' },
+      { id: 'b', name: 'verdura', qty: 200, unit: 'gr' },
+    ] };
+    expect(itemsCompliance(option, [{ itemId: 'a', qty: 250 }, { itemId: 'b', qty: 0 }])).toBe(1);
+    expect(itemsCompliance(option, [{ itemId: 'a', qty: 0 }, { itemId: 'b', qty: 0 }])).toBe(0);
   });
 });

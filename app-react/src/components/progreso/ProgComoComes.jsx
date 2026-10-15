@@ -148,7 +148,7 @@ export function ProgComoComes({ data, per, className = '' }) {
         <div className="comes-info">
           <div className="comes-info-t">¿CÓMO SE CALCULA?</div>
           <div><b>% de una comida:</b> lo que comiste de cada alimento sobre lo que pide la opción del plan. Comer de más no suma.</div>
-          <div><b>Qué baja la nota:</b> faltar un poco de un carbohidrato (1 unidad, o el 20% si va en gramos) no baja; faltar proteína o grasa sí. Pasarte de carbohidratos o grasa baja; de proteína, no. La fruta que sobra en una comida cubre la que faltó en otra (una banana, una manzana o una ensalada de frutas son lo mismo).</div>
+          <div><b>Qué baja la nota:</b> faltar un poco de un carbohidrato (1 unidad, o el 20% si va en gramos) no baja; faltar proteína o grasa sí. Pasarte de carbohidratos o grasa baja; de proteína, no. La fruta se cuenta por pieza (no se pesa) y la que sobra en una comida cubre la que faltó en otra: banana, manzana o una ensalada de frutas son lo mismo. Las verduras y ensaladas no bajan la nota si no están.</div>
           <div><span style={{ color: C.green }}>Cumplida</span> 100% · <span style={{ color: C.amber }}>Parcial</span> 50–99% · <span style={{ color: C.danger }}>Poco</span> menos de 50%.</div>
           <div><span style={{ color: C.coral }}>Permitido</span> en lugar de la comida cuenta 0%. <span style={{ color: C.teal }}>Distinta, sana</span> no suma ni resta: queda afuera del promedio.</div>
           <div><b>% del día:</b> promedio de las comidas del plan (sin registrar = 0%).</div>

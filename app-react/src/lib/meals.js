@@ -52,7 +52,9 @@
 import { addDays, iso, parseISO, todayD, todayISO } from './dates';
 import { C, PALETTE } from './theme';
 import { comoVenisColumns, regularidadPorRatio, UNIT_ABBR } from './progress';
-import { claveAlimento, compensaEntreComidas, cumplimientoDeAlimento } from './mealRules';
+import {
+  cantidadEfectiva, claveAlimento, compensaEntreComidas, cumplimientoDeAlimento, cumplimientoEfectivo, esOpcional, esperadoEfectivo,
+} from './mealRules';
 
 // La versión vigente del plan (la única con endISO:null), o null si todavía no hay
 // ninguna. Todo lector de "qué tengo que comer" pasa por acá — nunca por meals.plans
@@ -186,15 +188,17 @@ export function foodKey(name) {
    mismo nombre ("sacaste la fruta del pancake y sumaste la del licuado: la fruta cuenta").
    Una opción sin alimentos medibles da 1 — no hay nada que incumplir. */
 export function itemsCompliance(option, matchedItems, suma = []) {
+  // Lo sumado, en cantidades "efectivas" (la fruta por pieza), por alimento/grupo.
   const extra = new Map();
-  suma.forEach((s) => extra.set(claveAlimento(s.name), (extra.get(claveAlimento(s.name)) ?? 0) + s.qty));
+  suma.forEach((s) => extra.set(claveAlimento(s.name), (extra.get(claveAlimento(s.name)) ?? 0) + cantidadEfectiva(s.name, s.qty, s.unit)));
+  // Las reglas (tolerancias, pasarse, fruta por pieza, verduras opcionales) viven en
+  // lib/mealRules.js. Una verdura o ensalada que falta no baja la nota ni entra al promedio.
   const ratios = option.items
-    .filter((item) => item.qty > 0)
+    .filter((item) => item.qty > 0 && !esOpcional(item.name))
     .map((item) => {
       const m = matchedItems.find((x) => x.itemId === item.id);
-      const got = (m ? m.qty : 0) + (extra.get(claveAlimento(item.name)) ?? 0);
-      // Las reglas (tolerancias, pasarse) viven en lib/mealRules.js.
-      return cumplimientoDeAlimento(item, got);
+      const got = cantidadEfectiva(item.name, m ? m.qty : 0, item.unit, item.qty) + (extra.get(claveAlimento(item.name)) ?? 0);
+      return cumplimientoEfectivo({ ...item, qty: esperadoEfectivo(item) }, got);
     });
   return ratios.length ? ratios.reduce((a, b) => a + b, 0) / ratios.length : 1;
 }
@@ -220,8 +224,14 @@ function compensarDia(franjas) {
       if (!m.has(k)) m.set(k, { got: 0, exp: 0, name, tipo: it?.tipo, unit: it?.unit });
       return m.get(k);
     };
-    r.detalle.forEach((it) => { const v = tocar(it.name, it); v.got += it.got; v.exp += it.expected; });
-    r.suma.forEach((s) => { tocar(s.name, s).got += s.qty; });
+    // En cantidades efectivas (la fruta por pieza) y sin las verduras, que no cuentan.
+    r.detalle.forEach((it) => {
+      if (esOpcional(it.name)) return;
+      const v = tocar(it.name, it);
+      v.got += cantidadEfectiva(it.name, it.got, it.unit, it.expected);
+      v.exp += esperadoEfectivo({ name: it.name, qty: it.expected });
+    });
+    r.suma.forEach((s) => { if (!esOpcional(s.name)) tocar(s.name, s).got += cantidadEfectiva(s.name, s.qty, s.unit); });
     return m;
   });
 
@@ -244,7 +254,7 @@ function compensarDia(franjas) {
         got += toma;
         pozo.set(k, (pozo.get(k) ?? 0) - toma);
       }
-      ratios.push(cumplimientoDeAlimento({ name: v.name, tipo: v.tipo, unit: v.unit, qty: v.exp }, got));
+      ratios.push(cumplimientoEfectivo({ name: v.name, tipo: v.tipo, unit: v.unit, qty: v.exp }, got));
     });
     return ratios.length ? ratios.reduce((a, b) => a + b, 0) / ratios.length : 1;
   });

@@ -31,8 +31,8 @@ function conAlmuerzoIncompleto() {
 describe('bitácora que recupera lo que faltó', () => {
   it('"al final comí la verdura" suma la verdura a la comida ya registrada', () => {
     const { d, almuerzo, verdura } = conAlmuerzoIncompleto();
-    const antes = dayMealSummary(d, TODAY).franjas[0];
-    expect(antes.pct).toBe(0.5);
+    // La verdura que falta no baja la nota (regla de lib/mealRules.js), pero igual se recupera.
+    expect(dayMealSummary(d, TODAY).franjas[0].pct).toBe(1);
 
     const entrada = m.addMealLogEntry(d, TODAY, 'al final comí la verdura');
 
@@ -41,6 +41,19 @@ describe('bitácora que recupera lo que faltó', () => {
     expect(entrada.recupera).toEqual([{ slotName: 'Almuerzo', name: 'verdura' }]);
     const registro = d.meals.log[TODAY][0].matches.options[0].items.find((i) => i.itemId === verdura.id);
     expect(registro.qty).toBe(200); // lo que faltaba
+  });
+
+  it('recuperar una proteína que faltó sube la nota de la comida', () => {
+    const d = vacio();
+    const almuerzo = m.addMealSlot(d, { name: 'Almuerzo' });
+    m.addMealOption(d, almuerzo.id, { text: 'Pollo con arroz', items: [{ id: 'i1', name: 'pollo', qty: 250, unit: 'gr', tipo: 'proteina' }, { id: 'i2', name: 'arroz', qty: 300, unit: 'gr', tipo: 'carbo' }] });
+    const op = activePlan(d).slots[0].options[0];
+    m.addMealLogStructured(d, TODAY, { slotId: almuerzo.id, optionId: op.id, qtys: { i1: 0, i2: 300 } });
+    expect(dayMealSummary(d, TODAY).franjas[0].pct).toBe(0.5);
+
+    m.addMealLogEntry(d, TODAY, 'al final comí el pollo');
+
+    expect(dayMealSummary(d, TODAY).franjas[0].pct).toBe(1);
   });
 
   it('si el texto trae cantidad, suma esa', () => {
