@@ -425,8 +425,8 @@ describe('itemsBreakdown / itemsCompliance', () => {
   it('itemsBreakdown trae got/expected por cada ítem del plan, en orden', () => {
     const matched = [{ itemId: 'i1', qty: 2 }, { itemId: 'i2', qty: 3 }];
     expect(itemsBreakdown(option, matched)).toEqual([
-      { id: 'i1', name: 'Tostadas', tipo: undefined, unit: undefined, got: 2, expected: 3 },
-      { id: 'i2', name: 'Huevos', tipo: undefined, unit: undefined, got: 3, expected: 3 },
+      { id: 'i1', name: 'Tostadas', tipo: undefined, unit: undefined, got: 2, expected: 3, ok: false },
+      { id: 'i2', name: 'Huevos', tipo: undefined, unit: undefined, got: 3, expected: 3, ok: true },
     ]);
   });
 

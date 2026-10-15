@@ -52,6 +52,7 @@
 import { addDays, iso, parseISO, todayD, todayISO } from './dates';
 import { C, PALETTE } from './theme';
 import { comoVenisColumns, regularidadPorRatio, UNIT_ABBR } from './progress';
+import { claveAlimento, compensaEntreComidas, cumplimientoDeAlimento } from './mealRules';
 
 // La versión vigente del plan (la única con endISO:null), o null si todavía no hay
 // ninguna. Todo lector de "qué tengo que comer" pasa por acá — nunca por meals.plans
@@ -161,7 +162,9 @@ export function optionLabel(option) {
 export function itemsBreakdown(option, matchedItems) {
   return option.items.map((item) => {
     const m = matchedItems.find((x) => x.itemId === item.id);
-    return { id: item.id, name: item.name, tipo: item.tipo, unit: item.unit, got: m ? m.qty : 0, expected: item.qty };
+    const got = m ? m.qty : 0;
+    // `ok`: no bajó la nota (llegó, o le faltó dentro de la tolerancia). Ver lib/mealRules.js.
+    return { id: item.id, name: item.name, tipo: item.tipo, unit: item.unit, got, expected: item.qty, ok: cumplimientoDeAlimento(item, got) >= 1 };
   });
 }
 
@@ -184,13 +187,14 @@ export function foodKey(name) {
    Una opción sin alimentos medibles da 1 — no hay nada que incumplir. */
 export function itemsCompliance(option, matchedItems, suma = []) {
   const extra = new Map();
-  suma.forEach((s) => extra.set(foodKey(s.name), (extra.get(foodKey(s.name)) ?? 0) + s.qty));
+  suma.forEach((s) => extra.set(claveAlimento(s.name), (extra.get(claveAlimento(s.name)) ?? 0) + s.qty));
   const ratios = option.items
     .filter((item) => item.qty > 0)
     .map((item) => {
       const m = matchedItems.find((x) => x.itemId === item.id);
-      const got = (m ? m.qty : 0) + (extra.get(foodKey(item.name)) ?? 0);
-      return Math.min(got / item.qty, 1);
+      const got = (m ? m.qty : 0) + (extra.get(claveAlimento(item.name)) ?? 0);
+      // Las reglas (tolerancias, pasarse) viven en lib/mealRules.js.
+      return cumplimientoDeAlimento(item, got);
     });
   return ratios.length ? ratios.reduce((a, b) => a + b, 0) / ratios.length : 1;
 }
@@ -211,20 +215,22 @@ function compensarDia(franjas) {
     const r = f.registros.filter((x) => x.detalle).sort((a, b) => b.pct - a.pct)[0];
     if (!r) return null;
     const m = new Map();
-    const tocar = (name) => {
-      const k = foodKey(name);
-      if (!m.has(k)) m.set(k, { got: 0, exp: 0 });
+    const tocar = (name, it) => {
+      const k = claveAlimento(name);
+      if (!m.has(k)) m.set(k, { got: 0, exp: 0, name, tipo: it?.tipo, unit: it?.unit });
       return m.get(k);
     };
-    r.detalle.forEach((it) => { const v = tocar(it.name); v.got += it.got; v.exp += it.expected; });
-    r.suma.forEach((s) => { tocar(s.name).got += s.qty; });
+    r.detalle.forEach((it) => { const v = tocar(it.name, it); v.got += it.got; v.exp += it.expected; });
+    r.suma.forEach((s) => { tocar(s.name, s).got += s.qty; });
     return m;
   });
 
+  // Solo lo que se compensa entre comidas (hoy: la fruta, ver lib/mealRules.js) entra al
+  // pozo; el resto se mide comida por comida.
   const pozo = new Map();
   porFranja.forEach((m) => m?.forEach((v, k) => {
     const sobra = Math.max(0, v.got - v.exp);
-    if (sobra) pozo.set(k, (pozo.get(k) ?? 0) + sobra);
+    if (sobra && compensaEntreComidas(v.name)) pozo.set(k, (pozo.get(k) ?? 0) + sobra);
   }));
 
   return porFranja.map((m) => {
@@ -233,12 +239,12 @@ function compensarDia(franjas) {
     m.forEach((v, k) => {
       if (!v.exp) return;
       let got = v.got;
-      if (got < v.exp) {
+      if (got < v.exp && compensaEntreComidas(v.name)) {
         const toma = Math.min(v.exp - got, pozo.get(k) ?? 0);
         got += toma;
         pozo.set(k, (pozo.get(k) ?? 0) - toma);
       }
-      ratios.push(Math.min(1, got / v.exp));
+      ratios.push(cumplimientoDeAlimento({ name: v.name, tipo: v.tipo, unit: v.unit, qty: v.exp }, got));
     });
     return ratios.length ? ratios.reduce((a, b) => a + b, 0) / ratios.length : 1;
   });

@@ -15,7 +15,8 @@ import { C, tint } from '../../lib/theme';
 
    `slotsById`/`extrasById` llegan ya armados desde la página: resolver el nombre de cada
    id acá adentro obligaría a recorrer el plan entero una vez por burbuja. */
-function itemColor(got, expected) {
+function itemColor(got, expected, ok) {
+  if (ok) return C.green;
   if (got >= expected) return C.green;
   if (got > 0) return C.amber;
   return 'rgba(242,244,248,.35)';
@@ -82,7 +83,7 @@ export function MealLogBubble({ entry, slotsById, extrasById, onDelete }) {
       {opciones.some((o) => o.detalle || o.suma.length) && (
         <div className="mealitems-detalle">
           {opciones.filter((o) => o.detalle).flatMap((o) => o.detalle).map((it) => (
-            <span className="mono mealitem-detalle" key={it.id} style={{ color: itemColor(it.got, it.expected) }}>
+            <span className="mono mealitem-detalle" key={it.id} style={{ color: itemColor(it.got, it.expected, it.ok) }}>
               {breakdownLabel(it)}
             </span>
           ))}

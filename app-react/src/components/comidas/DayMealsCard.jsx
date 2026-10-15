@@ -15,7 +15,7 @@ import { C } from '../../lib/theme';
    permitidos sueltos del día ("un alfajor a la tarde") — no ocupan ninguna comida, pero
    cuentan como pifiada (pedido explícito). */
 function itemColor(it) {
-  if (it.got >= it.expected) return C.green;
+  if (it.ok || it.got >= it.expected) return C.green;
   if (it.got > 0) return C.amber;
   return 'rgba(242,244,248,.35)';
 }
