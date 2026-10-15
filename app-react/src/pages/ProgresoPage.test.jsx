@@ -240,7 +240,7 @@ describe('las otras secciones', () => {
       plans: [{
         id: 'p1', startISO: thisMonday, endISO: null,
         slots: [
-          { id: 's1', name: 'Desayuno', options: [{ id: 'o1', text: 'Panes', items: [{ id: 'i1', name: 'pan', qty: 3 }] }] },
+          { id: 's1', name: 'Desayuno', options: [{ id: 'o1', text: 'Panes', items: [{ id: 'i1', name: 'pan', qty: 3, tipo: 'proteina' }] }] },
           { id: 's2', name: 'Cena', options: [{ id: 'o2', text: 'Milanesa' }] },
         ],
       }],
@@ -296,8 +296,8 @@ describe('las otras secciones', () => {
       plans: [{
         id: 'p1', startISO: thisMonday, endISO: null,
         slots: [
-          { id: 's1', name: 'Desayuno', options: [{ id: 'o1', text: 'Panes', items: [{ id: 'i1', name: 'pan', qty: 3 }] }] },
-          { id: 's2', name: 'Cena', options: [{ id: 'o2', text: 'Panes de nuevo', items: [{ id: 'i2', name: 'pan', qty: 4 }] }] },
+          { id: 's1', name: 'Desayuno', options: [{ id: 'o1', text: 'Panes', items: [{ id: 'i1', name: 'pan', qty: 3, tipo: 'proteina' }] }] },
+          { id: 's2', name: 'Cena', options: [{ id: 'o2', text: 'Panes de nuevo', items: [{ id: 'i2', name: 'pan', qty: 4, tipo: 'proteina' }] }] },
         ],
       }],
       extras: [],
@@ -321,7 +321,7 @@ describe('las otras secciones', () => {
     const user = userEvent.setup();
     const doc = fullDoc();
     doc.meals = {
-      plans: [{ id: 'p1', startISO: thisMonday, endISO: null, slots: [{ id: 's1', name: 'Desayuno', options: [{ id: 'o1', text: 'Panes', items: [{ id: 'i1', name: 'pan', qty: 3 }] }] }] }],
+      plans: [{ id: 'p1', startISO: thisMonday, endISO: null, slots: [{ id: 's1', name: 'Desayuno', options: [{ id: 'o1', text: 'Panes', items: [{ id: 'i1', name: 'pan', qty: 3, tipo: 'proteina' }] }] }] }],
       extras: [],
       log: { [thisMonday]: [{ id: 'a', at: 0, text: 't', matches: { options: [{ slotId: 's1', optionId: 'o1', items: [{ itemId: 'i1', qty: 3 }] }], extras: [] } }] },
     };

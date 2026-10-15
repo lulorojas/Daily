@@ -17,6 +17,7 @@
    ============================================================================ */
 import { uid } from '../lib/ids';
 import { PALETTE } from '../lib/theme';
+import { llevaProteina, proteinaImplicita } from '../lib/mealRules';
 import { emptyWeekPlan, REST } from '../lib/gym';
 import { moveInArray } from '../lib/arrays';
 import { habitMarks } from '../lib/habits';
@@ -511,10 +512,17 @@ function normalizeOptionFields({ text, items }) {
   };
 }
 
+// Almuerzo y cena llevan su proteína pesada (250 gr): si la opción no trae ningún alimento
+// medible, se le agrega (ver lib/mealRules.js).
+function conProteinaPesada(slot, option) {
+  if (llevaProteina(slot.name) && option.text && !option.items?.length) option.items = [proteinaImplicita(option.text, uid())];
+}
+
 export function addMealOption(draft, slotId, fields) {
   const slot = ensureActivePlan(draft).slots.find((s) => s.id === slotId);
   if (!slot) return null;
   const option = { id: uid(), ...normalizeOptionFields(fields) };
+  conProteinaPesada(slot, option);
   slot.options.push(option);
   return option;
 }
@@ -526,6 +534,7 @@ export function updateMealOption(draft, slotId, optionId, fields) {
   delete option.text;
   delete option.items;
   Object.assign(option, normalizeOptionFields(fields));
+  conProteinaPesada(slot, option);
   return true;
 }
 

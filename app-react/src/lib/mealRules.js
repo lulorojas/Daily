@@ -9,7 +9,7 @@ const normalizeText = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[
    una comida. Son reglas que se van hablando de a una (pedido explícito: "son reglas que iremos
    hablando"), así que agregar o ajustar una es tocar ESTE archivo, no la cuenta de lib/meals.js.
 
-   Hoy hay seis:
+   Hoy hay diez:
 
    1. TOLERANCIAS — no todo lo que falta baja la nota por igual. Faltar 1 tostada (un
       carbohidrato, y poco) no baja nada; faltar 1 huevo o 50 gramos de proteína sí. Cada
@@ -36,6 +36,20 @@ const normalizeText = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[
    6. LAS VERDURAS NO BAJAN LA NOTA — "no baja nota que no estén": una verdura o ensalada que
       falta no cuenta en contra, y ni siquiera entra en el promedio de la comida (así no la
       "diluye" ni la "suma"). Comerlas, igual, queda anotado.
+
+   7. SOLO CUENTAN LOS ALIMENTOS CON MACRO — un alimento del plan sin macro (queso, salsa, una
+      croqueta) es opcional, igual que las verduras: si falta, no baja la nota. Lo que cuenta es
+      lo que lleva carbohidrato, proteína o grasa, más la fruta.
+
+   8. SUMAR DE MÁS — si a una comida se le suma un carbohidrato o una grasa que no estaba en
+      el plan (una papa extra), eso también es pasarse y baja la nota (ver nota
+      sumaDeMas).
+
+  10. PERMITIDO — un permitido anotado en una comida la vuelve mala del todo: esa comida
+      cuenta 0%, aunque también tenga algo del plan registrado.
+
+   9. PROTEÍNA EN ALMUERZO Y CENA — toda opción de almuerzo o cena lleva su proteína pesada,
+      250 gr (una milanesa también se pesa). Ver proteinaImplicita().
    ============================================================================ */
 
 /* Cuánto puede faltar de un alimento sin que baje la nota, según su macro.
@@ -93,10 +107,11 @@ export function claveAlimento(name) {
 // ¿Lo que sobra de este alimento cubre lo que faltó en otra comida? (hoy: solo fruta)
 export const compensaEntreComidas = (name) => !!grupoDe(name)?.compensa;
 
-// ¿Que falte no baja la nota? (verduras y ensaladas)
-export const esOpcional = (name) => !!grupoDe(name)?.opcional;
-
 const esPorPieza = (name) => !!grupoDe(name)?.porPieza;
+
+// ¿Que falte no baja la nota? Las verduras y ensaladas, y todo alimento sin macro (queso,
+// salsa, croquetas…), salvo la fruta, que siempre cuenta. `item` es { name, tipo }.
+export const esOpcional = ({ name, tipo }) => !!grupoDe(name)?.opcional || (!tipo && !esPorPieza(name));
 
 /* Cantidad "efectiva" de un alimento: la que se compara. En lo que se cuenta por pieza
    (fruta) son las piezas: un número chico sobre una fruta en gramos ("2 frutas" → 2) ya son
@@ -121,7 +136,7 @@ export function toleranciaDe({ tipo, unit, qty, name }) {
 
 // Pasarse baja la nota en carbohidratos y grasas; en proteína no, y en lo que se compensa
 // entre comidas (fruta) tampoco: lo que sobra ahí es justamente lo que cubre a otra comida.
-const penalizaDeMas = ({ tipo, name }) => (tipo === 'carbo' || tipo === 'grasa') && !compensaEntreComidas(name);
+export const penalizaDeMas = ({ tipo, name }) => (tipo === 'carbo' || tipo === 'grasa') && !compensaEntreComidas(name);
 
 /* Cuánto se cumplió de UN alimento, de 0 a 1, con cantidades ya EFECTIVAS (`qty` lo pedido,
    `got` lo comido, en la misma unidad):
@@ -141,9 +156,17 @@ export function cumplimientoEfectivo(item, got) {
    las pasa a efectivas y aplica las reglas. `item` es { name, tipo, unit, qty }. Una verdura
    o ensalada siempre da 1. */
 export function cumplimientoDeAlimento(item, got) {
-  if (esOpcional(item.name)) return 1;
+  if (esOpcional(item)) return 1;
   return cumplimientoEfectivo(
     { ...item, qty: esperadoEfectivo(item) },
     cantidadEfectiva(item.name, got, item.unit, item.qty),
   );
+}
+
+/* Almuerzo y cena llevan una proteína de 250 gr: una opción de esas comidas que no trae
+   ningún alimento medible ("Milanesa") se completa con ella, para que se pese como todas. */
+export const llevaProteina = (slotName) => /almuerz|cena/.test(normalizeText(slotName));
+export const PROTEINA_GR = 250;
+export function proteinaImplicita(optionText, id) {
+  return { id, name: normalizeText(optionText) || 'proteína', qty: PROTEINA_GR, unit: 'gr', tipo: 'proteina' };
 }

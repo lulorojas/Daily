@@ -78,7 +78,7 @@ describe('matchEntry', () => {
    escribe "número pegado al alimento". */
 describe('matchEntry: opciones con ítems de cantidad', () => {
   const planItems = [
-    { id: 's1', name: 'Desayuno', options: [{ id: 'o1', items: [{ id: 'i1', name: 'tostadas', qty: 3 }, { id: 'i2', name: 'huevos', qty: 3 }] }] },
+    { id: 's1', name: 'Desayuno', options: [{ id: 'o1', items: [{ id: 'i1', name: 'tostadas', qty: 3, tipo: 'proteina' }, { id: 'i2', name: 'huevos', qty: 3, tipo: 'proteina' }] }] },
   ];
 
   it('"2 tostadas" matchea con la cantidad exacta escrita', () => {
@@ -113,7 +113,7 @@ describe('matchEntry: opciones con ítems de cantidad', () => {
 /* Pesos (pedido explícito: "no solo cantidades, a veces pueden ser pesos"). */
 describe('matchEntry: ítems en gramos', () => {
   const plan = [
-    { id: 's1', name: 'Almuerzo', options: [{ id: 'o1', text: 'Pollo con papas', items: [{ id: 'i1', name: 'pollo', qty: 250, unit: 'gr' }, { id: 'i2', name: 'papa', qty: 3 }] }] },
+    { id: 's1', name: 'Almuerzo', options: [{ id: 'o1', text: 'Pollo con papas', items: [{ id: 'i1', name: 'pollo', qty: 250, unit: 'gr', tipo: 'proteina' }, { id: 'i2', name: 'papa', qty: 3, tipo: 'proteina' }] }] },
   ];
 
   it.each([
@@ -145,7 +145,7 @@ describe('etiquetas', () => {
   it('optionLabel: el nombre si lo tiene; si no, lo que lleva', () => {
     expect(optionLabel({ text: 'Milanesa con ensalada' })).toBe('Milanesa con ensalada');
     expect(optionLabel({ text: 'Tostadas', items: [{ name: 'tostada', qty: 3 }] })).toBe('Tostadas');
-    expect(optionLabel({ items: [{ id: 'i1', name: 'Tostadas', qty: 3 }, { id: 'i2', name: 'Huevos', qty: 3 }] })).toBe('3 Tostadas, 3 Huevos');
+    expect(optionLabel({ items: [{ id: 'i1', name: 'Tostadas', qty: 3, tipo: 'proteina' }, { id: 'i2', name: 'Huevos', qty: 3, tipo: 'proteina' }] })).toBe('3 Tostadas, 3 Huevos');
   });
 
   it('breakdownLabel: "2/3 pan" y "150/200 gr pollo"', () => {
@@ -159,7 +159,7 @@ describe('etiquetas', () => {
 describe('dayMealSummary', () => {
   const DIA = '2026-10-14';
   const plan = [
-    { id: 's1', name: 'Desayuno', options: [{ id: 'o1', text: 'Panes', items: [{ id: 'i1', name: 'pan', qty: 3 }] }] },
+    { id: 's1', name: 'Desayuno', options: [{ id: 'o1', text: 'Panes', items: [{ id: 'i1', name: 'pan', qty: 3, tipo: 'proteina' }] }] },
     { id: 's2', name: 'Cena', options: [{ id: 'o2', text: 'Milanesa' }] },
   ];
   const entrada = (matchOpts, extra = {}) => ({ id: Math.random().toString(36), at: 0, text: 't', matches: { options: matchOpts, extras: [] }, ...extra });
@@ -267,7 +267,7 @@ describe('dayMealSummary', () => {
    Con per='mes' por lo mismo que el resto: 4 columnas semanales, la última la actual. */
 describe('mealScoreByPeriod', () => {
   const plan = [
-    { id: 's1', name: 'Desayuno', options: [{ id: 'o1', text: 'Panes', items: [{ id: 'i1', name: 'pan', qty: 3 }] }] },
+    { id: 's1', name: 'Desayuno', options: [{ id: 'o1', text: 'Panes', items: [{ id: 'i1', name: 'pan', qty: 3, tipo: 'proteina' }] }] },
     { id: 's2', name: 'Cena', options: [{ id: 'o2', text: 'Milanesa' }] },
   ];
   // Días contados en la semana actual: del lunes a hoy, inclusive.
@@ -342,7 +342,7 @@ describe('mealScoreByPeriod', () => {
    comidas le pifié, los permitidos de una semana"). */
 describe('comoComesPorDia', () => {
   const plan = [
-    { id: 's1', name: 'Desayuno', options: [{ id: 'o1', text: 'Panes', items: [{ id: 'i1', name: 'pan', qty: 3 }] }] },
+    { id: 's1', name: 'Desayuno', options: [{ id: 'o1', text: 'Panes', items: [{ id: 'i1', name: 'pan', qty: 3, tipo: 'proteina' }] }] },
     { id: 's2', name: 'Cena', options: [{ id: 'o2', text: 'Milanesa' }] },
   ];
   const desayuno = (qty) => ({ id: `d${qty}`, at: 0, text: 't', matches: { options: [{ slotId: 's1', optionId: 'o1', items: [{ itemId: 'i1', qty }] }], extras: [] } });
@@ -420,13 +420,13 @@ describe('missingFromTemplate', () => {
 });
 
 describe('itemsBreakdown / itemsCompliance', () => {
-  const option = { items: [{ id: 'i1', name: 'Tostadas', qty: 3 }, { id: 'i2', name: 'Huevos', qty: 3 }] };
+  const option = { items: [{ id: 'i1', name: 'Tostadas', qty: 3, tipo: 'proteina' }, { id: 'i2', name: 'Huevos', qty: 3, tipo: 'proteina' }] };
 
   it('itemsBreakdown trae got/expected por cada ítem del plan, en orden', () => {
     const matched = [{ itemId: 'i1', qty: 2 }, { itemId: 'i2', qty: 3 }];
     expect(itemsBreakdown(option, matched)).toEqual([
-      { id: 'i1', name: 'Tostadas', tipo: undefined, unit: undefined, got: 2, expected: 3, ok: false },
-      { id: 'i2', name: 'Huevos', tipo: undefined, unit: undefined, got: 3, expected: 3, ok: true },
+      { id: 'i1', name: 'Tostadas', tipo: 'proteina', unit: undefined, got: 2, expected: 3, ok: false },
+      { id: 'i2', name: 'Huevos', tipo: 'proteina', unit: undefined, got: 3, expected: 3, ok: true },
     ]);
   });
 
@@ -592,7 +592,7 @@ describe('comoComes: avisos de calidad (extras bueno/malo)', () => {
    "quiero... una medición de bien o mal", no un simple sí/no de si la tocaste. */
 describe('comoComes: una franja cuantificada exige cumplimiento mínimo', () => {
   function docConCumplimiento(qtyTostadas, qtyHuevos) {
-    const plan = [{ id: 's1', name: 'Desayuno', options: [{ id: 'o1', items: [{ id: 'i1', name: 'tostadas', qty: 3 }, { id: 'i2', name: 'huevos', qty: 3 }] }] }];
+    const plan = [{ id: 's1', name: 'Desayuno', options: [{ id: 'o1', items: [{ id: 'i1', name: 'tostadas', qty: 3, tipo: 'proteina' }, { id: 'i2', name: 'huevos', qty: 3, tipo: 'proteina' }] }] }];
     const log = {
       [thisMonday]: [{
         id: 'x', at: 0, text: 'comí',
@@ -677,7 +677,7 @@ describe('dayMealSummary: lo que sobra de un alimento cubre lo que faltó en otr
   const plan = ['s1', 's2', 's3'].map((id, i) => ({
     id,
     name: ['Desayuno', 'Almuerzo', 'Merienda'][i],
-    options: [{ id: `o${i}`, text: 'Algo', items: [{ id: `p${i}`, name: 'pan', qty: 1 }, { id: `f${i}`, name: 'fruta', qty: 200, unit: 'gr' }] }],
+    options: [{ id: `o${i}`, text: 'Algo', items: [{ id: `p${i}`, name: 'pan', qty: 1, tipo: 'proteina' }, { id: `f${i}`, name: 'fruta', qty: 200, unit: 'gr' }] }],
   }));
   const reg = (i, pan, fruta, suma) => ({
     id: `e${i}`, at: i, text: 't',

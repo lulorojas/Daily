@@ -247,7 +247,7 @@ describe('bitácora', () => {
           id: 'p1',
           startISO: todayISO(),
           endISO: null,
-          slots: [{ id: 's1', name: 'Desayuno', options: [{ id: 'o1', items: [{ id: 'i1', name: 'tostadas', qty: 3 }, { id: 'i2', name: 'huevos', qty: 3 }] }] }],
+          slots: [{ id: 's1', name: 'Desayuno', options: [{ id: 'o1', items: [{ id: 'i1', name: 'tostadas', qty: 3, tipo: 'proteina' }, { id: 'i2', name: 'huevos', qty: 3, tipo: 'proteina' }] }] }],
         }],
         extras: [],
         log: {
@@ -277,7 +277,7 @@ describe('tu día', () => {
           startISO: todayISO(),
           endISO: null,
           slots: [
-            { id: 's1', name: 'Desayuno', options: [{ id: 'o1', text: 'Panes con huevo', items: [{ id: 'i1', name: 'pan', qty: 3 }, { id: 'i2', name: 'fruta', qty: 200, unit: 'gr' }] }] },
+            { id: 's1', name: 'Desayuno', options: [{ id: 'o1', text: 'Panes con huevo', items: [{ id: 'i1', name: 'pan', qty: 3, tipo: 'proteina' }, { id: 'i2', name: 'fruta', qty: 200, unit: 'gr' }] }] },
             { id: 's2', name: 'Cena', options: [{ id: 'o2', text: 'Milanesa' }] },
           ],
         }],
@@ -330,7 +330,7 @@ describe('tu día', () => {
     const user = userEvent.setup();
     const doc = docMedible();
     doc.meals.plans[0].slots[0].options.push({
-      id: 'o3', text: 'Wok de pollo', items: [{ id: 'w1', name: 'verdura', qty: 200, unit: 'gr' }, { id: 'w2', name: 'fideos', qty: 300, unit: 'gr' }],
+      id: 'o3', text: 'Wok de pollo', items: [{ id: 'w1', name: 'verdura', qty: 200, unit: 'gr' }, { id: 'w2', name: 'fideos', qty: 300, unit: 'gr', tipo: 'proteina' }],
     });
     const { doc: leer } = renderScreen(<ComidasPage />, { doc });
 
@@ -347,14 +347,29 @@ describe('tu día', () => {
     expect(within(dia).getByText('Cumplida')).toBeInTheDocument(); // sumar no la vuelve pifiada
   });
 
-  it('una opción sin alimentos se registra con un solo toque', async () => {
+  it('una opción de cena sin alimentos lleva su proteína de 250 gr, que se pesa como todas (decisión explícita)', async () => {
     const user = userEvent.setup();
     const { doc: leer } = renderScreen(<ComidasPage />, { doc: docMedible() });
 
     await user.click(screen.getByRole('button', { name: 'Registrar Cena' }));
     await user.click(screen.getByRole('button', { name: /Milanesa/ }));
+    expect(screen.getByLabelText('Cantidad de milanesa')).toHaveValue(250);
+    await user.click(screen.getByRole('button', { name: 'Menos milanesa' }));
+    await user.click(screen.getByRole('button', { name: 'Registrar' }));
 
-    expect(leer().meals.log[todayISO()][0].matches.options).toEqual([{ slotId: 's2', optionId: 'o2' }]);
+    expect(leer().meals.log[todayISO()][0].matches.options[0].items).toEqual([{ itemId: expect.any(String), qty: 240 }]);
+  });
+
+  it('una opción sin alimentos de OTRA comida (el desayuno) se registra con un solo toque', async () => {
+    const user = userEvent.setup();
+    const doc = docMedible();
+    doc.meals.plans[0].slots[0].options.push({ id: 'o9', text: 'Yogur' });
+    const { doc: leer } = renderScreen(<ComidasPage />, { doc });
+
+    await user.click(screen.getByRole('button', { name: 'Registrar Desayuno' }));
+    await user.click(screen.getByRole('button', { name: /Yogur/ }));
+
+    expect(leer().meals.log[todayISO()][0].matches.options).toEqual([{ slotId: 's1', optionId: 'o9' }]);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
@@ -466,7 +481,7 @@ describe('rediseño Nocturne', () => {
         plans: [{
           id: 'p1', startISO: '2020-01-01', endISO: null,
           slots: [
-            { id: 's1', name: 'Almuerzo', options: [{ id: 'o1', text: 'Pollo con verdura', items: [{ id: 'i1', name: 'pollo', qty: 250, unit: 'gr' }, { id: 'i2', name: 'verdura', qty: 200, unit: 'gr' }] }] },
+            { id: 's1', name: 'Almuerzo', options: [{ id: 'o1', text: 'Pollo con verdura', items: [{ id: 'i1', name: 'pollo', qty: 250, unit: 'gr', tipo: 'proteina' }, { id: 'i2', name: 'verdura', qty: 200, unit: 'gr' }] }] },
             { id: 's2', name: 'Cena', options: [{ id: 'o2', text: 'Milanesa' }] },
           ],
         }],

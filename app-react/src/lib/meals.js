@@ -53,7 +53,7 @@ import { addDays, iso, parseISO, todayD, todayISO } from './dates';
 import { C, PALETTE } from './theme';
 import { comoVenisColumns, regularidadPorRatio, UNIT_ABBR } from './progress';
 import {
-  cantidadEfectiva, claveAlimento, compensaEntreComidas, cumplimientoDeAlimento, cumplimientoEfectivo, esOpcional, esperadoEfectivo,
+  cantidadEfectiva, claveAlimento, penalizaDeMas, toleranciaDe, compensaEntreComidas, cumplimientoDeAlimento, cumplimientoEfectivo, esOpcional, esperadoEfectivo,
 } from './mealRules';
 
 // La versión vigente del plan (la única con endISO:null), o null si todavía no hay
@@ -187,6 +187,25 @@ export function foodKey(name) {
    cien veces más que 3 huevos. Lo `suma`do de otra opción cuenta para el alimento del
    mismo nombre ("sacaste la fruta del pancake y sumaste la del licuado: la fruta cuenta").
    Una opción sin alimentos medibles da 1 — no hay nada que incumplir. */
+/* Sumar de más (regla 8 de lib/mealRules.js): un carbohidrato o una grasa que se sumó a la
+   comida y NO estaba en su plan (una papa extra) es pasarse, y baja la nota. Cuánto: lo que
+   pedía el plan de ese macro sobre lo pedido más lo sumado — con la misma tolerancia que un
+   faltante. Devuelve un cumplimiento (0 a 1) por cada suma que se pasó. Lo sumado que SÍ está
+   en el plan se mide con el alimento mismo (ver itemsCompliance). */
+function ratiosSumaDeMas(option, suma) {
+  const delPlan = new Set(option.items.map((i) => claveAlimento(i.name)));
+  const out = [];
+  suma.forEach((s) => {
+    if (delPlan.has(claveAlimento(s.name)) || !penalizaDeMas(s)) return;
+    const pedido = option.items
+      .filter((i) => i.tipo === s.tipo && (i.unit === 'gr') === (s.unit === 'gr'))
+      .reduce((a, i) => a + i.qty, 0);
+    if (!pedido) return;
+    if (s.qty > toleranciaDe({ tipo: s.tipo, unit: s.unit, qty: pedido, name: s.name })) out.push(pedido / (pedido + s.qty));
+  });
+  return out;
+}
+
 export function itemsCompliance(option, matchedItems, suma = []) {
   // Lo sumado, en cantidades "efectivas" (la fruta por pieza), por alimento/grupo.
   const extra = new Map();
@@ -194,12 +213,13 @@ export function itemsCompliance(option, matchedItems, suma = []) {
   // Las reglas (tolerancias, pasarse, fruta por pieza, verduras opcionales) viven en
   // lib/mealRules.js. Una verdura o ensalada que falta no baja la nota ni entra al promedio.
   const ratios = option.items
-    .filter((item) => item.qty > 0 && !esOpcional(item.name))
+    .filter((item) => item.qty > 0 && !esOpcional(item))
     .map((item) => {
       const m = matchedItems.find((x) => x.itemId === item.id);
       const got = cantidadEfectiva(item.name, m ? m.qty : 0, item.unit, item.qty) + (extra.get(claveAlimento(item.name)) ?? 0);
       return cumplimientoEfectivo({ ...item, qty: esperadoEfectivo(item) }, got);
-    });
+    })
+    .concat(ratiosSumaDeMas(option, suma));
   return ratios.length ? ratios.reduce((a, b) => a + b, 0) / ratios.length : 1;
 }
 
@@ -226,12 +246,13 @@ function compensarDia(franjas) {
     };
     // En cantidades efectivas (la fruta por pieza) y sin las verduras, que no cuentan.
     r.detalle.forEach((it) => {
-      if (esOpcional(it.name)) return;
+      if (esOpcional(it)) return;
       const v = tocar(it.name, it);
       v.got += cantidadEfectiva(it.name, it.got, it.unit, it.expected);
       v.exp += esperadoEfectivo({ name: it.name, qty: it.expected });
     });
-    r.suma.forEach((s) => { if (!esOpcional(s.name)) tocar(s.name, s).got += cantidadEfectiva(s.name, s.qty, s.unit); });
+    r.suma.forEach((s) => { if (!esOpcional(s)) tocar(s.name, s).got += cantidadEfectiva(s.name, s.qty, s.unit); });
+    m.extras = ratiosSumaDeMas(r.option, r.suma);
     return m;
   });
 
@@ -256,6 +277,7 @@ function compensarDia(franjas) {
       }
       ratios.push(cumplimientoEfectivo({ name: v.name, tipo: v.tipo, unit: v.unit, qty: v.exp }, got));
     });
+    ratios.push(...m.extras);
     return ratios.length ? ratios.reduce((a, b) => a + b, 0) / ratios.length : 1;
   });
 }
@@ -530,7 +552,10 @@ export function dayMealSummary(state, dISO, plan = activePlan(state)) {
       .map((e) => ({ entryId: e.id, que: e.libre.que, tipo: libreTipo(e) }));
     const fuera = libres.some((l) => l.tipo === 'permitido') ? 'permitido' : libres.length ? 'sana' : null;
     const pct = registros.length ? Math.max(...registros.map((r) => r.pct)) : null;
-    return { slot, registros, libres, pct, status: franjaStatus(pct, fuera) };
+    // Un permitido anotado en esta comida la vuelve "mala total", aunque también haya algo del
+    // plan registrado (decisión explícita: el permitido en sí hace que esa comida cuente mal).
+    const status = fuera === 'permitido' ? franjaStatus(null, 'permitido') : franjaStatus(pct, fuera);
+    return { slot, registros, libres, pct, status };
   });
 
   // % del DÍA de cada comida: el suyo, ya compensado con lo que sobró de otras comidas

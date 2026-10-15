@@ -155,7 +155,9 @@ describe('las verduras no bajan la nota', () => {
   it('una verdura o ensalada que falta cuenta como cumplida', () => {
     expect(cumplimientoDeAlimento({ name: 'verdura', unit: 'gr', qty: 200 }, 0)).toBe(1);
     expect(cumplimientoDeAlimento({ name: 'ensalada', unit: 'gr', qty: 200 }, 0)).toBe(1);
-    expect(esOpcional('tomate y zanahoria')).toBe(true);
+    expect(esOpcional({ name: 'tomate y zanahoria' })).toBe(true);
+    expect(esOpcional({ name: 'queso untable' })).toBe(true); // sin macro: opcional
+    expect(esOpcional({ name: 'pollo', tipo: 'proteina' })).toBe(false);
   });
 
   it('ni entra al promedio de la comida: pollo completo + sin verdura = cumplida; sin pollo + sin verdura = 0', () => {
@@ -165,5 +167,49 @@ describe('las verduras no bajan la nota', () => {
     ] };
     expect(itemsCompliance(option, [{ itemId: 'a', qty: 250 }, { itemId: 'b', qty: 0 }])).toBe(1);
     expect(itemsCompliance(option, [{ itemId: 'a', qty: 0 }, { itemId: 'b', qty: 0 }])).toBe(0);
+  });
+});
+
+describe('alimentos sin macro, suma de más, proteína de 250 y permitido', () => {
+  const DIA = '2026-10-14';
+  const base = (items, log, nombreFranja = 'Desayuno') => ({
+    meals: {
+      plans: [{ id: 'p', startISO: '2020-01-01', endISO: null, slots: [{ id: 's1', name: nombreFranja, options: [{ id: 'o1', text: 'X', items }] }] }],
+      extras: [],
+      log: { [DIA]: log },
+    },
+  });
+  const reg = (items, suma, extra = {}) => ({
+    id: 'e1', at: 0, text: 't', ...extra,
+    matches: { options: [{ slotId: 's1', optionId: 'o1', items, ...(suma ? { suma } : {}) }], extras: [] },
+  });
+
+  it('un alimento sin macro (queso, salsa) es opcional: si falta no baja la nota', () => {
+    const items = [{ id: 'a', name: 'huevo', qty: 3, tipo: 'proteina' }, { id: 'b', name: 'queso untable', qty: 3 }];
+    const r = dayMealSummary(base(items, [reg([{ itemId: 'a', qty: 3 }, { itemId: 'b', qty: 0 }])]), DIA);
+    expect(r.franjas[0].pct).toBe(1);
+  });
+
+  it('sumar un carbohidrato que no estaba en el plan (papa extra) es pasarse y baja la nota', () => {
+    const items = [{ id: 'a', name: 'pollo', qty: 250, unit: 'gr', tipo: 'proteina' }, { id: 'b', name: 'arroz', qty: 300, unit: 'gr', tipo: 'carbo' }];
+    const sin = dayMealSummary(base(items, [reg([{ itemId: 'a', qty: 250 }, { itemId: 'b', qty: 300 }])]), DIA);
+    const con = dayMealSummary(base(items, [reg([{ itemId: 'a', qty: 250 }, { itemId: 'b', qty: 300 }], [{ optionId: 'x', name: 'papa', qty: 300, unit: 'gr', tipo: 'carbo' }])]), DIA);
+    expect(sin.franjas[0].pct).toBe(1);
+    expect(con.franjas[0].pct).toBeLessThan(1);
+    expect(con.pct).toBeLessThan(1); // y el día también (la compensación no lo tapa)
+  });
+
+  it('sumar verdura, que no tiene macro, no baja nada', () => {
+    const items = [{ id: 'a', name: 'pollo', qty: 250, unit: 'gr', tipo: 'proteina' }];
+    const r = dayMealSummary(base(items, [reg([{ itemId: 'a', qty: 250 }], [{ optionId: 'x', name: 'verdura', qty: 200, unit: 'gr' }])]), DIA);
+    expect(r.franjas[0].pct).toBe(1);
+  });
+
+  it('un permitido anotado en una comida la vuelve mala del todo, aunque también haya algo del plan', () => {
+    const items = [{ id: 'a', name: 'huevo', qty: 3, tipo: 'proteina' }];
+    const log = [reg([{ itemId: 'a', qty: 3 }]), { id: 'p1', at: 1, text: 'pizza', libre: { slotId: 's1', que: 'pizza', tipo: 'permitido' }, matches: { options: [], extras: [] } }];
+    const r = dayMealSummary(base(items, log), DIA);
+    expect(r.franjas[0].status.key).toBe('permitido');
+    expect(r.pct).toBe(0);
   });
 });

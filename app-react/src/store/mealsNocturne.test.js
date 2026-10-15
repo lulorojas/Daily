@@ -20,8 +20,8 @@ function conAlmuerzoIncompleto() {
   const d = vacio();
   const almuerzo = m.addMealSlot(d, { name: 'Almuerzo' });
   const cena = m.addMealSlot(d, { name: 'Cena' });
-  m.addMealOption(d, almuerzo.id, { text: 'Pollo con verdura', items: [{ id: 'i1', name: 'pollo', qty: 250, unit: 'gr' }, { id: 'i2', name: 'verdura', qty: 200, unit: 'gr' }] });
-  m.addMealOption(d, cena.id, { text: 'Ensalada completa', items: [{ id: 'i3', name: 'lechuga', qty: 100, unit: 'gr' }, { id: 'i4', name: 'verdura', qty: 200, unit: 'gr' }] });
+  m.addMealOption(d, almuerzo.id, { text: 'Pollo con verdura', items: [{ id: 'i1', name: 'pollo', qty: 250, unit: 'gr', tipo: 'proteina' }, { id: 'i2', name: 'verdura', qty: 200, unit: 'gr' }] });
+  m.addMealOption(d, cena.id, { text: 'Ensalada completa', items: [{ id: 'i3', name: 'lechuga', qty: 100, unit: 'gr', tipo: 'proteina' }, { id: 'i4', name: 'verdura', qty: 200, unit: 'gr' }] });
   const opcion = activePlan(d).slots[0].options[0];
   const [pollo, verdura] = opcion.items;
   m.addMealLogStructured(d, TODAY, { slotId: almuerzo.id, optionId: opcion.id, qtys: { [pollo.id]: 250, [verdura.id]: 0 } });
@@ -144,5 +144,30 @@ describe('alcohol y permitidos con calendario', () => {
 
     expect(e.libre).toMatchObject({ slotId: almuerzo.id, que: 'helado grande', tipo: 'permitido' });
     expect(e.text).toBe('Almuerzo: helado grande (permitido)');
+  });
+});
+
+describe('almuerzo y cena: toda opción lleva su proteína de 250 gr', () => {
+  it('al cargar el documento, una opción de almuerzo/cena sin alimentos recibe la proteína pesada', () => {
+    const doc = emptyDoc();
+    doc.meals = {
+      plans: [{ id: 'p', startISO: '2020-01-01', endISO: null, slots: [
+        { id: 's1', name: 'Almuerzo', options: [{ id: 'o1', text: 'Milanesa' }] },
+        { id: 's2', name: 'Desayuno', options: [{ id: 'o2', text: 'Yogur' }] },
+      ] }],
+      extras: [], log: {},
+    };
+    const d = normalize(doc);
+    expect(d.meals.plans[0].slots[0].options[0].items).toEqual([{ id: expect.any(String), name: 'milanesa', qty: 250, unit: 'gr', tipo: 'proteina' }]);
+    expect(d.meals.plans[0].slots[1].options[0].items).toBeUndefined();
+  });
+
+  it('crear una opción de cena sin alimentos también la completa; con alimentos propios, no se toca', () => {
+    const d = vacio();
+    const cena = m.addMealSlot(d, { name: 'Cena' });
+    const a = m.addMealOption(d, cena.id, { text: 'Milanesa' });
+    const b = m.addMealOption(d, cena.id, { text: 'Pasta', items: [{ id: 'x', name: 'pasta', qty: 300, unit: 'gr', tipo: 'carbo' }] });
+    expect(a.items[0]).toMatchObject({ qty: 250, unit: 'gr', tipo: 'proteina' });
+    expect(b.items).toHaveLength(1);
   });
 });

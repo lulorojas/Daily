@@ -570,7 +570,7 @@ describe('comidas', () => {
 
     it('agregar/editar/borrar una opción dentro de una franja', () => {
       const d = vacio();
-      const slot = m.addMealSlot(d, { name: 'Almuerzo' });
+      const slot = m.addMealSlot(d, { name: 'Merienda' });
       const opt = m.addMealOption(d, slot.id, { text: 'Milanesa con ensalada' });
       expect(activePlan(d).slots[0].options).toEqual([{ id: opt.id, text: 'Milanesa con ensalada' }]);
 
@@ -608,7 +608,7 @@ describe('comidas', () => {
       it('la unidad "u" no se guarda (es el default); "gr" sí', () => {
         const d = vacio();
         const slot = m.addMealSlot(d, { name: 'Almuerzo' });
-        m.addMealOption(d, slot.id, { text: 'Pollo', items: [{ id: 'i1', name: 'pollo', qty: 250, unit: 'gr' }, { id: 'i2', name: 'papa', qty: 3, unit: 'u' }] });
+        m.addMealOption(d, slot.id, { text: 'Pollo', items: [{ id: 'i1', name: 'pollo', qty: 250, unit: 'gr', tipo: 'proteina' }, { id: 'i2', name: 'papa', qty: 3, unit: 'u' }] });
         const [pollo, papa] = activePlan(d).slots[0].options[0].items;
         expect(pollo.unit).toBe('gr');
         expect('unit' in papa).toBe(false);
@@ -616,7 +616,7 @@ describe('comidas', () => {
 
       it('sin ítems, la opción no tiene la clave items en absoluto', () => {
         const d = vacio();
-        const slot = m.addMealSlot(d, { name: 'Almuerzo' });
+        const slot = m.addMealSlot(d, { name: 'Merienda' });
         m.addMealOption(d, slot.id, { text: 'Milanesa', items: [] });
         expect('items' in activePlan(d).slots[0].options[0]).toBe(false);
       });
@@ -624,7 +624,7 @@ describe('comidas', () => {
       it('editar sacándole todos los ítems borra la clave, el nombre queda', () => {
         const d = vacio();
         const slot = m.addMealSlot(d, { name: 'Desayuno' });
-        const opt = m.addMealOption(d, slot.id, { text: 'Tostadas', items: [{ id: 'i1', name: 'tostada', qty: 3 }] });
+        const opt = m.addMealOption(d, slot.id, { text: 'Tostadas', items: [{ id: 'i1', name: 'tostada', qty: 3, tipo: 'proteina' }] });
 
         m.updateMealOption(d, slot.id, opt.id, { text: 'Tostadas', items: [] });
 
@@ -755,7 +755,7 @@ describe('comidas', () => {
   describe('bitácora diaria', () => {
     it('agregar una entrada corre el matching y lo guarda junto con el texto', () => {
       const d = vacio();
-      const slot = m.addMealSlot(d, { name: 'Almuerzo' });
+      const slot = m.addMealSlot(d, { name: 'Merienda' });
       m.addMealOption(d, slot.id, { text: 'Milanesa con ensalada' });
       const entry = m.addMealLogEntry(d, TODAY, 'Comí milanesa con ensalada');
 
@@ -803,7 +803,7 @@ describe('comidas', () => {
         const slot = m.addMealSlot(d, { name: 'Desayuno' });
         const opt = m.addMealOption(d, slot.id, {
           text: 'Panes con huevo',
-          items: [{ id: 'i1', name: 'pan', qty: 3 }, { id: 'i2', name: 'fruta', qty: 200, unit: 'gr' }],
+          items: [{ id: 'i1', name: 'pan', qty: 3, tipo: 'proteina' }, { id: 'i2', name: 'fruta', qty: 200, unit: 'gr' }],
         });
         return { d, slot, opt };
       }
@@ -832,11 +832,11 @@ describe('comidas', () => {
 
       it('una opción sin ítems guarda el match sin items', () => {
         const d = vacio();
-        const slot = m.addMealSlot(d, { name: 'Almuerzo' });
+        const slot = m.addMealSlot(d, { name: 'Merienda' });
         const opt = m.addMealOption(d, slot.id, { text: 'Milanesa' });
         const entry = m.addMealLogStructured(d, TODAY, { slotId: slot.id, optionId: opt.id });
         expect(entry.matches.options).toEqual([{ slotId: slot.id, optionId: opt.id }]);
-        expect(entry.text).toBe('Almuerzo: Milanesa');
+        expect(entry.text).toBe('Merienda: Milanesa');
       });
 
       it('suma alimentos de otra opción (pedido explícito: "arroz con pollo con un wok de verduras")', () => {
@@ -866,7 +866,7 @@ describe('comidas', () => {
     it('lo que se saca (cantidad 0) aparece como "sin …" en el texto', () => {
       const d = vacio();
       const slot = m.addMealSlot(d, { name: 'Desayuno' });
-      const opt = m.addMealOption(d, slot.id, { text: 'Panes', items: [{ id: 'i1', name: 'pan', qty: 3 }, { id: 'i2', name: 'fruta', qty: 200, unit: 'gr' }] });
+      const opt = m.addMealOption(d, slot.id, { text: 'Panes', items: [{ id: 'i1', name: 'pan', qty: 3, tipo: 'proteina' }, { id: 'i2', name: 'fruta', qty: 200, unit: 'gr' }] });
       const entry = m.addMealLogStructured(d, TODAY, { slotId: slot.id, optionId: opt.id, qtys: { i2: 0 } });
       expect(entry.text).toBe('Desayuno: Panes (3 pan — sin fruta)');
     });
@@ -877,7 +877,7 @@ describe('comidas', () => {
       function registrado() {
         const d = vacio();
         const slot = m.addMealSlot(d, { name: 'Desayuno' });
-        const opt = m.addMealOption(d, slot.id, { text: 'Panes', items: [{ id: 'i1', name: 'pan', qty: 3 }, { id: 'i2', name: 'fruta', qty: 200, unit: 'gr' }] });
+        const opt = m.addMealOption(d, slot.id, { text: 'Panes', items: [{ id: 'i1', name: 'pan', qty: 3, tipo: 'proteina' }, { id: 'i2', name: 'fruta', qty: 200, unit: 'gr' }] });
         const entry = m.addMealLogStructured(d, TODAY, { slotId: slot.id, optionId: opt.id, qtys: { i2: 0 } });
         return { d, slot, opt, entry };
       }
@@ -902,7 +902,7 @@ describe('comidas', () => {
       it('una entrada escrita a mano conserva su texto (solo cambia el match)', () => {
         const d = vacio();
         const slot = m.addMealSlot(d, { name: 'Desayuno' });
-        const opt = m.addMealOption(d, slot.id, { text: 'Panes', items: [{ id: 'i1', name: 'pan', qty: 3 }] });
+        const opt = m.addMealOption(d, slot.id, { text: 'Panes', items: [{ id: 'i1', name: 'pan', qty: 3, tipo: 'proteina' }] });
         m.addMealExtra(d, { name: 'Café', color: '#fff', icon: 'agua' });
         const entry = m.addMealLogEntry(d, TODAY, 'comí 2 panes con café');
         m.updateMealLogStructured(d, TODAY, entry.id, { slotId: slot.id, optionId: opt.id, qtys: { i1: 3 } });
@@ -1145,7 +1145,7 @@ describe('comidas', () => {
       m.loadMealPlanTemplate(d, plantilla);
       const opt = activePlan(d).slots[0].options[0];
       opt.items[0].qty = 2;                                   // ajustó una cantidad
-      opt.items.push({ id: 'mio', name: 'palta', qty: 1 });   // agregó algo propio
+      opt.items.push({ id: 'mio', name: 'palta', qty: 1, tipo: 'proteina' });   // agregó algo propio
 
       expect(m.restoreFromMealTemplate(d, plantilla)).toBe(0);
       expect(opt.items[0].qty).toBe(2);

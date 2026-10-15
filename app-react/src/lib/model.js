@@ -73,6 +73,7 @@
 import { REST } from './gym';
 import { todayISO } from './dates';
 import { uid } from './ids';
+import { llevaProteina, proteinaImplicita } from './mealRules';
 
 /* Copia profunda. structuredClone conserva todo (incluso claves con undefined); el
    fallback por JSON es para entornos viejos. Se clona porque en React el estado tiene
@@ -104,6 +105,18 @@ function migrateMealsPlan(meals) {
   if (meals.plans || !meals.plan) return;
   meals.plans = [{ id: uid(), startISO: todayISO(), endISO: null, slots: meals.plan }];
   delete meals.plan;
+}
+
+/* Almuerzo y cena llevan una proteína de 250 gr (decisión explícita: "las milanesas también se
+   pesan"). Una opción de esas comidas sin ningún alimento medible se completa con ella.
+   Idempotente: una opción que ya tiene alimentos no se toca. */
+function migrateProteinaImplicita(meals) {
+  meals.plans?.forEach((plan) => plan.slots?.forEach((slot) => {
+    if (!llevaProteina(slot.name)) return;
+    slot.options?.forEach((o) => {
+      if (o.text && !o.items?.length) o.items = [proteinaImplicita(o.text, uid())];
+    });
+  }));
 }
 
 /* Migración única, seguimiento por músculo: un día viejo tenía `type`/`type2` (un solo
@@ -176,6 +189,7 @@ export function normalize(input) {
   // Si ya existe (por mínimo que sea), se sanean sus sub-campos por las dudas.
   if (s.meals) {
     migrateMealsPlan(s.meals);
+    migrateProteinaImplicita(s.meals);
     s.meals.plans ||= [];
     s.meals.extras ||= [];
     s.meals.log ||= {};
