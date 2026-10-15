@@ -1,13 +1,11 @@
 import { useState } from 'react';
 import { PeriodSelector } from '../components/progreso/PeriodSelector';
 import { ProgComoVenis } from '../components/progreso/ProgComoVenis';
-import { ProgWeeklyFreq } from '../components/progreso/ProgWeeklyFreq';
+import { ProgLastTrained } from '../components/progreso/ProgLastTrained';
 import { ProgComoComes } from '../components/progreso/ProgComoComes';
 import { ProgMealScore } from '../components/progreso/ProgMealScore';
 import { ProgBodyWeight } from '../components/progreso/ProgBodyWeight';
-import { ProgRanking } from '../components/progreso/ProgRanking';
-import { ProgBalance } from '../components/progreso/ProgBalance';
-import { ProgGymHeatmap } from '../components/progreso/ProgGymHeatmap';
+import { ProgTipos } from '../components/progreso/ProgTipos';
 import { ProgCargas } from '../components/progreso/ProgCargas';
 import { ProgGymStreaks } from '../components/progreso/ProgGymStreaks';
 import { useData } from '../hooks/useData';
@@ -16,44 +14,28 @@ import { progStart } from '../lib/progress';
 /* ============================================================================
    PROGRESO
 
-   Port de viewProgreso(). Un tablero de solo lectura: consolida números que ya viven en
-   Gimnasio y Hábitos, sin agregar ninguna colección nueva al documento y sin escribir
-   nada — ni un update() en toda la pantalla. El selector de período de arriba recorta
-   TODO lo de abajo de una sola vez.
+   Port de viewProgreso(), redibujada en el rediseño Nocturne. Un tablero de solo lectura:
+   consolida números que ya viven en Gimnasio, Hábitos y Comidas, sin agregar ninguna
+   colección nueva al documento y sin escribir nada — ni un update() en toda la pantalla.
+   El selector de período de arriba (Semana, Mes, 3 meses, 6 meses, Año, Todo) recorta casi
+   todo lo de abajo de una sola vez; "Rachas" y "Último entreno" miran siempre el
+   presente.
 
-   Bloques siempre en el mismo orden que la app vanilla. Cada uno decide su propio estado
-   vacío (EmptyCard adentro de cada componente), porque el mensaje cambia según qué falta:
-   no es lo mismo "no tenés hábitos" que "no tenés datos en este recorte".
+   Orden de los bloques (en escritorio, en una grilla de 12 columnas):
+     Cómo venís                                  (ancho completo — lo más importante)
+     Cómo comés (7) | ¿Comiste bien? (5)
+     Último entreno (6) | Entrenamientos por tipo (6)
+     Progreso de carga (6) | Rachas (6)
+     Peso corporal                               (ancho completo, al final)
+   En el celular van todos en una columna, en el mismo orden.
 
-   Etapa 6, pedido explícito de Lulo: Progreso tiene que girar en torno a entrenamientos,
-   así que se sacaron dos de los tres bloques de hábitos que traía vanilla — "Mapa de
-   hábitos" (heatmap) y "Rachas" (racha por hábito) — y quedó solo "Cumplimiento de
-   hábitos".
-
-   Etapa 7, misma dirección: se sacaron "Frecuencia de entrenamiento" (barras semanales)
-   y el "Cumplimiento de hábitos" que había quedado de la etapa 6 — Progreso queda sin
-   NINGÚN bloque de hábitos. En el lugar de Frecuencia va ProgGymHeatmap, un mapa de calor
-   día por día de las sesiones de entreno — mismo dibujo que tenía el "Mapa de hábitos" de
-   la etapa 6, pero contando gimnasio en vez de hábitos. Ninguna de estas piezas tiene
-   equivalente en vanilla — no hay contra qué comparar acá, así que
-   src/compat/screens.test.jsx compensa sacando de vanilla las cuatro secciones que ya no
-   están en React ("Mapa de hábitos", "Rachas", "Frecuencia de entrenamiento",
-   "Cumplimiento de hábitos") y sacando de React las que vanilla no tiene ("Cómo venís",
-   "Frecuencia semanal", "Mapa de entrenamientos").
-
-   Segunda vuelta de este rediseño, pedido explícito ("la pantalla resumen no sirve"): se
-   sacó el bloque "Resumen" (ResumenTiles) entero — ya no queda ninguna sección que se
-   calcule aparte y se superponga con lo que ya cuentan "Cómo venís"/"Entrenamientos por
-   tipo". Por el mismo pedido, "Resumen" entra a la lista de arriba que
-   src/compat/screens.test.jsx le saca a vanilla antes de comparar texto (vanilla sigue
-   teniéndolo, React ya no).
-
-   Tercera vuelta, pedido explícito ("quiero que a nivel seguimiento daily entienda si
-   estoy comiendo bien o mal" + "¿dónde lo mostrás? — en Progreso, junto a Cómo venís"):
-   se agrega ProgComoComes, calco de ProgComoVenis para el plan de comidas — ver
-   comoComes() en lib/meals.js. Tampoco tiene equivalente en vanilla, mismo tratamiento
-   que "Cómo venís" en screens.test.jsx. Al lado, ProgMealScore ("¿Comiste bien?",
-   pedido explícito): cuántas comidas salieron bien y cuántas no, por columna. */
+   Qué se fue respecto de la versión anterior (rediseño Nocturne):
+     - "Frecuencia semanal" y el "Mapa de entrenamientos" → "Último entreno", que dice
+       cuándo fue la última vez de cada tipo en vez de promedios;
+     - "Entrenamientos por tipo" y "Balance muscular" → una sola tarjeta con la dona.
+   Ninguna de las dos cosas tenía equivalente en vanilla, así que no hay contra qué
+   comparar: src/compat/screens.test.jsx ya compensa las secciones que React tiene y
+   vanilla no ("Cómo venís", "Cómo comés", "¿Comiste bien?", "Último entreno"). */
 export function ProgresoPage() {
   const { data } = useData();
   const [period, setPeriod] = useState('mes');
@@ -61,9 +43,11 @@ export function ProgresoPage() {
 
   return (
     <div className="view">
-      <div className="head">
-        <h1>Progreso</h1>
-        <div className="sub">Tu evolución, en un solo lugar.</div>
+      <div className="head proghead">
+        <div className="progtitle">
+          <h1>Progreso</h1>
+          <div className="sub">Tu evolución, en un solo lugar.</div>
+        </div>
         <div className="progselector-wrap">
           <PeriodSelector value={period} onChange={setPeriod} />
         </div>
@@ -71,16 +55,13 @@ export function ProgresoPage() {
 
       <div className="body prog2">
         <ProgComoVenis data={data} per={period} />
-        <ProgWeeklyFreq data={data} per={period} />
-        <ProgComoComes data={data} per={period} />
-        <ProgMealScore data={data} per={period} />
-
+        <ProgComoComes data={data} per={period} className="span-7" />
+        <ProgMealScore data={data} per={period} className="span-5" />
+        <ProgLastTrained data={data} className="span-6" />
+        <ProgTipos data={data} per={period} start={start} className="span-6" />
+        <ProgCargas data={data} per={period} className="span-6" />
+        <ProgGymStreaks data={data} className="span-6" />
         <ProgBodyWeight data={data} per={period} start={start} />
-        <ProgRanking data={data} per={period} start={start} />
-        <ProgBalance data={data} per={period} start={start} />
-        <ProgGymHeatmap data={data} per={period} />
-        <ProgCargas data={data} per={period} start={start} />
-        <ProgGymStreaks data={data} />
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { ProgresoPage } from './ProgresoPage';
 import { renderScreen } from '../test/utils';
 import { emptyDoc, fullDoc, thisMonday } from '../test/fixtures';
+import { DOW_SHORT, dow, parseISO } from '../lib/dates';
 
 /* ============================================================================
    PROGRESO
@@ -97,7 +98,6 @@ describe('estados vacíos: "sin datos" no es lo mismo que "sin datos en este rec
   it('cuenta nueva: cada sección explica que falta cargar algo', () => {
     renderScreen(<ProgresoPage />, { doc: emptyDoc() });
     expect(screen.getByText('Cargá tu peso para ver la tendencia.')).toBeInTheDocument();
-    expect(screen.getByText('Marcá entrenamientos para ver tu mapa.')).toBeInTheDocument();
     expect(screen.getByText('Agregá ejercicios en Gimnasio para seguir tus cargas.')).toBeInTheDocument();
   });
 
@@ -111,25 +111,28 @@ describe('estados vacíos: "sin datos" no es lo mismo que "sin datos en este rec
     renderScreen(<ProgresoPage />, { doc });
 
     await user.click(screen.getByRole('button', { name: 'Semana' }));
-    expect(screen.getByText(/Necesitás al menos dos registros/)).toBeInTheDocument();
+    expect(screen.getByText(/Necesitás al menos dos marcas/)).toBeInTheDocument();
     expect(screen.queryByText('Agregá ejercicios en Gimnasio para seguir tus cargas.')).not.toBeInTheDocument();
   });
 });
 
 describe('las otras secciones', () => {
-  it('el balance muscular y el ranking usan los mismos datos, dos formas de verlo', () => {
-    renderScreen(<ProgresoPage />, { doc: fullDoc() });
-    expect(screen.getByText('Balance muscular')).toBeInTheDocument();
+  it('el ranking y el balance muscular son una sola tarjeta: la dona y la lista (rediseño Nocturne)', () => {
+    const { container } = renderScreen(<ProgresoPage />, { doc: fullDoc() });
     expect(screen.getByText('Entrenamientos por tipo')).toBeInTheDocument();
+    expect(screen.queryByText('Balance muscular')).not.toBeInTheDocument();
+    const tarjeta = container.querySelector('.tipos');
+    expect(tarjeta.querySelector('.tipos-donut svg')).toBeTruthy();
+    expect(tarjeta.querySelectorAll('.tipos-row').length).toBeGreaterThan(0);
   });
 
   it('las rachas de entrenamiento son "estado actual": no cambian con el período', async () => {
     const user = userEvent.setup();
     renderScreen(<ProgresoPage />, { doc: fullDoc() });
 
-    const antes = screen.getByText('Rachas de entrenamiento').closest('.sect').textContent;
+    const antes = screen.getByText('Rachas de entrenamiento').closest('.progcard').textContent;
     await user.click(screen.getByRole('button', { name: 'Semana' }));
-    const despues = screen.getByText('Rachas de entrenamiento').closest('.sect').textContent;
+    const despues = screen.getByText('Rachas de entrenamiento').closest('.progcard').textContent;
 
     expect(despues).toBe(antes);
   });
@@ -142,24 +145,19 @@ describe('las otras secciones', () => {
     expect(screen.getAllByText('Abs').length).toBeGreaterThan(0);
   });
 
-  it('el mapa de entrenamientos aparece con entrenos cargados (etapa 7)', () => {
+  it('"Último entreno" reemplaza al mapa y a la frecuencia semanal, y no depende del período', async () => {
+    const user = userEvent.setup();
     renderScreen(<ProgresoPage />, { doc: fullDoc() });
-    expect(screen.getByText('Mapa de entrenamientos')).toBeInTheDocument();
+    expect(screen.getByText('Último entreno')).toBeInTheDocument();
+    expect(screen.queryByText('Mapa de entrenamientos')).not.toBeInTheDocument();
+    expect(screen.queryByText('Frecuencia semanal')).not.toBeInTheDocument();
+
+    const antes = screen.getByText('Último entreno').closest('.progcard').textContent;
+    await user.click(screen.getByRole('button', { name: 'Semana' }));
+    expect(screen.getByText('Último entreno').closest('.progcard').textContent).toBe(antes);
   });
 
-  it('un día con abs marcado pinta una celda del mapa, no la deja vacía (etapa 7)', () => {
-    const doc = fullDoc();
-    const semana = Object.keys(doc.gym.weekPlans)[0];
-    doc.gym.weekPlans[semana][0].absCategories = ['core'];
-    const lunes = semana; // weekPlans[semana][0] es justo el lunes de esa semana
-    const { container } = renderScreen(<ProgresoPage />, { doc });
-
-    const celda = container.querySelector(`.heatcell[data-date="${lunes}"]`);
-    expect(celda).toBeTruthy();
-    expect(celda.style.background).not.toBe('rgba(255, 255, 255, 0.05)');
-  });
-
-  it('abs solo (sin turno de músculo) no cuenta como entreno ni pinta el mapa, aunque sigue en la matriz (pedido explícito)', () => {
+  it('un día con abs marcado cuenta en "Último entreno": no queda como "3 sem+" (etapa 7)', () => {
     const doc = emptyDoc();
     doc.gym.weekPlans[thisMonday] = [
       { muscles: [], done: false, absCategories: ['core'] },
@@ -167,36 +165,53 @@ describe('las otras secciones', () => {
     ];
     const { container } = renderScreen(<ProgresoPage />, { doc });
 
-    const tileEntrenos = screen.getByText('ENTRENOS').closest('.tile');
+    const fila = [...container.querySelectorAll('.lasttrained .last-list .last-grid')].find((r) => r.textContent.includes('Abs'));
+    expect(fila).toBeTruthy();
+    expect(fila.querySelector('.last-ago')).not.toHaveTextContent('3 sem+');
+  });
+
+  it('abs solo (sin turno de músculo) no cuenta como entreno, aunque sigue en la matriz (pedido explícito)', () => {
+    const doc = emptyDoc();
+    doc.gym.weekPlans[thisMonday] = [
+      { muscles: [], done: false, absCategories: ['core'] },
+      ...Array.from({ length: 6 }, () => ({ muscles: [], done: false })),
+    ];
+    renderScreen(<ProgresoPage />, { doc });
+
+    const tileEntrenos = screen.getByText('ENTRENOS').closest('.venis-stat');
     expect(within(tileEntrenos).getByText('0')).toBeInTheDocument();
     expect(screen.getAllByText('Abs').length).toBeGreaterThan(0);
-
-    const celda = container.querySelector(`.heatcell[data-date="${thisMonday}"]`);
-    expect(celda.style.background).toBe('rgba(255, 255, 255, 0.05)');
   });
 
-  it('"Cómo venís" es horizontal: los músculos son columnas, el total va en una fila al final', () => {
+  it('"Cómo venís": un renglón por tipo, con una casilla por columna y el total al final', () => {
     const { container } = renderScreen(<ProgresoPage />, { doc: fullDoc() });
-    const cabecera = container.querySelector('.comovenis-headrow');
-    expect(within(cabecera).getByText('Pecho')).toBeInTheDocument();
-    expect(within(cabecera).getByText('Espalda')).toBeInTheDocument();
-    expect(container.querySelector('.comovenis-totalrow')).toBeTruthy();
+    const cabecera = container.querySelector('.venis-head');
+    expect(cabecera).toHaveTextContent('TIPO');
+    expect(cabecera).toHaveTextContent('TOTAL');
+    const nombres = [...container.querySelectorAll('.venis-nm')].map((n) => n.textContent);
+    expect(nombres).toContain('Pecho');
+    expect(nombres).toContain('Espalda');
+    expect(container.querySelectorAll('.venis-total').length).toBeGreaterThan(0);
   });
 
-  it('la frecuencia semanal es una sección nueva, separada de "Cómo venís"', () => {
-    renderScreen(<ProgresoPage />, { doc: fullDoc() });
-    const sect = screen.getByText('Frecuencia semanal').closest('.sect');
-    expect(sect).toBeTruthy();
-    expect(within(sect).getAllByText(/\/sem$/).length).toBeGreaterThan(0);
+  it('el selector tiene 3 y 6 meses, y recortan a una columna por mes', async () => {
+    const user = userEvent.setup();
+    const { container } = renderScreen(<ProgresoPage />, { doc: fullDoc() });
+    await user.click(screen.getByRole('button', { name: '3 meses' }));
+    expect(container.querySelector('.venis-head')).toHaveTextContent(/TIPO.*TOTAL/);
+    expect(container.querySelector('.venis-head').children).toHaveLength(3 + 2); // tipo + 3 meses + total
+    await user.click(screen.getByRole('button', { name: '6 meses' }));
+    expect(container.querySelector('.venis-head').children).toHaveLength(6 + 2);
   });
 
   it('"Cómo comés" invita a armar el plan cuando todavía no hay ninguno', () => {
     renderScreen(<ProgresoPage />, { doc: fullDoc() });
-    const sect = screen.getByText('Cómo comés').closest('.sect');
+    const sect = screen.getByText('Cómo comés').closest('.progcard');
     expect(within(sect).getByText(/Armá tu plan de comidas/)).toBeInTheDocument();
   });
 
-  it('"Cómo comés" muestra la franja y avisa de un extra a evitar que apareció (pedido explícito: seguimiento de comidas)', () => {
+  it('"Cómo comés" muestra la franja y avisa de un extra a evitar que apareció (pedido explícito: seguimiento de comidas)', async () => {
+    const user = userEvent.setup();
     const doc = fullDoc();
     doc.meals = {
       plans: [{ id: 'p1', startISO: thisMonday, endISO: null, slots: [{ id: 's1', name: 'Almuerzo', options: [{ id: 'o1', text: 'Milanesa' }] }] }],
@@ -209,8 +224,13 @@ describe('las otras secciones', () => {
     };
     renderScreen(<ProgresoPage />, { doc });
 
-    const sect = screen.getByText('Cómo comés').closest('.sect');
-    expect(within(sect).getByLabelText('Almuerzo: Cumplida')).toBeInTheDocument();
+    const sect = screen.getByText('Cómo comés').closest('.progcard');
+    // El día elegido por defecto es hoy; se toca el anillo del día con el registro y aparece
+    // su detalle comida por comida.
+    const f = parseISO(thisMonday);
+    await user.click(sect.querySelector(`[aria-label="${DOW_SHORT[dow(f)]} ${f.getDate()}"]`));
+    const franja = [...sect.querySelectorAll('.ring-slot')].find((r) => r.textContent.includes('Almuerzo'));
+    expect(franja).toHaveTextContent('Cumplida');
     expect(within(sect).getByText(/Alcohol: 1 vez en este período/)).toBeInTheDocument();
   });
 
@@ -235,11 +255,14 @@ describe('las otras secciones', () => {
     };
     renderScreen(<ProgresoPage />, { doc });
 
-    const sect = screen.getByText('Cómo comés').closest('.sect');
-    expect(within(sect).getByText('Le pifiaste: Desayuno, Cena')).toBeInTheDocument();
-    expect(within(sect).getByText('Permitido: pizza, un alfajor')).toBeInTheDocument();
+    const sect = screen.getByText('Cómo comés').closest('.progcard');
+    expect(within(sect).getByText('CON PIFIADAS')).toBeInTheDocument(); // el veredicto del día
+    expect(within(sect).getByText(/^pizza · /)).toBeInTheDocument();
+    expect(within(sect).getByText(/^un alfajor · /)).toBeInTheDocument();
     expect(within(sect).getByText('PERMITIDOS').nextSibling).toHaveTextContent('2');
-    expect(within(sect).getByText(/Dónde más le pifiás: Desayuno \(1\), Cena \(1\)/)).toBeInTheDocument();
+    const filas = [...sect.querySelectorAll('.comes-bar')].map((r) => r.textContent);
+    expect(filas).toContain('Desayuno1');
+    expect(filas).toContain('Cena1');
   });
 
   it('"Cómo comés" desglosa el cumplimiento por macro cuando hay ítems clasificados (pedido explícito: "con qué soy más regular")', () => {
@@ -260,7 +283,7 @@ describe('las otras secciones', () => {
     };
     renderScreen(<ProgresoPage />, { doc });
 
-    const sect = screen.getByText('Cómo comés').closest('.sect');
+    const sect = screen.getByText('Cómo comés').closest('.progcard');
     expect(within(sect).getByText('Carbohidratos')).toBeInTheDocument();
     expect(within(sect).getByText('100%')).toBeInTheDocument();
     expect(within(sect).getByText('Proteínas')).toBeInTheDocument();
@@ -287,26 +310,28 @@ describe('las otras secciones', () => {
     };
     renderScreen(<ProgresoPage />, { doc });
 
-    const sect = screen.getByText('¿Comiste bien?').closest('.sect');
-    expect(within(sect).getByText('BIEN').nextSibling).toHaveTextContent('1');
-    expect(within(sect).getByText('LE PIFIASTE').nextSibling).toHaveTextContent('1');
-    expect(within(sect).getByText('De las 2 comidas que registraste, 50% estuvieron bien.')).toBeInTheDocument();
+    const sect = screen.getByText('¿Comiste bien?').closest('.progcard');
+    expect(within(sect).getByText('50%')).toBeInTheDocument();
+    expect(within(sect).getByText('de las 2 comidas que registraste estuvieron bien.')).toBeInTheDocument();
+    expect(within(sect).getByText(/^Bien 1$/)).toBeInTheDocument();
+    expect(within(sect).getByText(/^Le pifiaste 1$/)).toBeInTheDocument();
   });
 
-  it('tocar una celda del mapa despliega el globito con qué se entrenó ese día, y tocar afuera lo cierra', async () => {
+  it('"¿Comiste bien?": tocar un tramo de la barra abre el globito con el número, y tocar de nuevo lo cierra', async () => {
     const user = userEvent.setup();
     const doc = fullDoc();
-    const semana = Object.keys(doc.gym.weekPlans)[0];
-    doc.gym.weekPlans[semana][0] = { type: 'Espalda', done: true };
+    doc.meals = {
+      plans: [{ id: 'p1', startISO: thisMonday, endISO: null, slots: [{ id: 's1', name: 'Desayuno', options: [{ id: 'o1', text: 'Panes', items: [{ id: 'i1', name: 'pan', qty: 3 }] }] }] }],
+      extras: [],
+      log: { [thisMonday]: [{ id: 'a', at: 0, text: 't', matches: { options: [{ slotId: 's1', optionId: 'o1', items: [{ itemId: 'i1', qty: 3 }] }], extras: [] } }] },
+    };
     const { container } = renderScreen(<ProgresoPage />, { doc });
 
-    const celda = container.querySelector(`.heatcell[data-date="${semana}"]`);
-    expect(container.querySelector('.heatcell-tip')).toBeFalsy();
-
-    await user.click(celda);
-    expect(container.querySelector('.heatcell-tip')).toHaveTextContent('Espalda');
-
-    await user.click(document.body);
-    expect(container.querySelector('.heatcell-tip')).toBeFalsy();
+    const tramo = container.querySelector('.score-seg.bien');
+    expect(container.querySelector('.score-tip')).toBeFalsy();
+    await user.click(tramo);
+    expect(container.querySelector('.score-tip')).toHaveTextContent('1 bien');
+    await user.click(container.querySelector('.score-seg.bien'));
+    expect(container.querySelector('.score-tip')).toBeFalsy();
   });
 });

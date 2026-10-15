@@ -659,7 +659,11 @@ export function comoComesPorDia(state, per) {
       days.push({
         dISO,
         pct: r.pct,
-        franjas: r.franjas.map((f) => ({ name: f.slot.name, status: f.status })),
+        franjas: r.franjas.map((f) => ({
+          name: f.slot.name, status: f.status, pct: f.pct,
+          // qué permitido ocupó esta comida (si fue un permitido en lugar de la comida)
+          libres: f.libres.filter((l) => l.tipo === 'permitido').map((l) => l.que),
+        })),
         pifiadas: r.franjas.filter((f) => PIFIADA.has(f.status.key)).map((f) => f.slot.name),
         sinRegistrar: r.pendientes.length,
         permitidos: [
@@ -667,6 +671,7 @@ export function comoComesPorDia(state, per) {
           ...r.sueltos.filter((s) => s.tipo === 'permitido').map((s) => s.que),
         ],
         sueltos: r.sueltos.filter((s) => s.tipo === 'permitido').length,
+        sueltosNombres: r.sueltos.filter((s) => s.tipo === 'permitido').map((s) => s.que),
       });
     }
   }
@@ -682,6 +687,9 @@ export function comoComesPorDia(state, per) {
     days,
     diasBien: days.filter((d) => !d.pifiadas.length && !d.sueltos && !d.sinRegistrar).length,
     diasConPifiadas: days.filter((d) => d.pifiadas.length || d.sueltos).length,
+    // Las tres clases son excluyentes y suman el total de días: bien / con pifiadas / el
+    // resto (le faltaron comidas por registrar, sin pifiadas) = incompleto.
+    diasIncompletos: days.filter((d) => !(d.pifiadas.length || d.sueltos) && d.sinRegistrar > 0).length,
     pifiadasPorFranja,
     permitidos: days.flatMap((d) => d.permitidos.map((que) => ({ dISO: d.dISO, que }))),
   };

@@ -10,6 +10,8 @@ import { LiftDetailModal } from '../components/gym/LiftDetailModal';
 import { LiftRecordModal } from '../components/gym/LiftRecordModal';
 import { TypesManager } from '../components/gym/TypesManager';
 import { WeeklyFrequency } from '../components/gym/WeeklyFrequency';
+import { LiftChart } from '../components/ui/LiftChart';
+import { ListCard } from '../components/ui/ListCard';
 import { Section } from '../components/ui/Section';
 import { BookIcon } from '../components/ui/Icons';
 import { useData } from '../hooks/useData';
@@ -46,6 +48,8 @@ export function GymPage() {
   });
   const [expandido, setExpandido] = useState(null);
   const [modal, setModal] = useState(null);
+  // Qué ejercicio muestra el gráfico de Cargas (por defecto, el primero de la lista).
+  const [liftSel, setLiftSel] = useState(null);
 
   const plan = weekPlanFor(data, offset);
   // Entrenamientos dobles: se cuentan TURNOS, no días — un día con sus dos turnos hechos
@@ -73,6 +77,7 @@ export function GymPage() {
 
       <div className="body">
         <WeekPlan
+          className="gym-plan"
           data={data}
           plan={plan}
           weekLabel={weekLabel}
@@ -93,15 +98,42 @@ export function GymPage() {
           onToggleMovilidad={(i) => update((draft) => toggleMovilidad(draft, weekKey(offset), i))}
         />
 
-        <Section label="Cargas por ejercicio" note={null} action={<span className="sectcount">{data.gym.lifts.length} ejercicios</span>}>
-          {data.gym.lifts.map((l) => (
-            <LiftCard key={l.id} lift={l} maxCur={maxCur} onOpen={() => setModal({ kind: 'lift-detail', liftId: l.id })} />
-          ))}
-          <button type="button" className="dashed" onClick={() => setModal({ kind: 'lift-new' })}>+ Agregar ejercicio</button>
-        </Section>
+        {/* Cargas: arriba el gráfico del ejercicio elegido, abajo la lista (tocar una fila la
+            elige) y el botón de agregar. En vanilla era solo la lista, y tocar una fila abría
+            el detalle: ahora el detalle se abre desde el botón del gráfico. */}
+        <div className="gym-lifts">
+          <ListCard title="Cargas por ejercicio" count={`${data.gym.lifts.length} ejercicios`} accent="var(--color-neutral-500)">
+            {data.gym.lifts.length > 0 && (
+              <div className="liftchart-panel">
+                <LiftChart
+                  lifts={data.gym.lifts}
+                  selected={liftSel ?? data.gym.lifts[0].id}
+                  onSelect={setLiftSel}
+                  chips={false}
+                  compact
+                  action={(
+                    <button
+                      type="button" className="liftchart-detail"
+                      onClick={() => setModal({ kind: 'lift-detail', liftId: liftSel ?? data.gym.lifts[0].id })}
+                    >
+                      Ver registros
+                    </button>
+                  )}
+                />
+              </div>
+            )}
+            <div className="liftlist">
+              {data.gym.lifts.map((l) => (
+                <LiftCard key={l.id} lift={l} maxCur={maxCur} selected={l.id === (liftSel ?? data.gym.lifts[0].id)} onSelect={() => setLiftSel(l.id)} />
+              ))}
+            </div>
+            <button type="button" className="dashed" onClick={() => setModal({ kind: 'lift-new' })}>+ Agregar ejercicio</button>
+          </ListCard>
+        </div>
 
-        <WeeklyFrequency data={data} />
+        <div className="gym-freq"><WeeklyFrequency data={data} /></div>
 
+        <div className="gym-side">
         <BodyWeightSection
           data={data}
           onNew={() => setModal({ kind: 'body-new' })}
@@ -124,6 +156,7 @@ export function GymPage() {
             <span className="rutentry-chev">&#8250;</span>
           </Link>
         </Section>
+        </div>
       </div>
 
       {modal?.kind === 'types' && <TypesManager onClose={() => setModal(null)} />}

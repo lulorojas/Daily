@@ -1,86 +1,94 @@
-import { EmptyCard, Section } from '../ui/Section';
+import { useState } from 'react';
+import { CheckSquareOffset } from '@phosphor-icons/react';
 import { activePlan, mealScoreByPeriod } from '../../lib/meals';
 import { C } from '../../lib/theme';
 
 /* ----------------------------- ¿COMISTE BIEN? -----------------------------
    Pedido explícito: "un gráfico que según lapsos de tiempo [diga] cuántas comidas estuve
    bien y cuántas le pifié". Una barra por columna del período elegido arriba (días en
-   Semana, semanas en Mes, meses en Año, trimestres en Todo — el mismo recorte que "Cómo
-   venís"), apilada en tres colores: bien, le pifiaste, y sin registrar (más tenue,
-   porque no anotar no es lo mismo que comer mal). Toda la cuenta vive en
-   mealScoreByPeriod() (lib/meals.js).
+   Semana, semanas en Mes, meses en 3 y 6 meses y Año, trimestres en Todo — el mismo recorte
+   que "Cómo venís"), apilada en tres tramos: bien (verde), le pifiaste (rojo) y sin
+   registrar (punteado, más tenue: no anotar no es lo mismo que comer mal). Toda la cuenta
+   vive en mealScoreByPeriod() (lib/meals.js).
 
-   Mismas barras CSS que Frecuencia semanal de Gimnasio (.freqbars/.freqseg): con pocas
-   columnas no hace falta un SVG. */
-const SIN_REGISTRAR = 'rgba(242,244,248,.16)';
-const SEGMENTOS = [
-  { key: 'bien', label: 'Bien', color: C.green },
-  { key: 'pifie', label: 'Le pifiaste', color: C.danger },
-  { key: 'sinRegistrar', label: 'Sin registrar', color: SIN_REGISTRAR },
+   Rediseño Nocturne: el porcentaje de comidas bien va grande arriba, y la cantidad de cada
+   tramo ya no se lee de una leyenda sino TOCANDO el tramo: aparece un globito con el número
+   y el nombre. `tip` guarda cuál está abierto, como { barra, tramo }; tocar el mismo lo
+   cierra. Cada tramo es un botón (accesible por teclado), no un div con onClick. */
+const TRAMOS = [
+  { key: 'sinRegistrar', label: 'sin registrar', legend: 'Sin registrar', color: 'rgba(233,233,237,.4)' },
+  { key: 'pifie', label: 'le pifiaste', legend: 'Le pifiaste', color: C.danger },
+  { key: 'bien', label: 'bien', legend: 'Bien', color: C.green },
 ];
 
-export function ProgMealScore({ data, per }) {
+export function ProgMealScore({ data, per, className = '' }) {
+  const [tip, setTip] = useState(null);
   const sinPlan = !activePlan(data)?.slots.length;
   const s = mealScoreByPeriod(data, per);
   const max = Math.max(1, ...s.bars.map((b) => b.bien + b.pifie + b.sinRegistrar));
   const hayAlgo = s.total.bien + s.total.pifie + s.total.sinRegistrar > 0;
 
   return (
-    <Section label="¿Comiste bien?" action={<span className="mono comovenis-win">{s.winLabel.toUpperCase()}</span>}>
-      {sinPlan ? (
-        <EmptyCard size="tight">Armá tu plan de comidas (sección Comidas) para ver cómo te va.</EmptyCard>
-      ) : !hayAlgo ? (
-        <EmptyCard size="tight">Todavía no registraste comidas en este período.</EmptyCard>
-      ) : (
-        <div className="bigcard">
-          <div className="tiles">
-            <div className="tile">
-              <div className="mono tile-k">BIEN</div>
-              <div className="v comovenis-statv" style={{ color: C.green }}>{s.total.bien}</div>
-            </div>
-            <div className="tile">
-              <div className="mono tile-k">LE PIFIASTE</div>
-              <div className="v comovenis-statv" style={{ color: C.danger }}>{s.total.pifie}</div>
-            </div>
-            <div className="tile">
-              <div className="mono tile-k">SIN REGISTRAR</div>
-              <div className="v comovenis-statv">{s.total.sinRegistrar}</div>
-            </div>
-          </div>
+    <section className={`card progcard score ${className}`}>
+      <div className="listcard-head">
+        <CheckSquareOffset size={16} color="var(--green)" aria-hidden="true" />
+        <h2 className="listcard-title">¿Comiste bien?</h2>
+        <span className="progcard-win">{s.winLabel}</span>
+      </div>
 
+      {sinPlan ? (
+        <div className="empty">Armá tu plan de comidas (sección Comidas) para ver cómo te va.</div>
+      ) : !hayAlgo ? (
+        <div className="empty">Todavía no registraste comidas en este período.</div>
+      ) : (
+        <>
           {s.pctBien !== null && (
-            <div className="mealscore-msg">
-              De las {s.total.bien + s.total.pifie} comidas que registraste, {Math.round(s.pctBien * 100)}% estuvieron bien.
+            <div className="score-big">
+              <span className="score-pct">{Math.round(s.pctBien * 100)}%</span>
+              <span className="score-msg">de las {s.total.bien + s.total.pifie} comidas que registraste estuvieron bien.</span>
             </div>
           )}
 
-          <div className="freqbars">
-            {s.bars.map((b) => (
-              <div className="freqcol" key={b.from}>
-                <div
-                  className="freqbar"
-                  aria-label={`${b.label}: ${b.bien} bien, ${b.pifie} le pifiaste, ${b.sinRegistrar} sin registrar`}
-                >
-                  {SEGMENTOS.filter((g) => b[g.key] > 0).map((g) => (
-                    <div
-                      key={g.key}
-                      className="freqseg"
-                      style={{ height: `${(b[g.key] / max) * 100}%`, background: g.color }}
-                    />
-                  ))}
+          <div className="score-bars">
+            {s.bars.map((b, bi) => {
+              const total = b.bien + b.pifie + b.sinRegistrar;
+              return (
+                <div className="score-col" key={b.from}>
+                  <div
+                    className="score-bar"
+                    style={{ height: `${Math.max(6, (total / max) * 100)}%` }}
+                    aria-label={`${b.label}: ${b.bien} bien, ${b.pifie} le pifiaste, ${b.sinRegistrar} sin registrar`}
+                  >
+                    {TRAMOS.filter((t) => b[t.key] > 0).map((t) => {
+                      const abierto = tip && tip.bi === bi && tip.key === t.key;
+                      return (
+                        <button
+                          type="button" key={t.key} className={`score-seg ${t.key}${abierto ? ' on' : ''}`} style={{ flex: b[t.key] }}
+                          aria-label={`${b.label}: ${b[t.key]} ${t.label}`}
+                          onClick={() => setTip(abierto ? null : { bi, key: t.key })}
+                        >
+                          {abierto && (
+                            <span className="score-tip" style={{ borderColor: t.color, boxShadow: `0 8px 20px rgba(0,0,0,.5), 0 0 14px ${t.color}` }}>
+                              <b style={{ color: t.color }}>{b[t.key]}</b> {t.label}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <span className={`score-lbl${b.current ? ' now' : ''}`}>{b.label}</span>
                 </div>
-                <span className={`mono freqlbl${b.current ? ' mealscore-now' : ''}`}>{b.label}</span>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
-          <div className="mealscore-legend">
-            {SEGMENTOS.map((g) => (
-              <span key={g.key}><span className="cargas-dot" style={{ background: g.color }} />{g.label}</span>
-            ))}
+          <div className="score-legend">
+            <span><span style={{ background: C.green }} />Bien {s.total.bien}</span>
+            <span><span style={{ background: C.danger }} />Le pifiaste {s.total.pifie}</span>
+            <span><span className="dashed" />Sin registrar {s.total.sinRegistrar}</span>
           </div>
-        </div>
+        </>
       )}
-    </Section>
+    </section>
   );
 }

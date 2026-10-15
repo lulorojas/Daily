@@ -303,6 +303,14 @@ describe('peso corporal', () => {
   });
 });
 
+/* Rediseño Nocturne: tocar una fila de Cargas ahora ELIGE el ejercicio para el gráfico de
+   arriba; el detalle (registros, récord, eliminar) se abre con el botón "Ver registros" del
+   gráfico. Los tests que abrían el detalle tocando la fila hacen los dos pasos. */
+async function abrirDetalle(user, nombre) {
+  await user.click(screen.getByRole('button', { name: nombre }));
+  await user.click(screen.getByRole('button', { name: 'Ver registros' }));
+}
+
 describe('cargas por ejercicio', () => {
   it('cargar un ejercicio existente agrega un registro sin cambiar de nombre', async () => {
     const user = userEvent.setup();
@@ -341,16 +349,16 @@ describe('cargas por ejercicio', () => {
     const user = userEvent.setup();
     renderScreen(<GymPage />, { doc: doc() });
 
-    await user.click(screen.getByRole('button', { name: /Sentadilla/ }));
+    await abrirDetalle(user, /Sentadilla/);
     expect(screen.getByRole('dialog', { name: 'Sentadilla' })).toBeInTheDocument();
-    expect(screen.getByText('72.5')).toBeInTheDocument(); // el peso actual, también el récord
+    expect(within(screen.getByRole('dialog', { name: 'Sentadilla' })).getByText('72.5')).toBeInTheDocument(); // el peso actual, también el récord
   });
 
   it('no se puede borrar el único registro de un ejercicio', async () => {
     const user = userEvent.setup();
     renderScreen(<GymPage />, { doc: doc() });
 
-    await user.click(screen.getByRole('button', { name: /Press banca/ })); // un solo registro
+    await abrirDetalle(user, /Press banca/); // un solo registro
     await user.click(screen.getByRole('button', { name: 'Eliminar registro' }));
     expect(screen.getByText('No se puede borrar')).toBeInTheDocument();
   });
@@ -359,7 +367,7 @@ describe('cargas por ejercicio', () => {
     const user = userEvent.setup();
     const { doc: leer } = renderScreen(<GymPage />, { doc: doc() });
 
-    await user.click(screen.getByRole('button', { name: /Peso muerto/ }));
+    await abrirDetalle(user, /Peso muerto/);
     await user.click(screen.getByRole('button', { name: 'Eliminar ejercicio' }));
     await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Eliminar' }));
 
@@ -407,7 +415,7 @@ describe('cargas por ejercicio', () => {
     it('editar un registro puede agregarle repeticiones, y se ven en el detalle', async () => {
       const user = userEvent.setup();
       renderScreen(<GymPage />, { doc: doc() });
-
+      await abrirDetalle(user, /Sentadilla/);
       await user.click(screen.getByRole('button', { name: /Sentadilla/ }));
       await user.click(screen.getAllByRole('button', { name: 'Editar registro' })[0]); // el más nuevo
       await user.type(screen.getByPlaceholderText('Ej: 5'), '3');

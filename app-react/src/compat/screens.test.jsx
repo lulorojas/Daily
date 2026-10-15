@@ -259,28 +259,25 @@ describe('Hábitos dice exactamente lo mismo que la app vanilla', () => {
 // y no tiene que caer en el mismo corte.
 const SIN_EQUIVALENTE_EN_REACT = ['Mapa de hábitos', 'Rachas', 'Frecuencia de entrenamiento', 'Cumplimiento de hábitos', 'Resumen'];
 
+/* Rediseño Nocturne: Progreso dejó de ser un port de viewProgreso(). Se fusionaron
+   tarjetas ("Entrenamientos por tipo" + "Balance muscular"), el progreso de carga pasó a ser
+   un gráfico por ejercicio, las rachas llevan barras de ocho semanas, y se agregaron
+   "Cómo venís", "Cómo comés", "¿Comiste bien?" y "Último entreno", que vanilla no tiene. El
+   texto de la pantalla entera ya no es comparable. Lo único que sigue siendo el mismo
+   contenido, con el mismo cálculo, es "Peso corporal": se compara solo esa sección, que es
+   la red de seguridad que queda contra vanilla para esta pantalla (las cuentas de rachas,
+   ranking y cargas siguen comparadas número por número en vanilla.test.js). */
 function progresoVanilla(doc, per = 'mes') {
   V.setState(V.normalize(clone(doc)));
   V.ui.tab = 'progreso'; V.ui.progPeriod = per;
   const cont = vanillaHTML(V.viewProgreso());
-  cont.querySelectorAll('.sect').forEach((sect) => {
-    const label = sect.querySelector('.sectlabel')?.textContent;
-    if (SIN_EQUIVALENTE_EN_REACT.includes(label)) sect.remove();
-  });
-  return texto(cont);
+  const sect = [...cont.querySelectorAll('.sect')].find((x) => x.querySelector('.sectlabel')?.textContent === 'Peso corporal');
+  return texto(sect);
 }
-
-// "Cómo venís" (rediseño "Glass + aurora"), "Mapa de entrenamientos" (etapa 7),
-// "Frecuencia semanal" y "Cómo comés" (seguimiento de adherencia al plan de comidas) son
-// 100% React, vanilla no las tiene, así que se sacan de este lado antes de comparar.
-const SIN_EQUIVALENTE_EN_VANILLA = ['Cómo venís', 'Mapa de entrenamientos', 'Frecuencia semanal', 'Cómo comés', '¿Comiste bien?'];
 
 function progresoReact(doc) {
   const { container } = renderScreen(<ProgresoPage />, { doc: clone(doc) });
-  container.querySelectorAll('.sect').forEach((sect) => {
-    if (SIN_EQUIVALENTE_EN_VANILLA.includes(sect.querySelector('.sectlabel')?.textContent)) sect.remove();
-  });
-  return texto(container);
+  return texto(container.querySelector('.peso'));
 }
 
 /* Dos diferencias de texto esperadas, las dos a propósito, las dos se quitan de los dos

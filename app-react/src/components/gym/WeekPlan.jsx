@@ -1,4 +1,5 @@
-import { ChevronLeftIcon, ChevronRightIcon, ChipChevronIcon, CrossIcon, HabitCheckIcon, PencilIcon, PlusIcon } from '../ui/Icons';
+import { CaretLeft, CaretRight } from '@phosphor-icons/react';
+import { ChipChevronIcon, CrossIcon, HabitCheckIcon, PencilIcon, PlusIcon } from '../ui/Icons';
 import { DOW_SHORT, dow, todayD } from '../../lib/dates';
 import { CORE_CATS, CORE_CAT_LABELS, REST, allTypes, dayAbs, dayTurnos, describeAbs, typeColor } from '../../lib/gym';
 import { C, tint } from '../../lib/theme';
@@ -40,26 +41,35 @@ import { C, tint } from '../../lib/theme';
 export function WeekPlan({
   data, plan, weekLabel, turnosHechos, turnosTotal, diasDobles, diasAbs, isCurrentWeek,
   expandido, onExpandir, onSemana, onToggleMusculo, onHecho,
-  onAddTurno, onRemoveTurno, onAdministrar, onToggleAbsCat, onToggleMovilidad,
+  onAddTurno, onRemoveTurno, onAdministrar, onToggleAbsCat, onToggleMovilidad, className = '',
 }) {
   const hoyIdx = dow(todayD());
 
   return (
-    <div className="sect">
-      <div className="sectrow">
-        <span className="sectlabel">Plan semanal</span>
-        <div className="weekstrip weeknav">
+    <div className={`card plancard sweep ${className}`}>
+      <div className="plancard-head">
+        <h2 className="listcard-title">Plan semanal</h2>
+        <div className="weeknav">
           <button type="button" className="nb" onClick={() => onSemana(-1)} aria-label="Semana anterior">
-            <ChevronLeftIcon />
+            <CaretLeft size={14} aria-hidden="true" />
           </button>
           <span className="weeklabel">{weekLabel}</span>
           <button type="button" className="nb" onClick={() => onSemana(1)} aria-label="Semana siguiente">
-            <ChevronRightIcon />
+            <CaretRight size={14} aria-hidden="true" />
           </button>
         </div>
       </div>
 
-      <div className="card plancard">
+      {/* Tres stats de la semana (rediseño, sin equivalente en vanilla): el número de esta
+          semana, no de un período. data-weekstats, no clase: así src/compat/screens.test.jsx
+          lo puede sacar del DOM antes de comparar texto contra vanilla. */}
+      <div className="planstats" data-weekstats="true">
+        <div className="planstat"><div className="planstat-k">Entrenos</div><div className="planstat-v accent">{turnosHechos}/{turnosTotal}</div></div>
+        <div className="planstat"><div className="planstat-k">Doble turno</div><div className="planstat-v">{diasDobles} {diasDobles === 1 ? 'día' : 'días'}</div></div>
+        <div className="planstat"><div className="planstat-k">Abs</div><div className="planstat-v">{diasAbs} {diasAbs === 1 ? 'día' : 'días'}</div></div>
+      </div>
+
+      <div className="planlist">
         {plan.map((d, i) => {
           const turnos = dayTurnos(d);
           const abs = dayAbs(d);
@@ -224,26 +234,6 @@ export function WeekPlan({
             </div>
           );
         })}
-      </div>
-
-      {/* Tres stats de la semana (rediseño "Glass + aurora", sin equivalente en vanilla ni
-          en etapas anteriores): mismas tiles que ya usa Progreso, reutilizadas acá con la
-          cuenta de ESTA semana en vez de un período completo. data-weekstats, no clase:
-          así src/compat/screens.test.jsx lo puede sacar del DOM antes de comparar texto
-          contra vanilla, igual que ya hacía con .turno-agregar/[data-absrow]. */}
-      <div className="tiles" data-weekstats="true">
-        <div className="tile">
-          <div className="mono tile-k">TURNOS</div>
-          <div className="v">{turnosHechos}/{turnosTotal}</div>
-        </div>
-        <div className="tile">
-          <div className="mono tile-k">DOBLE TURNO</div>
-          <div className="v">{diasDobles}</div>
-        </div>
-        <div className="tile">
-          <div className="mono tile-k">ABS</div>
-          <div className="v">{diasAbs}</div>
-        </div>
       </div>
 
       <button type="button" className="dashed managetypes" onClick={onAdministrar}>

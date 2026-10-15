@@ -1,93 +1,103 @@
-import { EmptyCard, Section } from '../ui/Section';
+import { Barbell } from '@phosphor-icons/react';
 import { comoVenis } from '../../lib/progress';
 import { tint } from '../../lib/theme';
 
 /* ----------------------------- CÓMO VENÍS -----------------------------
-   Nueva en el rediseño "Glass + aurora" (handoff Glass Progreso v2.dc.html): el propio
-   handoff la marca como "lo más importante" de Progreso, así que va primera. Sin boceto
-   de vanilla que portar — toda la cuenta vive en comoVenis() (lib/progress.js), acá solo
-   se dibuja la matriz músculo × columna y la lista de avisos.
+   Nueva en el rediseño "Glass + aurora" y redibujada en Nocturne. El propio handoff la
+   marca como "lo más importante" de Progreso, así que va primera. Toda la cuenta vive en
+   comoVenis() (lib/progress.js): acá solo se dibuja.
 
-   Tabla INVERTIDA (pedido explícito, segunda vuelta: "lo de como venis debe ser una tabla
-   horizontal porq es muy grande"): el músculo es la COLUMNA y el período (día/semana/mes/
-   trimestre) es la FILA — al revés de la primera versión, que tenía un músculo por fila y
-   se volvía angosta e ilegible con 'año' (12 columnas) o muchos músculos a la vez. Con
-   pocos músculos pero hasta 12 períodos, apilar los períodos verticalmente entra mejor en
-   una pantalla angosta que estirar 12 columnas horizontales.
+   Arriba, las tres cifras del período y los avisos (en dos columnas en escritorio). Abajo,
+   un renglón por tipo: el nombre con su regularidad, una casilla por columna del período
+   (día, semana, mes o trimestre) y el total. En escritorio la lista se parte en dos mitades
+   lado a lado para que no quede una torre larga y angosta.
 
-   La intensidad de cada celda (0/1/2/3+) es un tinte del color del músculo, no una escala
+   La intensidad de cada casilla (0/1/2/3+) es un tinte del color del músculo, no una escala
    fija: así "3 veces" se ve igual de sólido sea cual sea el acento de ese músculo. */
 function cellStyle(cell, color) {
-  if (cell.futuro) return { background: 'transparent' };
-  if (cell.v === 0) return { background: 'rgba(255,255,255,.04)' };
-  const bg = cell.v >= 3 ? color : cell.v === 2 ? tint(color, 'B3') : tint(color, '55');
-  return { background: bg, color: cell.v >= 2 ? '#0A0C11' : '#F2F4F8' };
+  if (cell.futuro) return { background: 'transparent', border: '1px solid transparent' };
+  if (cell.v === 0) return { background: 'rgba(233,233,237,.04)', border: '1px solid rgba(233,233,237,.05)' };
+  const fuerte = cell.v >= 3;
+  return {
+    background: fuerte ? color : cell.v === 2 ? tint(color, 'B3') : tint(color, '55'),
+    color: cell.v >= 2 ? '#161826' : 'var(--color-text)',
+    border: `1px solid ${tint(color, '66')}`,
+    boxShadow: fuerte ? `0 0 10px ${tint(color, '66')}` : 'none',
+  };
 }
 
-export function ProgComoVenis({ data, per }) {
-  const v = comoVenis(data, per);
-  const hayDatos = v.rows.some((r) => r.total > 0);
-  const cols = `52px repeat(${v.rows.length}, minmax(0, 1fr))`;
-
+function Filas({ rows, v }) {
+  const cols = `minmax(0, 1.5fr) repeat(${v.cols.length}, minmax(0, 1fr)) 34px`;
   return (
-    <Section label="Cómo venís" wide action={<span className="mono comovenis-win">{v.winLabel.toUpperCase()}</span>}>
-      <div className="bigcard">
-        <div className="tiles">
-          {v.stats.map((s) => (
-            <div className="tile" key={s.k}>
-              <div className="mono tile-k">{s.k}</div>
-              <div className="v comovenis-statv">{s.v}</div>
+    <div className="venis-list">
+      <div className="venis-row venis-head" style={{ gridTemplateColumns: cols }}>
+        <span>TIPO</span>
+        {v.cols.map((c, i) => <span key={i} className={i === v.current ? 'on' : ''}>{c.label}</span>)}
+        <span className="r">TOTAL</span>
+      </div>
+      {rows.map((r) => (
+        <div className="venis-row" style={{ gridTemplateColumns: cols }} key={r.name}>
+          <div className="venis-name">
+            <span className="venis-bar" style={{ background: r.color, boxShadow: `0 0 8px ${r.color}` }} />
+            <div>
+              <span className="venis-nm">{r.name}</span>
+              <span className="venis-st" style={{ color: r.status.color }}>{r.status.label}</span>
+            </div>
+          </div>
+          {r.cells.map((c, i) => (
+            <div key={i} className={`venis-cell${c.current ? ' current' : ''}`} style={cellStyle(c, r.color)}>
+              {c.futuro ? '' : c.v || '·'}
             </div>
           ))}
+          <span className="venis-total" style={{ color: r.color }}>{r.total}</span>
         </div>
+      ))}
+    </div>
+  );
+}
 
-        {hayDatos ? (
-          <>
-            <div className="comovenis-grid comovenis-headrow" style={{ gridTemplateColumns: cols }}>
-              <span />
-              {v.rows.map((r) => (
-                <div className="comovenis-colhead" key={r.name}>
-                  <span className="comovenis-colhead-name"><span className="comovenis-dot" style={{ background: r.color }} />{r.name}</span>
-                  <span className="mono comovenis-status" style={{ color: r.status.color }}>{r.status.label}</span>
+export function ProgComoVenis({ data, per, className = '' }) {
+  const v = comoVenis(data, per);
+  const hayDatos = v.rows.some((r) => r.total > 0);
+  const mitad = Math.ceil(v.rows.length / 2);
+
+  return (
+    <section className={`card progcard sweep venis ${className}`}>
+      <div className="listcard-head">
+        <Barbell size={16} color="var(--teal)" aria-hidden="true" />
+        <h2 className="listcard-title">Cómo venís</h2>
+        <span className="progcard-win">{v.winLabel}</span>
+      </div>
+
+      {hayDatos ? (
+        <>
+          <div className="venis-top">
+            <div className="venis-stats">
+              {v.stats.map((s, i) => (
+                <div className={`venis-stat${i === 0 ? ' first' : ''}`} key={s.k}>
+                  <div className="venis-stat-k">{s.k}</div>
+                  <div className="venis-stat-v">{s.v}</div>
                 </div>
               ))}
             </div>
-
-            {v.cols.map((c, i) => (
-              <div className="comovenis-grid" style={{ gridTemplateColumns: cols }} key={i}>
-                <span className={`mono comovenis-rowlabel${i === v.current ? ' on' : ''}`}>{c.label}</span>
-                {v.rows.map((r) => (
-                  <div
-                    key={r.name}
-                    className={`mono comovenis-cell${r.cells[i].current ? ' current' : ''}`}
-                    style={cellStyle(r.cells[i], r.color)}
-                  >
-                    {r.cells[i].futuro ? '' : r.cells[i].v || '·'}
-                  </div>
-                ))}
-              </div>
-            ))}
-
-            <div className="comovenis-grid comovenis-totalrow" style={{ gridTemplateColumns: cols }}>
-              <span className="mono comovenis-rowlabel">TOTAL</span>
-              {v.rows.map((r) => (
-                <span key={r.name} className="fr comovenis-totalcell">{r.total}</span>
-              ))}
-            </div>
-
-            <div className="comovenis-alerts">
+            <div className="venis-alerts">
               {v.alerts.map((a, i) => (
-                <div className="comovenis-alert" key={i}>
-                  <span className="comovenis-alert-ic" style={{ background: tint(a.color, '26'), color: a.color }}>{a.icon}</span>
+                <div className="venis-alert" key={i}>
+                  <span className="venis-alert-ic" style={{ background: tint(a.color, '26'), color: a.color }}>{a.icon}</span>
                   <span>{a.text}</span>
                 </div>
               ))}
             </div>
-          </>
-        ) : (
-          <EmptyCard size="tight">Todavía no hay entrenos en este período.</EmptyCard>
-        )}
-      </div>
-    </Section>
+          </div>
+
+          <div className="venis-lists">
+            <Filas rows={v.rows.slice(0, mitad)} v={v} />
+            {v.rows.length > mitad && <Filas rows={v.rows.slice(mitad)} v={v} />}
+          </div>
+        </>
+      ) : (
+        <div className="empty">Todavía no hay entrenos en este período.</div>
+      )}
+    </section>
   );
 }

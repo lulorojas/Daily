@@ -1,5 +1,5 @@
 import { LineChart } from '../ui/LineChart';
-import { EmptyCard, Section } from '../ui/Section';
+import { Scales } from '@phosphor-icons/react';
 import { bodyList } from '../../lib/gym';
 import { inPeriod, progLabel, progPeriodNote } from '../../lib/progress';
 import { fmtNum, shortDate } from '../../lib/dates';
@@ -10,17 +10,21 @@ import { C, tint } from '../../lib/theme';
    período (`log[log.length-1]`, no el último DENTRO de la ventana): el período solo
    recorta la tendencia de abajo, no el dato actual. Es la misma distinción que hace
    "en los últimos 7 días" al lado de la variación, y no al lado del número grande. */
-export function ProgBodyWeight({ data, per, start }) {
+export function ProgBodyWeight({ data, per, start, className = '' }) {
   const log = bodyList(data);
 
   return (
-    <Section label="Peso corporal">
+    <section className={`card progcard peso ${className}`}>
+      <div className="listcard-head">
+        <Scales size={16} color="var(--rose)" aria-hidden="true" />
+        <h2 className="listcard-title">Peso corporal</h2>
+      </div>
       {log.length === 0 ? (
-        <EmptyCard size="tight">Cargá tu peso para ver la tendencia.</EmptyCard>
+        <div className="empty">Cargá tu peso para ver la tendencia.</div>
       ) : (
         <BodyWeightCard log={log} per={per} start={start} />
       )}
-    </Section>
+    </section>
   );
 }
 
@@ -31,7 +35,7 @@ function BodyWeightCard({ log, per, start }) {
   const gain = hayTend ? +(win[win.length - 1].kg - win[0].kg).toFixed(1) : 0;
 
   return (
-    <div className="bigcard">
+    <div className="peso-body">
       <div className="bigcard-top">
         <div className="bigcard-val">
           <span className="fr bigcard-num">{fmtNum(cur.kg)}</span>

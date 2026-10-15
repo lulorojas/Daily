@@ -3,7 +3,7 @@ import { normalize } from './model';
 import { habitBestStreak, habitDayMarks, habitDayPossible, habitDone, habitStreak } from './habits';
 import { gymHistory, gymRanking, gymSessions, gymTypeStreaks, liftGains, bodyList, weekPlanFor } from './gym';
 import { agendaDe, pendVisible, pendientes, tareasDe } from './agenda';
-import { comoVenis, comoVenisColumns, dayProgress, progHeatmapWindow, progStart, inPeriod } from './progress';
+import { comoVenis, comoVenisColumns, dayProgress, lastTrained, progHeatmapWindow, progStart, inPeriod } from './progress';
 import { addDays, iso, mondayOf, parseISO, todayD } from './dates';
 import { TODAY, YESTERDAY, TOMORROW, ago, thisMonday, mondayAgo, fullDoc, emptyDoc } from '../test/fixtures';
 
@@ -333,5 +333,40 @@ describe('comoVenis: regularidad por ratio (cuenta la semana actual)', () => {
 
   it('4 de 4 (las cuatro semanas, incluida la actual) → "REGULAR"', () => {
     expect(statusDePecho([0, 1, 2, 3])).toBe('REGULAR');
+  });
+});
+
+/* Rediseño Nocturne: los períodos de 3 y 6 meses y "Último entreno". */
+describe('3 y 6 meses (rediseño Nocturne)', () => {
+  it('arrancan el 1º del mes, 2 y 5 meses atrás (el mes en curso cuenta)', () => {
+    const t = todayD();
+    expect(progStart('3m')).toBe(iso(new Date(t.getFullYear(), t.getMonth() - 2, 1)));
+    expect(progStart('6m')).toBe(iso(new Date(t.getFullYear(), t.getMonth() - 5, 1)));
+  });
+
+  it('"Cómo venís" tiene una columna por mes y la última es la actual', () => {
+    const c3 = comoVenisColumns('3m'), c6 = comoVenisColumns('6m');
+    expect(c3.cols).toHaveLength(3);
+    expect(c6.cols).toHaveLength(6);
+    expect(c6.current).toBe(5);
+    expect(c3.cols[2].from).toBe(iso(new Date(todayD().getFullYear(), todayD().getMonth(), 1)));
+  });
+});
+
+describe('lastTrained: "Último entreno"', () => {
+  it('mira tres semanas de siete días, las dos anteriores y la actual', () => {
+    const v = lastTrained(normalize(fullDoc()));
+    expect(v.weekHeads).toHaveLength(3);
+    expect(v.weekHeads[2].current).toBe(true);
+    v.rows.forEach((r) => {
+      expect(r.weeks).toHaveLength(3);
+      r.weeks.forEach((w) => expect(w).toHaveLength(7));
+    });
+  });
+
+  it('lo que no se entrenó en las tres semanas va primero (ago = null), después de más viejo a más nuevo', () => {
+    const { rows } = lastTrained(normalize(fullDoc()));
+    const agos = rows.map((r) => (r.ago === null ? Infinity : r.ago));
+    expect(agos).toEqual([...agos].sort((a, b) => b - a));
   });
 });

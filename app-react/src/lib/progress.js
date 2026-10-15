@@ -8,7 +8,7 @@ import { ABS_TYPE, allTypes, gymHistory, gymSessions, typeColor } from './gym';
 import { C } from './theme';
 
 // [clave, etiqueta]. El inicio de cada ventana lo calcula progStart(), más abajo.
-export const PROG_PERIODS = [['semana', 'Semana'], ['mes', 'Mes'], ['ano', 'Año'], ['todo', 'Todo']];
+export const PROG_PERIODS = [['semana', 'Semana'], ['mes', 'Mes'], ['3m', '3 meses'], ['6m', '6 meses'], ['ano', 'Año'], ['todo', 'Todo']];
 
 function periodOf(key) { return PROG_PERIODS.find((x) => x[0] === key) || PROG_PERIODS[1]; }
 
@@ -28,6 +28,9 @@ export function progStart(key) {
   switch (periodOf(key)[0]) {
     case 'semana': return iso(mondayOf(t));
     case 'mes': return iso(addDays(mondayOf(t), -21));           // esta semana + las 3 anteriores
+    // 3 y 6 meses (rediseño Nocturne): el mes en curso + los 2 / 5 anteriores, desde el 1º.
+    case '3m': return iso(new Date(t.getFullYear(), t.getMonth() - 2, 1));
+    case '6m': return iso(new Date(t.getFullYear(), t.getMonth() - 5, 1));
     case 'ano': return iso(new Date(t.getFullYear(), t.getMonth() - 11, 1));
     default: return null;                                         // 'todo'
   }
@@ -38,7 +41,7 @@ export function progLabel(key) { return periodOf(key)[1]; }
 export function inPeriod(dISO, startISO) { return !startISO || dISO >= startISO; }
 
 export function progPeriodNote(key) {
-  return { semana: 'esta semana', mes: 'en las últimas 4 semanas', ano: 'en los últimos 12 meses', todo: 'todavía' }[key] || '';
+  return { semana: 'esta semana', mes: 'en las últimas 4 semanas', '3m': 'en los últimos 3 meses', '6m': 'en los últimos 6 meses', ano: 'en los últimos 12 meses', todo: 'todavía' }[key] || '';
 }
 
 /* Ventana en semanas para los gráficos de barras y el heatmap: nunca menos de 8 ni más
@@ -170,6 +173,16 @@ export function comoVenisColumns(per) {
       return { from: iso(mon), to: iso(sun), label: `${sun.getDate()}/${sun.getMonth() + 1}` };
     });
     return { cols, current: 3, unit: 'semana', unitPl: 'semanas', winLabel: 'Últimas 4 semanas' };
+  }
+  if (per === '3m' || per === '6m') {
+    // Una columna por mes de calendario, con el nombre abreviado (hay lugar de sobra).
+    const n = per === '3m' ? 3 : 6;
+    const cols = Array.from({ length: n }, (_, i) => {
+      const m = new Date(t.getFullYear(), t.getMonth() - (n - 1 - i), 1);
+      const end = new Date(m.getFullYear(), m.getMonth() + 1, 0);
+      return { from: iso(m), to: iso(end), label: MONTHS[m.getMonth()].slice(0, 3) };
+    });
+    return { cols, current: n - 1, unit: 'mes', unitPl: 'meses', winLabel: `Últimos ${n} meses` };
   }
   if (per === 'ano') {
     const cols = Array.from({ length: 12 }, (_, i) => {
@@ -313,4 +326,38 @@ export function comoVenis(state, per) {
   }
 
   return { winLabel, unit, unitAbbr, unitPl, cols, current, rows, stats, alerts };
+}
+
+/* ----------------------------- ÚLTIMO ENTRENO POR MÚSCULO -----------------------------
+   Rediseño Nocturne ("Último entreno"): en vez de "cuántas veces por semana", cuándo fue la
+   última vez de cada músculo. Mira SIEMPRE las dos semanas anteriores y la actual (no
+   depende del período elegido arriba: es "cómo estoy ahora"), un día por casillero, y
+   ordena por lo que hace más tiempo que no se entrena — lo que no aparece en esas tres
+   semanas va primero, porque es lo más urgente.
+
+   `ago` son los días desde el último entrenamiento DENTRO de la ventana (0 = hoy), o null
+   si no hubo ninguno en esas tres semanas. */
+export function lastTrained(state) {
+  const t = todayD(), tISO = todayISO();
+  const curMon = mondayOf(t);
+  const mondays = [addDays(curMon, -14), addDays(curMon, -7), curMon];
+  const hist = gymHistory(state);
+  const tipos = allTypes(state).filter((x) => !x.rest).map((x) => ({ name: x.name, color: x.color }))
+    .concat([{ name: ABS_TYPE, color: typeColor(state, ABS_TYPE) }]);
+
+  const rows = tipos.map((tp) => {
+    const fechas = new Set(hist.filter((h) => h.type === tp.name).map((h) => h.date));
+    const weeks = mondays.map((mon) => Array.from({ length: 7 }, (_, i) => {
+      const d = iso(addDays(mon, i));
+      return { dISO: d, done: fechas.has(d), future: d > tISO, today: d === tISO };
+    }));
+    const ult = [...fechas].filter((d) => d >= iso(mondays[0]) && d <= tISO).sort().pop() ?? null;
+    const ago = ult ? Math.round((t - parseISO(ult)) / 86400000) : null;
+    return { ...tp, weeks, ago };
+  });
+
+  // Primero lo que no se entrenó en las tres semanas, después de más viejo a más nuevo.
+  rows.sort((a, b) => (b.ago ?? 1e9) - (a.ago ?? 1e9));
+  const weekHeads = mondays.map((m, i) => ({ label: i === 2 ? 'ESTA SEMANA' : `${m.getDate()}/${m.getMonth() + 1}`, current: i === 2 }));
+  return { rows, weekHeads, from: iso(mondays[0]), winLabel: 'Últimas 3 semanas' };
 }
