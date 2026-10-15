@@ -667,3 +667,52 @@ describe('comoComes: cumplimiento por macro', () => {
     expect(comoComes(state({ plan, log }), 'mes').macros).toEqual([]);
   });
 });
+
+/* Compensación a nivel día (pedido explícito: "si en el día tengo que comer 4 frutas
+   divididas en las franjas y en el desayuno no comí fruta pero comí entre el almuerzo y la
+   merienda, el desayuno sí estuvo un poco peor pero para el día en general no bajó el
+   porcentaje"). */
+describe('dayMealSummary: lo que sobra de un alimento cubre lo que faltó en otra comida', () => {
+  const DIA = '2026-10-14';
+  const plan = ['s1', 's2', 's3'].map((id, i) => ({
+    id,
+    name: ['Desayuno', 'Almuerzo', 'Merienda'][i],
+    options: [{ id: `o${i}`, text: 'Algo', items: [{ id: `p${i}`, name: 'pan', qty: 1 }, { id: `f${i}`, name: 'fruta', qty: 200, unit: 'gr' }] }],
+  }));
+  const reg = (i, pan, fruta, suma) => ({
+    id: `e${i}`, at: i, text: 't',
+    matches: { options: [{ slotId: `s${i + 1}`, optionId: `o${i}`, items: [{ itemId: `p${i}`, qty: pan }, { itemId: `f${i}`, qty: fruta }], ...(suma ? { suma } : {}) }], extras: [] },
+  });
+
+  it('la comida sin fruta queda peor, pero el día no baja si la fruta se comió de más en otras', () => {
+    const log = { [DIA]: [reg(0, 1, 0), reg(1, 1, 300), reg(2, 1, 300)] };
+    const r = dayMealSummary(state({ plan, log }), DIA);
+    expect(r.franjas[0].pct).toBeCloseTo(0.5);          // el desayuno SÍ estuvo peor
+    expect(r.franjas[0].status.key).toBe('parcial');
+    expect(r.franjas[0].pctDia).toBeCloseTo(1);         // pero el día lo compensa
+    expect(r.pct).toBeCloseTo(1);
+  });
+
+  it('lo sumado de otra opción también compensa, aunque la comida no lo pidiera', () => {
+    const log = { [DIA]: [reg(0, 1, 0), reg(1, 1, 200, [{ name: 'fruta', qty: 200, unit: 'gr' }]), reg(2, 1, 200)] };
+    expect(dayMealSummary(state({ plan, log }), DIA).pct).toBeCloseTo(1);
+  });
+
+  it('sin nada que sobre, el día sí baja', () => {
+    const log = { [DIA]: [reg(0, 1, 0), reg(1, 1, 200), reg(2, 1, 200)] };
+    expect(dayMealSummary(state({ plan, log }), DIA).pct).toBeCloseTo((0.5 + 1 + 1) / 3);
+  });
+
+  it('la compensación es parcial si sobró menos de lo que faltó', () => {
+    const log = { [DIA]: [reg(0, 1, 0), reg(1, 1, 300), reg(2, 1, 200)] };
+    // faltan 200, sobran 100: la fruta del desayuno queda a la mitad -> (1 + .5) / 2 = .75
+    expect(dayMealSummary(state({ plan, log }), DIA).franjas[0].pctDia).toBeCloseTo(0.75);
+  });
+
+  it('una comida pendiente no se rellena con lo que sobró: sigue valiendo 0', () => {
+    const log = { [DIA]: [reg(0, 1, 400)] };
+    const r = dayMealSummary(state({ plan, log }), DIA);
+    expect(r.franjas[1].pctDia).toBeNull();
+    expect(r.pct).toBeCloseTo(1 / 3);
+  });
+});

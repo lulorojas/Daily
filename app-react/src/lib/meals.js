@@ -170,17 +170,78 @@ export function breakdownLabel(it) {
   return `${it.got}/${it.expected}${it.unit === 'gr' ? ' gr' : ''} ${it.name}`;
 }
 
-// Cuánto de una opción cuantificada se cumplió, 0 a 1 (comer de más no suma puntos
-// extra: se recorta a lo que pedía el plan). expected 0 (opción sin ítems con cantidad
-// real) da 1 — no hay nada que incumplir.
-export function itemsCompliance(option, matchedItems) {
-  let got = 0, expected = 0;
-  option.items.forEach((item) => {
-    const m = matchedItems.find((x) => x.itemId === item.id);
-    got += Math.min(m ? m.qty : 0, item.qty);
-    expected += item.qty;
+// Clave para decir "es el mismo alimento": sin tildes, minúsculas y sin la "s" final, así
+// "frutas" del plan y "fruta" sumada de otra opción cuentan como lo mismo.
+export function foodKey(name) {
+  return normalizeText(name).replace(/s$/, '');
+}
+
+/* Cuánto de una opción cuantificada se cumplió, 0 a 1: el PROMEDIO de lo que se cumplió de
+   cada alimento (comido/pedido, recortado a 1 — comer de más no suma puntos extra). Cada
+   alimento pesa igual: antes se sumaban las cantidades crudas y 300 gr de arroz valían
+   cien veces más que 3 huevos. Lo `suma`do de otra opción cuenta para el alimento del
+   mismo nombre ("sacaste la fruta del pancake y sumaste la del licuado: la fruta cuenta").
+   Una opción sin alimentos medibles da 1 — no hay nada que incumplir. */
+export function itemsCompliance(option, matchedItems, suma = []) {
+  const extra = new Map();
+  suma.forEach((s) => extra.set(foodKey(s.name), (extra.get(foodKey(s.name)) ?? 0) + s.qty));
+  const ratios = option.items
+    .filter((item) => item.qty > 0)
+    .map((item) => {
+      const m = matchedItems.find((x) => x.itemId === item.id);
+      const got = (m ? m.qty : 0) + (extra.get(foodKey(item.name)) ?? 0);
+      return Math.min(got / item.qty, 1);
+    });
+  return ratios.length ? ratios.reduce((a, b) => a + b, 0) / ratios.length : 1;
+}
+
+/* Lo que Lulo pidió ("si en el día tengo que comer 4 frutas divididas en las franjas y en
+   el desayuno no comí fruta pero comí entre el almuerzo y la merienda, el desayuno estuvo
+   un poco peor pero para el día en general no baje porcentaje"): el % de cada comida sigue
+   siendo el suyo — el desayuno SÍ quedó peor —, pero para el % del DÍA un alimento que
+   faltó en una comida se cubre con lo que sobró del mismo alimento en otras comidas del día.
+
+   Por alimento (foodKey) se arma un "pozo" con lo comido de más (sobre lo que pedía cada
+   comida, o lo sumado que ni estaba en esa opción) y se reparte, en el orden del plan, a las
+   comidas donde faltó. Devuelve, por franja, su % ya compensado — o null si esa franja no
+   tiene un registro medible (no hay nada que compensar). Solo compensa comidas YA
+   registradas: una pendiente sigue valiendo 0. */
+function compensarDia(franjas) {
+  const porFranja = franjas.map((f) => {
+    const r = f.registros.filter((x) => x.detalle).sort((a, b) => b.pct - a.pct)[0];
+    if (!r) return null;
+    const m = new Map();
+    const tocar = (name) => {
+      const k = foodKey(name);
+      if (!m.has(k)) m.set(k, { got: 0, exp: 0 });
+      return m.get(k);
+    };
+    r.detalle.forEach((it) => { const v = tocar(it.name); v.got += it.got; v.exp += it.expected; });
+    r.suma.forEach((s) => { tocar(s.name).got += s.qty; });
+    return m;
   });
-  return expected ? got / expected : 1;
+
+  const pozo = new Map();
+  porFranja.forEach((m) => m?.forEach((v, k) => {
+    const sobra = Math.max(0, v.got - v.exp);
+    if (sobra) pozo.set(k, (pozo.get(k) ?? 0) + sobra);
+  }));
+
+  return porFranja.map((m) => {
+    if (!m) return null;
+    const ratios = [];
+    m.forEach((v, k) => {
+      if (!v.exp) return;
+      let got = v.got;
+      if (got < v.exp) {
+        const toma = Math.min(v.exp - got, pozo.get(k) ?? 0);
+        got += toma;
+        pozo.set(k, (pozo.get(k) ?? 0) - toma);
+      }
+      ratios.push(Math.min(1, got / v.exp));
+    });
+    return ratios.length ? ratios.reduce((a, b) => a + b, 0) / ratios.length : 1;
+  });
 }
 
 /* ------------------------------ FRECUENCIA DE EXTRAS ------------------------------
@@ -257,12 +318,12 @@ export function comoComes(state, per) {
 
   Object.keys(state.meals?.log ?? {}).forEach((d) => {
     (state.meals.log[d] ?? []).forEach((entry) => {
-      entry.matches.options.forEach(({ slotId, optionId, items }) => {
+      entry.matches.options.forEach(({ slotId, optionId, items, suma }) => {
         const option = optionsById[optionId];
         if (!option) return; // la opción se pudo haber borrado después
         let activa = true;
         if (items) {
-          const ratio = itemsCompliance(option, items);
+          const ratio = itemsCompliance(option, items, suma ?? []);
           activa = ratio >= UMBRAL_CUMPLIMIENTO;
           if (d >= desde && d <= hasta) {
             sumaCumplimiento += ratio;
@@ -440,7 +501,7 @@ export function dayMealSummary(state, dISO, plan = activePlan(state)) {
           option,
           match: m,
           pesado: e.pesado,
-          pct: medible ? itemsCompliance(option, m.items) : 1,
+          pct: medible ? itemsCompliance(option, m.items, m.suma ?? []) : 1,
           detalle: medible ? itemsBreakdown(option, m.items) : null,
           // Lo sumado de otras opciones (ver buildStructured en store/mutations.js): se
           // muestra, pero no cambia `pct` — ni la vuelve pifiada ni completa lo que faltó.
@@ -456,6 +517,14 @@ export function dayMealSummary(state, dISO, plan = activePlan(state)) {
     return { slot, registros, libres, pct, status: franjaStatus(pct, fuera) };
   });
 
+  // % del DÍA de cada comida: el suyo, ya compensado con lo que sobró de otras comidas
+  // (ver compensarDia). El estado y el % de la comida en sí NO cambian: el desayuno sin
+  // fruta sigue figurando peor, lo que no baja es el día.
+  const compensado = compensarDia(franjas);
+  franjas.forEach((f, i) => {
+    f.pctDia = f.pct === null ? null : Math.max(f.pct, compensado[i] ?? 0);
+  });
+
   // Permitidos que no reemplazaron una comida ("un alfajor a la tarde").
   const sueltos = entradas
     .filter((e) => e.libre && !e.libre.slotId)
@@ -467,7 +536,7 @@ export function dayMealSummary(state, dISO, plan = activePlan(state)) {
      permitido cuenta 0: Lulo pidió que sea "como una comida pifiada". */
   const delPlan = franjas.filter((f) => f.status.key !== 'sana');
   const pct = delPlan.length
-    ? delPlan.reduce((a, f) => a + (f.status.key === 'permitido' ? 0 : Math.min(1, f.pct ?? 0)), 0) / delPlan.length
+    ? delPlan.reduce((a, f) => a + (f.status.key === 'permitido' ? 0 : Math.min(1, f.pctDia ?? 0)), 0) / delPlan.length
     : null;
   const pendientes = franjas.filter((f) => f.status.key === 'pendiente').map((f) => f.slot.name);
   const hechas = franjas.length - pendientes.length;
