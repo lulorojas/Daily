@@ -223,17 +223,6 @@ button.slot:disabled { cursor: default; }
 .card.plancard { padding: 6px 8px; }
 .tile-k { font-size: 8.5px; letter-spacing: 1.2px; text-transform: uppercase; color: rgba(242, 244, 248, .5); }
 
-/* ---- frecuencia semanal (WeeklyFrequency, rediseño "Glass + aurora") ---- */
-.freq-num { font-size: 30px; letter-spacing: -1.2px; }
-.freq-doubles { background: rgba(255, 255, 255, .08); color: rgba(242, 244, 248, .75); }
-.freqbars { display: flex; align-items: flex-end; gap: 6px; height: 108px; margin-top: 14px; }
-.freqcol { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; }
-.freqdots { height: 12px; display: flex; gap: 2px; align-items: center; justify-content: center; flex-wrap: wrap; }
-.freqdot { width: 4px; height: 4px; border-radius: 50%; border: 1.2px solid rgba(242, 244, 248, .75); flex: none; }
-.freqbar { width: 100%; flex: 1; min-height: 0; display: flex; flex-direction: column-reverse; gap: 2px; border-radius: 4px; overflow: hidden; background: rgba(255, 255, 255, .04); }
-.freqseg { width: 100%; min-height: 3px; }
-.freqlbl { font-size: 8.5px; color: rgba(242, 244, 248, .42); }
-
 /* "Cómo comés", día por día (ProgComoComes). */
 
 .comedia { padding: 9px 0; border-bottom: 1px solid rgba(255, 255, 255, .06); }

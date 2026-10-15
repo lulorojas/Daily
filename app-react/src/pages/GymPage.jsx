@@ -9,7 +9,6 @@ import { LiftModal } from '../components/gym/LiftModal';
 import { LiftDetailModal } from '../components/gym/LiftDetailModal';
 import { LiftRecordModal } from '../components/gym/LiftRecordModal';
 import { TypesManager } from '../components/gym/TypesManager';
-import { WeeklyFrequency } from '../components/gym/WeeklyFrequency';
 import { LiftChart } from '../components/ui/LiftChart';
 import { ListCard } from '../components/ui/ListCard';
 import { Section } from '../components/ui/Section';
@@ -131,7 +130,6 @@ export function GymPage() {
           </ListCard>
         </div>
 
-        <div className="gym-freq"><WeeklyFrequency data={data} /></div>
 
         <div className="gym-side">
         <BodyWeightSection
