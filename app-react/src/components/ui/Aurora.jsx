@@ -1,43 +1,25 @@
-import { useMemo } from 'react';
-import { auroraBlobs, STARS } from '../../lib/aurora';
+import { tint } from '../../lib/theme';
 
-/* ----------------------------- FONDO AURORA -----------------------------
-   Nuevo en el rediseño "Glass + aurora" (sin precedente en vanilla ni en las etapas
-   anteriores). Un único <Aurora/> montado en App.jsx, detrás de TODA la app — por eso es
-   `position:fixed` en vez de vivir adentro de cada pantalla: así ninguna página tiene que
-   acordarse de incluirlo, y las tarjetas de vidrio (backdrop-filter:blur) que flotan
-   arriba lo ven igual sin importar cuánto scrolleaste.
+/* ----------------------------- FONDO -----------------------------
+   Rediseño Nocturne: el fondo es el gris-azulado plano de la app (#161826) con dos
+   capas encima, las mismas que dibuja el diseño detrás de cada pantalla:
 
-   Las manchas de color cambian con el acento de cada sección (ver lib/aurora.js), el
-   mismo que ya pintaba la nav y el glow de la cabecera — por eso solo necesita esa única
-   prop. pointer-events:none en todo el árbol para que nunca robe un click. */
+     - un resplandor radial del color de la sección, arriba, que se corre despacio
+       (dcDrift) — antes eran las manchas y las estrellas de "Glass + aurora";
+     - una grilla finita de 28px que se desvanece hacia abajo (máscara) — da textura
+       sin competir con las tarjetas.
+
+   Un único <Aurora/> en App.jsx, detrás de TODA la app, `position:fixed` para que no se
+   mueva con el scroll de cada pantalla. Se llama Aurora por herencia (las clases y el
+   componente ya estaban cableados); lo que dibuja es otra cosa. */
 export function Aurora({ accent }) {
-  const blobs = useMemo(() => auroraBlobs(accent), [accent]);
-
   return (
     <div className="aurora" aria-hidden="true">
-      {blobs.map((b, i) => (
-        <div
-          key={i}
-          className="aurora-blob"
-          style={{
-            width: b.size, height: b.size,
-            top: b.top, bottom: b.bottom, left: b.left, right: b.right,
-            background: b.color, opacity: b.opacity,
-            animation: `${b.anim} ${b.dur} ease-in-out infinite`,
-          }}
-        />
-      ))}
-      {STARS.map((s, i) => (
-        <div
-          key={i}
-          className="aurora-star"
-          style={{
-            left: s.x, top: s.y, width: s.s, height: s.s,
-            animation: `twinkle ${s.dur} ease-in-out ${s.del} infinite`,
-          }}
-        />
-      ))}
+      <div
+        className="aurora-glow"
+        style={{ background: `radial-gradient(50% 50% at 50% 50%, ${tint(accent, '38')}, transparent 70%)` }}
+      />
+      <div className="aurora-grid" />
     </div>
   );
 }

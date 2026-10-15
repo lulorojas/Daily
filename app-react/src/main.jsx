@@ -10,6 +10,7 @@ import { App } from './App';
 import './styles/styles.css';
 import './styles/auth.css';
 import './styles/app.css';
+import './styles/nocturne.css';
 
 /* Punto de entrada. Las tres capas, de afuera hacia adentro:
      StrictMode   → solo en desarrollo: monta y desmonta todo dos veces para delatar

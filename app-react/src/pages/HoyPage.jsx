@@ -9,6 +9,8 @@ import { AgendaRow } from '../components/items/AgendaRow';
 import { TaskRow } from '../components/items/TaskRow';
 import { PendingRow } from '../components/items/PendingRow';
 import { EmptyCard, Section } from '../components/ui/Section';
+import { ListCard } from '../components/ui/ListCard';
+import { Tray } from '@phosphor-icons/react';
 import { GearIcon } from '../components/ui/Icons';
 import { useData } from '../hooks/useData';
 import { useItemForms } from '../hooks/useItemForms';
@@ -17,6 +19,7 @@ import { agendaDe, entrenoDe, pendVisible, pendientes, tareasDe } from '../lib/a
 import { habitDayMarks, habitDayPossible, habitDone } from '../lib/habits';
 import { dayTurnos, typeColor } from '../lib/gym';
 import { dayProgress } from '../lib/progress';
+import { C } from '../lib/theme';
 import { parseISO, todayISO } from '../lib/dates';
 import { dayKicker, dayTitle, hoySubtitle, saludo, shiftWeek } from '../lib/items';
 import { setHabitSlot, toggleTaskDone } from '../store/mutations';
@@ -103,6 +106,7 @@ export function HoyPage() {
         />
 
         <DayProgress
+          className="span-7"
           progress={view.progress}
           tasksDone={view.done}
           tasksTotal={view.tareas.length}
@@ -110,55 +114,75 @@ export function HoyPage() {
           habitsTotal={view.habitsTotal}
         />
 
-        {/* Agenda: citas del día y fechas anuales que caen en ese mes+día. Solo aparece si
-            hay algo — un rótulo "Agenda" sobre la nada no dice nada. */}
-        {view.citas.length > 0 && (
-          <Section label="Agenda">
-            {view.citas.map((e) => (
-              <AgendaRow key={e.id} item={e} onOpen={() => openEvent(e)} />
-            ))}
-          </Section>
-        )}
+        {/* Columna de la derecha del progreso (escritorio): lo que tiene hora en el día.
+            Agenda = citas y fechas anuales que caen en ese mes+día; Entreno = el turno del
+            plan de Gimnasio. En el celular simplemente van una abajo de la otra. Si no hay
+            ninguna de las dos, la columna no se queda vacía: dice que el día no tiene nada
+            con horario (así la grilla no deja un hueco al lado del arco). */}
+        <div className="hoy-side span-5">
+          {view.citas.length > 0 && (
+            <div className="hoy-agenda">
+              <Section label="Agenda">
+                {view.citas.map((e) => (
+                  <AgendaRow key={e.id} item={e} onOpen={() => openEvent(e)} />
+                ))}
+              </Section>
+            </div>
+          )}
+          {view.entreno && (
+            <div className="hoy-entreno">
+              <Section label="Entreno">
+                {/* Entrenamientos dobles: un turno de descanso no se muestra (mismo criterio
+                    que ya tenía un solo turno: "Entreno" solo aparece si hay algo que hacer),
+                    pero el otro sí, aunque el día tenga los dos tipos mezclados. */}
+                {dayTurnos(view.entreno).filter((t) => t.muscles.length > 0).map((t) => (
+                  <TrainingRow key={t.slot} training={t} color={typeColor(data, t.muscles[0])} day={day} />
+                ))}
+              </Section>
+            </div>
+          )}
+          {view.citas.length === 0 && !view.entreno && (
+            <div className="hoy-sinhorario">Nada con horario para este día.</div>
+          )}
+        </div>
 
-        <Section label="Tareas" note={view.tareas.length ? `${view.done}/${view.tareas.length}` : null}>
-          {view.tareas.length
-            ? view.tareas.map((t) => (
-              <TaskRow key={t.id} task={t} onOpen={() => openTask(t)} onToggle={() => toggleTask(t.id)} />
-            ))
-            : <EmptyCard>El día está limpio por ahora.</EmptyCard>}
-        </Section>
+        <div className="hoy-tareas span-7">
+          <ListCard title="Tareas" count={view.tareas.length ? `${view.done}/${view.tareas.length}` : null} accent={C.amber}>
+            {view.tareas.length
+              ? view.tareas.map((t) => (
+                <TaskRow key={t.id} task={t} onOpen={() => openTask(t)} onToggle={() => toggleTask(t.id)} />
+              ))
+              : <EmptyCard>El día está limpio por ahora.</EmptyCard>}
+          </ListCard>
+        </div>
 
-        {view.entreno && (
-          <Section label="Entreno">
-            {/* Entrenamientos dobles: un turno de descanso no se muestra (mismo criterio
-                que ya tenía un solo turno: "Entreno" solo aparece si hay algo que hacer),
-                pero el otro sí, aunque el día tenga los dos tipos mezclados. */}
-            {dayTurnos(view.entreno).filter((t) => t.muscles.length > 0).map((t) => (
-              <TrainingRow key={t.slot} training={t} color={typeColor(data, t.muscles[0])} day={day} />
-            ))}
-          </Section>
-        )}
-
-        <Section label="Hábitos">
-          {data.habits.length
-            ? data.habits.map((hb) => (
-              <HabitRow
-                key={hb.id}
-                data={data}
-                habit={hb}
-                dISO={day}
-                /* Los días futuros se ven pero no se marcan: no se puede tomar agua mañana. */
-                editable={!isFuture}
-                onMark={markHabit}
-              />
-            ))
-            : <EmptyCard>Todavía no creaste hábitos.</EmptyCard>}
-        </Section>
+        <div className="hoy-habitos span-5">
+          <ListCard title="Hábitos" count={data.habits.length ? `${view.habitsDone}/${view.habitsTotal}` : null} accent={C.green}>
+            {data.habits.length
+              ? data.habits.map((hb) => (
+                <HabitRow
+                  key={hb.id}
+                  data={data}
+                  habit={hb}
+                  dISO={day}
+                  /* Los días futuros se ven pero no se marcan: no se puede tomar agua mañana. */
+                  editable={!isFuture}
+                  onMark={markHabit}
+                />
+              ))
+              : <EmptyCard>Todavía no creaste hábitos.</EmptyCard>}
+          </ListCard>
+        </div>
 
         {/* Sin fecha: el backlog. No depende del día elegido, salvo por un detalle — una
             pendiente COMPLETADA se ve solo el día en que se marcó (pendVisible), así que
             no queda para siempre tachada arriba de la bandeja. */}
-        <Section label="Sin fecha" note={view.pend.length ? `${view.pend.length} pendientes` : null}>
+        <section className="hoy-sinfecha">
+          <div className="hoy-sinfecha-head">
+            <Tray size={16} aria-hidden="true" />
+            <span className="hoy-sinfecha-title">Sin fecha</span>
+            {view.pend.length > 0 && <span className="hoy-sinfecha-n">{view.pend.length} pendientes</span>}
+          </div>
           {view.pend.length
             ? (
               <div className="tray">
@@ -168,7 +192,7 @@ export function HoyPage() {
               </div>
             )
             : <EmptyCard size="sm">Nada suelto por acá.</EmptyCard>}
-        </Section>
+        </section>
       </div>
     </div>
   );

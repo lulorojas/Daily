@@ -12,9 +12,13 @@ import { tint } from '../../lib/theme';
    calculándola de ese parámetro (ver el comentario en GymPage.jsx). */
 export function TrainingRow({ training, color, day }) {
   return (
-    <Link className="evrow" style={{ borderLeft: `3px solid ${color}` }} to={{ pathname: '/gym', search: `?d=${day}` }}>
-      <div className="evic" style={{ background: tint(color, '24'), color }}>
-        <DumbbellIcon />
+    <Link
+      className="evrow"
+      style={{ background: `linear-gradient(90deg,${tint(color, '1A')},rgba(35,37,50,.6) 60%)`, border: `1px solid ${tint(color, '33')}` }}
+      to={{ pathname: '/gym', search: `?d=${day}` }}
+    >
+      <div className="evic" style={{ background: tint(color, '24'), color, boxShadow: `0 0 18px ${tint(color, '40')}` }}>
+        <DumbbellIcon size={21} />
       </div>
       <div className="grow">
         <div className="evname">{training.muscles.join(', ')}</div>

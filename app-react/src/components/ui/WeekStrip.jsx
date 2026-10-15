@@ -1,4 +1,4 @@
-import { ChevronLeftIcon, ChevronRightIcon } from './Icons';
+import { CaretLeft, CaretRight } from '@phosphor-icons/react';
 import { DOW_SHORT, mondayOf, parseISO, todayISO } from '../../lib/dates';
 import { weekDays } from '../../lib/items';
 
@@ -17,7 +17,11 @@ import { weekDays } from '../../lib/items';
 
    El color es siempre el acento de la página (var(--accent), calculado en App.jsx), así
    que Hoy la pinta de ámbar y Hábitos de verde sin que este componente sepa de ninguno de
-   los dos: son estados —elegido, pasado, con marca— y no un color hardcodeado. */
+   los dos: son estados —elegido, hoy, pasado, con marca— y no un color hardcodeado.
+
+   Rediseño Nocturne: cada día es una celda de 58px con borde (el elegido se enciende con
+   el acento), las tres letras del día arriba, el número y el punto de "tiene algo"; el
+   día de hoy lleva la marca HOY encima. */
 export function WeekStrip({ selected, onSelect, onWeek, hasMark }) {
   const tISO = todayISO();
   const days = weekDays(mondayOf(parseISO(selected)));
@@ -25,7 +29,7 @@ export function WeekStrip({ selected, onSelect, onWeek, hasMark }) {
   return (
     <div className="weekstrip">
       <button type="button" className="nb" onClick={() => onWeek(-1)} aria-label="Semana anterior">
-        <ChevronLeftIcon />
+        <CaretLeft size={14} aria-hidden="true" />
       </button>
 
       <div className="wdays">
@@ -34,7 +38,7 @@ export function WeekStrip({ selected, onSelect, onWeek, hasMark }) {
           const isToday = dISO === tISO;
           const past = dISO < tISO;
           const has = hasMark(dISO);
-          const state = isSel ? ' sel' : past ? ' past' : '';
+          const state = `${isSel ? ' sel' : ''}${isToday ? ' today' : ''}${past ? ' past' : ''}`;
 
           return (
             <button
@@ -45,22 +49,22 @@ export function WeekStrip({ selected, onSelect, onWeek, hasMark }) {
               aria-label={dISO}
               onClick={() => onSelect(dISO)}
             >
-              {/* La inicial del día: "L", "M", "M"… Sale de DOW_SHORT para no tener otra
-                  lista de días dando vueltas que se pueda desincronizar. */}
-              <div className={`wdow${isSel || isToday ? ' on' : ''}`}>{DOW_SHORT[i][0]}</div>
-              {/* El estado va en la celda y el CSS lo baja al anillo y al círculo:
-                  .wcell.sel .wring, .wcell.past .wcirc, etc. */}
-              <div className="wring">
-                <div className="wcirc">{parseISO(dISO).getDate()}</div>
-              </div>
-              <div className={`wdot${has ? ' on' : ''}`} />
+              {/* La marca HOY (pedido del rediseño: en Hoy, Hábitos y Comidas el día de hoy
+                  se distingue aunque estés mirando otro). Es decorativa: el estado real
+                  ya lo dice aria-label. */}
+              {isToday && <span className="whoy" aria-hidden="true">HOY</span>}
+              {/* Las tres letras del día: salen de DOW_SHORT para no tener otra lista de
+                  días dando vueltas que se pueda desincronizar. */}
+              <span className="wdow">{DOW_SHORT[i].toUpperCase()}</span>
+              <span className="wnum">{parseISO(dISO).getDate()}</span>
+              <span className={`wdot${has ? ' on' : ''}${isToday && has ? ' pulse' : ''}`} />
             </button>
           );
         })}
       </div>
 
       <button type="button" className="nb" onClick={() => onWeek(1)} aria-label="Semana siguiente">
-        <ChevronRightIcon />
+        <CaretRight size={14} aria-hidden="true" />
       </button>
     </div>
   );

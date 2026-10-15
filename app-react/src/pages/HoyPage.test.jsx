@@ -131,7 +131,7 @@ describe('tareas del día', () => {
 
   it('el rótulo cuenta cuántas van', () => {
     renderScreen(<HoyPage />, { doc });
-    expect(screen.getByText('· 1/2')).toBeInTheDocument();
+    expect(document.querySelector('.hoy-tareas .listcard-count')).toHaveTextContent('1/2');
   });
 
   it('sin tareas lo dice', () => {
@@ -229,7 +229,7 @@ describe('bandeja de pendientes (sin fecha)', () => {
 
   it('el rótulo cuenta las visibles', () => {
     renderScreen(<HoyPage />, { doc });
-    expect(screen.getByText('· 2 pendientes')).toBeInTheDocument();
+    expect(screen.getByText('2 pendientes')).toBeInTheDocument();
   });
 
   it('marcar mirando otro día deja el doneAt en ESE día', async () => {

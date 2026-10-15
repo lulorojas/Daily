@@ -1,11 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
-import { SectionIcon } from '../ui/Icons';
+import { CalendarBlank, Barbell, ChartLineUp, CheckCircle, ForkKnife, Plus, Sun } from '@phosphor-icons/react';
 import { QuickAddMenu } from './QuickAddMenu';
 import { SECTIONS, sectionForPath } from '../../lib/sections';
 import { isValidISO } from '../../hooks/useSelectedDay';
 import { todayISO } from '../../lib/dates';
 import { useItemForms } from '../../hooks/useItemForms';
+
+// Un ícono Phosphor por sección (rediseño Nocturne): el de la activa va "fill" y con un
+// halo del color de la sección; los demás, en línea fina.
+const ICONOS = { hoy: Sun, calendario: CalendarBlank, gym: Barbell, comidas: ForkKnife, habitos: CheckCircle, progreso: ChartLineUp };
 
 /* ----------------------------- BARRA DE ABAJO -----------------------------
    Port de navbar(). La píldora con las cinco secciones y, pegado a la derecha, el botón +
@@ -41,18 +45,19 @@ export function NavBar() {
     if (pathname.startsWith('/gym')) lastGymPath.current = pathname;
   }, [pathname]);
 
-  /* El degradé de la pildora activa y del botón + (rediseño "Glass + aurora") sale de
-     var(--accent)/var(--accent-light), que App.jsx ya calcula para toda la pantalla — no
-     hace falta más tinte por acá. Antes este componente armaba el tinte con JS (tint()):
-     ahora es una fórmula constante en CSS (tres acentos, un solo degradé), así que el
-     estilo inline se fue entero a .navitem.on/.navadd en styles.css. */
+  /* Rediseño Nocturne: la sección activa se pinta con var(--accent) (App.jsx lo calcula
+     para toda la pantalla) — un tinte translúcido de fondo, el ícono "fill" con halo y una
+     rayita que respira abajo (a la izquierda en escritorio). El botón + lleva un anillo
+     que gira. Todo eso es CSS en nocturne.css; acá solo se elige el ícono. */
   return (
     <>
       <div className="nav">
+        <div className="navbrand" aria-hidden="true">D</div>
         <div className="navpill">
           {SECTIONS.map((s) => {
             const on = current?.key === s.key;
             const target = s.key === 'gym' ? lastGymPath.current : s.path;
+            const Icono = ICONOS[s.key];
             return (
               <Link
                 key={s.key}
@@ -61,8 +66,9 @@ export function NavBar() {
                 aria-current={on ? 'page' : undefined}
                 aria-label={s.title || s.label}
               >
-                <SectionIcon section={s.key} />
+                <Icono size={21} weight={on ? 'fill' : 'regular'} className="navico" aria-hidden="true" />
                 <span className="nlb">{s.label}</span>
+                <span className="navbar-mark" aria-hidden="true" />
               </Link>
             );
           })}
@@ -73,7 +79,7 @@ export function NavBar() {
           aria-label="Agregar"
           onClick={() => setAdding(true)}
         >
-          +
+          <Plus size={22} weight="regular" aria-hidden="true" />
         </button>
       </div>
 

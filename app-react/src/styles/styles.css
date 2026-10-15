@@ -531,19 +531,8 @@ textarea.inp{min-height:88px;line-height:1.5;resize:vertical}
 /* ============================ RESPONSIVE (tablet / escritorio) ============================
    Mismo diseño, distinto layout: barra lateral izquierda, contenido centrado en una columna
    cómoda, Progreso en 2 columnas y modales centrados en vez de hoja desde abajo. */
-@media (min-width:820px){
-  #app{max-width:none}
-
-  /* La barra inferior se vuelve una barra lateral izquierda, con labels siempre visibles. */
-  .nav{left:20px;right:auto;transform:none;top:0;bottom:0;width:216px;max-width:none;height:100vh;padding:26px 0;flex-direction:column;justify-content:center;gap:12px}
-  .navpill{flex-direction:column;height:auto;width:100%;border-radius:24px;padding:12px 10px;gap:6px;align-items:stretch;justify-content:flex-start}
-  .navitem{width:100%;height:48px;justify-content:flex-start;padding:0 15px;gap:13px;border-radius:16px;overflow:visible}
-  .navitem .nlb{display:inline;font-size:14px}
-  .navadd{width:100%;height:54px;border-radius:20px;font-size:27px}
-
-  /* Contenido: se deja lugar a la barra y se centra en una columna cómoda. */
-  .view:not(.auth){padding-left:236px;padding-bottom:44px}
-  .view:not(.auth) .head,.view:not(.auth) .body,.view:not(.auth) .cal-head{max-width:760px;margin-left:auto;margin-right:auto}
+@media (min-width:900px){
+  /* (La barra lateral y la grilla del contenido viven en nocturne.css.) */
 
   /* Progreso: grilla de 2 columnas aprovechando el ancho. */
   .view:not(.auth) .body.prog2{display:grid;grid-template-columns:1fr 1fr;gap:16px 18px;align-items:start}
@@ -560,5 +549,5 @@ textarea.inp{min-height:88px;line-height:1.5;resize:vertical}
   @keyframes popIn{from{opacity:0;transform:translate(-50%,-48%) scale(.98)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
 
   /* El tip contextual, acompañando la columna de contenido. */
-  .onbtip{left:236px;right:0;bottom:34px}
+  .onbtip{right:0;bottom:34px}
 }

@@ -47,7 +47,17 @@ beforeAll(() => { V = loadVanilla(); });
    relleno. Comparar "sin espacios" es la única forma de que las dos versiones sean
    comparables como texto, y no cambia lo que el test detecta: un rótulo distinto, una
    sección que falta o un número mal calculado siguen saltando igual. */
-const texto = (nodo) => nodo.textContent.replace(/\s+/g, '');
+/* Rediseño Nocturne: los días de la tira semanal pasaron de una letra ("L") a tres ("LUN")
+   y el de hoy lleva una insignia "HOY" — es identidad visual nueva, sin equivalente en
+   vanilla. Se sacan los `.wdays` de los DOS lados antes de comparar; el resto de la
+   pantalla sigue bajo la misma red de seguridad. */
+const texto = (nodo) => {
+  const copia = nodo.cloneNode(true);
+  copia.querySelectorAll('.wdays').forEach((el) => el.remove());
+  // El "·" que vanilla pegaba entre el título y su aclaración ("Tareas · 1/2") ahora es un
+  // contador aparte a la derecha del título: mismo dato, sin el separador.
+  return copia.textContent.replace(/[\s·]+/g, '');
+};
 
 function vanillaHTML(html) {
   const cont = document.createElement('div');
@@ -72,6 +82,15 @@ function hoyReact(doc, day) {
      (agenda, tareas, hábitos, bandeja sin fecha) sigue siendo migración 1:1 y queda bajo
      esta misma red de seguridad. */
   container.querySelectorAll('.progday-stats').forEach((el) => el.remove());
+  /* Rediseño Nocturne, en Hoy:
+     - El contador de Hábitos ("3/5") y el cartel "Nada con horario para este día." son
+       texto nuevo sin equivalente en vanilla: se sacan.
+     - Agenda y Entreno van juntos en la columna de la derecha del progreso (en vanilla,
+       Entreno venía después de Tareas): se mueve Entreno a donde estaba para comparar el
+       contenido sin que el cambio de orden visual lo oculte. */
+  container.querySelectorAll('.hoy-habitos .listcard-count, .hoy-sinhorario').forEach((el) => el.remove());
+  const entreno = container.querySelector('.hoy-entreno');
+  if (entreno) container.querySelector('.hoy-tareas').after(entreno);
   return texto(container);
 }
 
@@ -278,7 +297,8 @@ const NOTAS_PERIODO = [
 ];
 function sinNotaPeriodo(s) {
   return NOTAS_PERIODO.reduce((acc, n) => acc.replaceAll(n, ''), s)
-    .replace(/(\d+)(entrenos?|sesiones?)·/, '$1·');
+    // (texto() ya no deja el "·": el encabezado queda "6entrenosmes" / "6sesionesmes")
+    .replace(/(\d+)(entrenos?|sesiones?)(?=mes|semana|año|todo|7|30)/, '$1');
 }
 
 describe('Progreso dice exactamente lo mismo que la app vanilla', () => {
@@ -295,7 +315,7 @@ describe('Progreso dice exactamente lo mismo que la app vanilla', () => {
 /* ---------------------------------------------------------------- clases */
 describe('todas las clases que usa React existen en el CSS', () => {
   const raiz = path.resolve(process.cwd(), 'src', 'styles');
-  const css = ['styles.css', 'auth.css', 'app.css']
+  const css = ['styles.css', 'auth.css', 'app.css', 'nocturne.css']
     .map((f) => fs.readFileSync(path.join(raiz, f), 'utf8'))
     .join('\n');
 
