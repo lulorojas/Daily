@@ -314,8 +314,9 @@ export function comoVenis(state, per) {
     ]
     : [
       { k: 'ENTRENOS', v: String(totalGeneral) },
-      { k: 'GIMNASIO', v: `${gimnasio} · ${(gimnasio / nC).toFixed(1).replace('.', ',')}/${unitAbbr}` },
-      { k: 'PROMEDIO', v: `${(totalGeneral / nC).toFixed(1).replace('.', ',')}/${unitAbbr}` },
+      // Los promedios van redondeados, sin decimales (pedido explícito: "es 1 o 2, no 1,5").
+      { k: 'GIMNASIO', v: String(gimnasio), sub: `prom. ${Math.round(gimnasio / nC)}/${unitAbbr}` },
+      { k: 'PROMEDIO', v: `${Math.round(totalGeneral / nC)}/${unitAbbr}` },
       { k: 'ABS', v: `${absRow.cells.filter((c) => !c.futuro && c.v > 0).length}/${nC} ${unitAbbr}` },
     ];
 

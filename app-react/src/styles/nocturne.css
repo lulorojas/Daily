@@ -958,3 +958,6 @@ textarea.mealinp { background: transparent; border: 0; height: 34px; padding: 8p
   .venis-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .venis-stat:nth-child(3) { padding-left: 12px; border-left-color: rgba(233, 233, 237, .08); }
 }
+.venis-stat-sub { font-size: 11px; color: var(--color-neutral-500); white-space: nowrap; }
+.venis-stat { min-width: 0; }
+.venis-stat-v { overflow: hidden; text-overflow: ellipsis; }

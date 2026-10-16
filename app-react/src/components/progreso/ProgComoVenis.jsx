@@ -77,6 +77,7 @@ export function ProgComoVenis({ data, per, className = '' }) {
                 <div className={`venis-stat${i === 0 ? ' first' : ''}`} key={s.k}>
                   <div className="venis-stat-k">{s.k}</div>
                   <div className="venis-stat-v">{s.v}</div>
+                  {s.sub && <div className="venis-stat-sub">{s.sub}</div>}
                 </div>
               ))}
             </div>

@@ -404,8 +404,10 @@ describe('entrenos y gimnasio', () => {
 
   it('la cifra GIMNASIO de "Cómo venís" las cuenta y da su promedio', () => {
     const d = doc([{ muscles: ['Pecho'], done: true }, { muscles: ['Fútbol'], done: true }]);
-    const stats = Object.fromEntries(comoVenis(d, 'mes').stats.map((s) => [s.k, s.v]));
-    expect(stats.ENTRENOS).toBe('2');
-    expect(stats.GIMNASIO).toMatch(/^1 · 0,3\/sem$/); // 1 en 4 semanas
+    const stats = Object.fromEntries(comoVenis(d, 'mes').stats.map((s) => [s.k, s]));
+    expect(stats.ENTRENOS.v).toBe('2');
+    expect(stats.GIMNASIO.v).toBe('1');               // la cantidad de veces
+    expect(stats.GIMNASIO.sub).toBe('prom. 0/sem');   // 1 en 4 semanas, sin decimales
+    expect(stats.PROMEDIO.v).toBe('1/sem');           // 2 en 4 semanas = 0,5 → 1
   });
 });
