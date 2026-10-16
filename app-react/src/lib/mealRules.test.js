@@ -213,3 +213,36 @@ describe('alimentos sin macro, suma de más, proteína de 250 y permitido', () =
     expect(r.pct).toBe(0);
   });
 });
+
+describe('qué falta para llegar al 100%', () => {
+  const DIA = '2026-10-14';
+  const plan = [
+    { id: 's1', name: 'Desayuno', options: [{ id: 'o1', text: 'X', items: [{ id: 'a', name: 'huevo', qty: 3, tipo: 'proteina' }, { id: 'b', name: 'pan', qty: 4, tipo: 'carbo' }, { id: 'c', name: 'fruta', qty: 200, unit: 'gr', tipo: 'carbo' }] }] },
+    { id: 's2', name: 'Almuerzo', options: [{ id: 'o2', text: 'Y', items: [{ id: 'd', name: 'pollo', qty: 250, unit: 'gr', tipo: 'proteina' }] }] },
+    { id: 's3', name: 'Cena', options: [{ id: 'o3', text: 'Z' }] },
+  ];
+  const reg = (slotId, optionId, items) => ({ id: slotId, at: 0, text: 't', matches: { options: [{ slotId, optionId, items }], extras: [] } });
+  const st = (log) => ({ meals: { plans: [{ id: 'p', startISO: '2020-01-01', endISO: null, slots: plan }], extras: [], log: { [DIA]: log } } });
+
+  it('dice la comida sin registrar y el alimento que faltó, con cuánto', () => {
+    const r = dayMealSummary(st([
+      reg('s1', 'o1', [{ itemId: 'a', qty: 2 }, { itemId: 'b', qty: 3 }, { itemId: 'c', qty: 200 }]),
+      reg('s2', 'o2', [{ itemId: 'd', qty: 200 }]),
+    ]), DIA);
+    expect(r.falta).toEqual([
+      { slot: 'Desayuno', texto: 'falta 1 huevo' }, // 1 pan menos (carbo) no baja: no aparece
+      { slot: 'Almuerzo', texto: 'falta 50 gr de pollo' },
+      { slot: 'Cena', texto: 'sin registrar' },
+    ]);
+  });
+
+  it('una comida completa (o con la fruta compensada) no aparece; con el día en 100% no falta nada', () => {
+    const r = dayMealSummary(st([
+      reg('s1', 'o1', [{ itemId: 'a', qty: 3 }, { itemId: 'b', qty: 4 }, { itemId: 'c', qty: 0 }]),
+      reg('s2', 'o2', [{ itemId: 'd', qty: 250 }]),
+      reg('s3', 'o3', []),
+    ]), DIA);
+    expect(r.falta.filter((x) => x.slot === 'Almuerzo')).toEqual([]);
+    expect(r.falta.find((x) => x.slot === 'Desayuno')?.texto).toBe('falta la fruta');
+  });
+});

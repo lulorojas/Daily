@@ -941,3 +941,11 @@ textarea.mealinp { background: transparent; border: 0; height: 34px; padding: 8p
 @media (prefers-reduced-motion: reduce) { .orbit-progress, .orbit-now, .weekgrid-fill { animation: none !important; } }
 
 @media (max-width: 400px) { .orbit { zoom: .93; } }
+
+/* qué falta para llegar al 100% */
+.falta100 { margin-top: 4px; padding: 12px 14px; border-radius: 14px; background: rgba(22, 24, 38, .55); border: 1px solid rgba(233, 233, 237, .07); display: flex; flex-direction: column; gap: 6px; }
+.falta100-t { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--color-neutral-500); }
+.falta100-row { display: flex; gap: 10px; font-size: 12.5px; color: var(--color-neutral-300); }
+.falta100-slot { width: 76px; flex: none; color: var(--violet); }
+.falta100-row.fija { color: var(--coral); }
+.falta100-row.fija .falta100-slot { color: var(--coral); }

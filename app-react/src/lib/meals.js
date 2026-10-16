@@ -590,7 +590,40 @@ export function dayMealSummary(state, dISO, plan = activePlan(state)) {
   return {
     franjas, sueltos, pct, hechas, pendientes, sanas, permitidos, fueraDePlan,
     message: dayMessage({ franjas, pct, hechas, pendientes, sanas, permitidos }),
+    falta: faltaPara100(franjas),
   };
+}
+
+/* "Qué faltó para llegar al 100%" (pedido explícito): una línea por comida que todavía le
+   resta al día, con lo concreto — la comida sin registrar, el alimento que faltó (con
+   cuánto) o el que te pasaste. Usa las mismas reglas que la nota (lib/mealRules.js), así que
+   lo que está dentro de una tolerancia, las verduras y lo que otra comida ya compensó (la
+   fruta) no aparecen: no le restan nada al día. Un permitido deja esa comida en 0 y no hay
+   forma de recuperarlo: se avisa aparte, como \`fija\`. Una comida "distinta, sana" no cuenta. */
+function faltaPara100(franjas) {
+  const out = [];
+  franjas.forEach((f) => {
+    const nombre = f.slot.name;
+    if (f.status.key === 'sana') return;
+    if (f.status.key === 'permitido') { out.push({ slot: nombre, texto: 'tiene un permitido: cuenta 0%', fija: true }); return; }
+    if (f.status.key === 'pendiente') { out.push({ slot: nombre, texto: 'sin registrar' }); return; }
+    if ((f.pctDia ?? f.pct) >= 1) return; // cumplida, o compensada con lo que sobró de otra comida
+
+    const r = f.registros.filter((x) => x.detalle).sort((a, b) => b.pct - a.pct)[0];
+    if (!r) return;
+    r.detalle.forEach((it) => {
+      const suma = r.suma.filter((s) => claveAlimento(s.name) === claveAlimento(it.name)).reduce((a, s) => a + cantidadEfectiva(s.name, s.qty, s.unit), 0);
+      const got = cantidadEfectiva(it.name, it.got, it.unit, it.expected) + suma;
+      const exp = esperadoEfectivo({ name: it.name, qty: it.expected });
+      if (cumplimientoEfectivo({ name: it.name, tipo: it.tipo, unit: it.unit, qty: exp }, got) >= 1) return;
+      const cuanto = (n) => (it.unit === 'gr' ? `${n} gr de ${it.name}` : `${n} ${it.name}`);
+      const texto = got < exp
+        ? (compensaEntreComidas(it.name) ? 'falta la fruta' : `falta ${cuanto(Math.round(exp - got))}`)
+        : `te pasaste de ${it.name} (+${Math.round(got - exp)}${it.unit === 'gr' ? " gr" : ""})`;
+      out.push({ slot: nombre, texto });
+    });
+  });
+  return out;
 }
 
 function plural(n, uno, varios) { return `${n} ${n === 1 ? uno : varios}`; }

@@ -563,3 +563,30 @@ describe('rediseño Nocturne', () => {
     expect(screen.getByText('→ sumó a Almuerzo: verdura ✓')).toBeInTheDocument();
   });
 });
+
+describe('qué falta para llegar al 100%', () => {
+  it('debajo de la órbita lista lo que le resta al día: comidas sin registrar y alimentos que faltaron', async () => {
+    const user = userEvent.setup();
+    const doc = {
+      ...emptyDoc(),
+      meals: {
+        plans: [{ id: 'p1', startISO: '2020-01-01', endISO: null, slots: [
+          { id: 's1', name: 'Almuerzo', options: [{ id: 'o1', text: 'Pollo', items: [{ id: 'i1', name: 'pollo', qty: 250, unit: 'gr', tipo: 'proteina' }] }] },
+          { id: 's2', name: 'Merienda', options: [{ id: 'o2', text: 'Yogur' }] },
+        ] }],
+        extras: [], log: {},
+      },
+    };
+    renderScreen(<ComidasPage />, { doc });
+
+    await user.click(screen.getByRole('button', { name: 'Registrar Almuerzo' }));
+    await user.click(screen.getByRole('button', { name: /Pollo/ }));
+    await user.click(screen.getByRole('button', { name: 'Menos pollo' }));
+    await user.click(screen.getByRole('button', { name: 'Registrar' }));
+
+    const bloque = document.querySelector('.falta100');
+    expect(bloque).toHaveTextContent('Para llegar al 100%');
+    expect(bloque).toHaveTextContent('Almuerzofalta 10 gr de pollo');
+    expect(bloque).toHaveTextContent('Meriendasin registrar');
+  });
+});

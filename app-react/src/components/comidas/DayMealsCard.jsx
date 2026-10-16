@@ -40,6 +40,19 @@ export function DayMealsCard({ summary, onRegistrar, onEditar, onPermitido, isTo
         onOpen={onRegistrar}
       />
 
+      {/* Qué le falta al día para llegar al 100% (ver faltaPara100 en lib/meals.js). */}
+      {canOpen && summary.falta.length > 0 && (
+        <div className="falta100">
+          <div className="falta100-t">Para llegar al 100%</div>
+          {summary.falta.map((x) => (
+            <div className={`falta100-row${x.fija ? ' fija' : ''}`} key={`${x.slot}-${x.texto}`}>
+              <span className="falta100-slot">{x.slot}</span>
+              <span>{x.texto}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {summary.franjas.map((f, i) => (
         <div className="daymeals-row" key={f.slot.id} style={{ '--estado': f.status.key === 'pendiente' ? '#75798c' : f.status.color }}>
           <div className="daymeals-rowtop">
