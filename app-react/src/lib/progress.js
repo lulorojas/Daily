@@ -4,7 +4,7 @@
 import { addDays, dow, iso, mondayOf, parseISO, todayD, todayISO, MONTHS } from './dates';
 import { habitDayMarks, habitDayPossible, habitFirstISO } from './habits';
 import { tareasDe } from './agenda';
-import { ABS_TYPE, allTypes, gymHistory, gymSessions, typeColor } from './gym';
+import { ABS_TYPE, allTypes, gymGimnasio, gymHistory, gymSessions, typeColor } from './gym';
 import { C } from './theme';
 
 // [clave, etiqueta]. El inicio de cada ventana lo calcula progStart(), más abajo.
@@ -301,16 +301,20 @@ export function comoVenis(state, per) {
      abdominales no cuentan como entrenamientos") — eso ya lo filtra gymSessions(). */
   const totalGeneral = gymSessions(state).filter((s) => s.date >= desde && s.date <= hasta).length;
   const nC = cols.length;
+  // "Gimnasio": las veces que se fue de verdad, sin fútbol ni cardio (ver gymGimnasio).
+  const gimnasio = gymGimnasio(state).filter((x) => x.date >= desde && x.date <= hasta).length;
   const activeCols = cols.filter((c, i) => !c.futuro && tipos.some((t) => rows.find((r) => r.name === t.name).cells[i].v > 0)).length;
   const absRow = rows.find((r) => r.name === ABS_TYPE);
   const stats = per === 'semana'
     ? [
       { k: 'ENTRENOS', v: String(totalGeneral) },
+      { k: 'GIMNASIO', v: String(gimnasio) },
       { k: 'DÍAS ACTIVOS', v: `${activeCols}/${current + 1}` },
       { k: 'ABS', v: absRow.cells[current]?.v || absRow.total ? 'Hecho' : 'Falta' },
     ]
     : [
       { k: 'ENTRENOS', v: String(totalGeneral) },
+      { k: 'GIMNASIO', v: `${gimnasio} · ${(gimnasio / nC).toFixed(1).replace('.', ',')}/${unitAbbr}` },
       { k: 'PROMEDIO', v: `${(totalGeneral / nC).toFixed(1).replace('.', ',')}/${unitAbbr}` },
       { k: 'ABS', v: `${absRow.cells.filter((c) => !c.futuro && c.v > 0).length}/${nC} ${unitAbbr}` },
     ];

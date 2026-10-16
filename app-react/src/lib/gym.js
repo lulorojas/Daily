@@ -154,12 +154,21 @@ export function gymSessions(state) {
     const mon = parseISO(k);
     state.gym.weekPlans[k].forEach((day, i) => {
       const date = iso(addDays(mon, i));
-      dayTurnos(day).forEach((t) => { if (t.done && t.muscles.length) out.push({ date, slot: t.slot }); });
+      dayTurnos(day).forEach((t) => { if (t.done && t.muscles.length) out.push({ date, slot: t.slot, muscles: t.muscles }); });
     });
   });
   out.sort((a, b) => (a.date < b.date ? 1 : -1));
   return out;
 }
+
+/* "Gimnasio" (pedido explícito, Progreso): las sesiones de entreno donde se fue de verdad al
+   gimnasio. Fútbol y cardio SÍ son entrenos (cuentan arriba, en todo lo demás) pero no son
+   gimnasio. Un turno cuenta como gimnasio si tiene al menos un músculo que no sea de esos
+   dos: "pecho + cardio" es gimnasio, "fútbol" solo no. */
+const SIN_GIMNASIO = ['futbol', 'cardio'];
+const norm = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+export const esGimnasio = (muscles) => muscles.some((m) => !SIN_GIMNASIO.includes(norm(m)));
+export const gymGimnasio = (state) => gymSessions(state).filter((s) => esGimnasio(s.muscles));
 
 // Por semana: { lunesISO: cantidad }. Recibe una lista de {date} ya filtrada —
 // gymHistory() para contar por músculo, gymSessions() para contar entrenos.

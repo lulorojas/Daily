@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { normalize } from './model';
 import { habitBestStreak, habitDayMarks, habitDayPossible, habitDone, habitStreak } from './habits';
-import { gymHistory, gymRanking, gymSessions, gymTypeStreaks, liftGains, bodyList, weekPlanFor } from './gym';
+import { gymGimnasio, gymHistory, gymRanking, gymSessions, gymTypeStreaks, liftGains, bodyList, weekPlanFor } from './gym';
 import { agendaDe, pendVisible, pendientes, tareasDe } from './agenda';
 import { comoVenis, comoVenisColumns, dayProgress, lastTrained, progHeatmapWindow, progStart, inPeriod } from './progress';
 import { addDays, iso, mondayOf, parseISO, todayD } from './dates';
@@ -370,5 +370,42 @@ describe('lastTrained: "Último entreno"', () => {
     const { rows } = lastTrained(normalize(fullDoc()));
     const agos = rows.map((r) => (r.ago === null ? Infinity : r.ago));
     expect(agos).toEqual([...agos].sort((a, b) => b - a));
+  });
+});
+
+/* Gimnasio: qué es "un entreno" y qué cuenta como "ir al gimnasio". */
+describe('entrenos y gimnasio', () => {
+  const doc = (turnos) => {
+    const d = normalize(emptyDoc());
+    d.gym.weekPlans[thisMonday] = turnos.concat(Array.from({ length: 7 - turnos.length }, () => ({ muscles: [], done: false })));
+    return d;
+  };
+
+  it('bíceps + tríceps + abs el mismo día es UN entreno (los músculos y el abs no multiplican)', () => {
+    const d = doc([{ muscles: ['Bíceps', 'Tríceps'], done: true, absCategories: ['core'] }]);
+    expect(gymSessions(d)).toHaveLength(1);
+  });
+
+  it('un doble turno cuenta como DOS entrenos', () => {
+    const d = doc([{ muscles: ['Pecho'], done: true, muscles2: ['Espalda'], done2: true }]);
+    expect(gymSessions(d)).toHaveLength(2);
+  });
+
+  it('"Gimnasio" cuenta todo menos fútbol y cardio (que sí son entrenos)', () => {
+    const d = doc([
+      { muscles: ['Pecho'], done: true },
+      { muscles: ['Fútbol'], done: true },
+      { muscles: ['Cardio'], done: true },
+      { muscles: ['Piernas', 'Cardio'], done: true },
+    ]);
+    expect(gymSessions(d)).toHaveLength(4);
+    expect(gymGimnasio(d)).toHaveLength(2); // pecho, y piernas + cardio
+  });
+
+  it('la cifra GIMNASIO de "Cómo venís" las cuenta y da su promedio', () => {
+    const d = doc([{ muscles: ['Pecho'], done: true }, { muscles: ['Fútbol'], done: true }]);
+    const stats = Object.fromEntries(comoVenis(d, 'mes').stats.map((s) => [s.k, s.v]));
+    expect(stats.ENTRENOS).toBe('2');
+    expect(stats.GIMNASIO).toMatch(/^1 · 0,3\/sem$/); // 1 en 4 semanas
   });
 });
