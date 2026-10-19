@@ -38,7 +38,7 @@ describe('estados vacíos', () => {
 
   it('sin extras, explica para qué sirven', () => {
     renderScreen(<ComidasPage />, { doc: emptyDoc() });
-    expect(screen.getByText(/Café, alcohol, permitidos/)).toBeInTheDocument();
+    expect(screen.getByText(/Alcohol, permitidos/)).toBeInTheDocument();
   });
 
   it('sin entradas, lo dice sin inventar nada', () => {
@@ -607,5 +607,21 @@ describe('"No comí"', () => {
     const dia = screen.getByText('Tu día').closest('.sect');
     expect(within(dia).getByText('No comí')).toBeInTheDocument();
     expect(within(dia).queryByText('Pendiente')).not.toBeInTheDocument();
+  });
+});
+
+describe('contador de café', () => {
+  it('+ y − llevan la cuenta del día que se está mirando, y crean el extra Café si no existía', async () => {
+    const user = userEvent.setup();
+    const { doc: leer } = renderScreen(<ComidasPage />, { doc: emptyDoc() });
+
+    await user.click(screen.getByRole('button', { name: 'Anotar Café' }));
+    await user.click(screen.getByRole('button', { name: 'Anotar Café' }));
+    expect(leer().meals.extras.map((e) => e.name)).toContain('Café');
+    expect(leer().meals.log[todayISO()]).toHaveLength(2);
+    expect(screen.getByText(/2 hoy · 2 esta semana/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Una taza de café menos' }));
+    expect(leer().meals.log[todayISO()]).toHaveLength(1);
   });
 });

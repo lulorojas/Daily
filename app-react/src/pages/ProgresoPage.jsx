@@ -5,6 +5,7 @@ import { ProgLastTrained } from '../components/progreso/ProgLastTrained';
 import { ProgComoComes } from '../components/progreso/ProgComoComes';
 import { ProgMealScore } from '../components/progreso/ProgMealScore';
 import { ProgBodyWeight } from '../components/progreso/ProgBodyWeight';
+import { ProgCafe } from '../components/progreso/ProgCafe';
 import { ProgTipos } from '../components/progreso/ProgTipos';
 import { ProgCargas } from '../components/progreso/ProgCargas';
 import { ProgGymStreaks } from '../components/progreso/ProgGymStreaks';
@@ -26,7 +27,7 @@ import { progStart } from '../lib/progress';
      Cómo comés (7) | ¿Comiste bien? (5)
      Último entreno (6) | Entrenamientos por tipo (6)
      Progreso de carga (6) | Rachas (6)
-     Peso corporal                               (ancho completo, al final)
+     Café (4) | Peso corporal (8)                (al final)
    En el celular van todos en una columna, en el mismo orden.
 
    Qué se fue respecto de la versión anterior (rediseño Nocturne):
@@ -61,7 +62,8 @@ export function ProgresoPage() {
         <ProgTipos data={data} per={period} start={start} className="span-6" />
         <ProgCargas data={data} per={period} className="span-6" />
         <ProgGymStreaks data={data} className="span-6" />
-        <ProgBodyWeight data={data} per={period} start={start} />
+        <ProgCafe data={data} per={period} className="span-4" />
+        <ProgBodyWeight data={data} per={period} start={start} className="span-8" />
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { normalize } from '../lib/model';
 import {
-  activePlan, alcoholExtra, dayMealSummary, entryTime, extraEntriesDelMes, slotMeta, sortedLog, vasosDeAlcohol,
+  activePlan, alcoholExtra, cafeDelDia, cafePorPeriodo, dayMealSummary, entryTime, extraEntriesDelMes, slotMeta, sortedLog, vasosDeAlcohol,
 } from '../lib/meals';
 import { emptyDoc, TODAY } from '../test/fixtures';
 import * as m from './mutations';
@@ -207,5 +207,40 @@ describe('"No comí": una comida salteada es algo negativo para el día', () => 
     const opt = activePlan(d).slots[0].options[0];
     m.addMealLogStructured(d, TODAY, { slotId: a.id, optionId: opt.id });
     expect(dayMealSummary(d, TODAY).franjas[0].status.key).toBe('cumplida');
+  });
+});
+
+describe('contador de café', () => {
+  it('+ crea el extra "Café" la primera vez y agrega una taza al día; − saca una', () => {
+    const d = vacio();
+    m.sumarCafe(d, TODAY);
+    m.sumarCafe(d, TODAY);
+    m.sumarCafe(d, TODAY);
+    expect(d.meals.extras.map((e) => e.name)).toEqual(['Café']);
+    expect(cafeDelDia(d, TODAY)).toBe(3);
+
+    m.restarCafe(d, TODAY);
+    expect(cafeDelDia(d, TODAY)).toBe(2);
+    expect(m.restarCafe(d, '2020-01-01')).toBe(false); // un día sin café no hace nada
+  });
+
+  it('lo que se escribe en la bitácora ("tomé un café") también cuenta como una taza', () => {
+    const d = vacio();
+    m.sumarCafe(d, TODAY);
+    m.addMealLogEntry(d, TODAY, 'tomé un café con leche');
+    expect(cafeDelDia(d, TODAY)).toBe(2);
+  });
+
+  it('Progreso: tazas del período, días con café y promedio por día sin decimales', () => {
+    const d = vacio();
+    m.sumarCafe(d, TODAY);
+    m.sumarCafe(d, TODAY);
+    m.sumarCafe(d, TODAY);
+    const c = cafePorPeriodo(d, 'semana');
+    expect(c.existe).toBe(true);
+    expect(c.total).toBe(3);
+    expect(c.diasConCafe).toBe(1);
+    expect(Number.isInteger(c.promedioPorDia)).toBe(true);
+    expect(c.bars.reduce((a, b) => a + b.n, 0)).toBe(3);
   });
 });

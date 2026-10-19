@@ -14,14 +14,15 @@ import { MealLogBubble } from '../components/comidas/MealLogBubble';
 import { MealLogComposer } from '../components/comidas/MealLogComposer';
 import { BookOpenText, Cookie, Plus, Wine } from '@phosphor-icons/react';
 import { WeekGrid } from '../components/comidas/WeekGrid';
+import { CafeRow } from '../components/comidas/CafeRow';
 import { ExtraCalendarSheet } from '../components/comidas/ExtraCalendarSheet';
 import { PencilIcon } from '../components/ui/Icons';
 import { useData } from '../hooks/useData';
-import { activePlan, alcoholExtra, dayMealSummary, extraCount, extraEntriesDelMes, extraStreak, missingFromTemplate, sortedLog, vasosDeAlcohol } from '../lib/meals';
+import { activePlan, alcoholExtra, cafeDelDia, cafeEntre, cafeExtra, dayMealSummary, extraCount, extraEntriesDelMes, extraStreak, missingFromTemplate, sortedLog, vasosDeAlcohol } from '../lib/meals';
 import { PLAN_NUTRI_2026_10 } from '../lib/mealPlanTemplates';
 import {
   addMealExtraEntry, addMealLogEntry, addMealLogLibre, addMealLogSalteada, addMealLogStructured, deleteMealLogEntry, loadMealPlanTemplate,
-  updateMealEntryDetails, updateMealLogStructured,
+  restarCafe, sumarCafe, updateMealEntryDetails, updateMealLogStructured,
 } from '../store/mutations';
 import { DOW_FULL, MONTHS, addDays, dow, iso, mondayOf, parseISO, todayISO } from '../lib/dates';
 import { shiftWeek } from '../lib/items';
@@ -81,6 +82,9 @@ export function ComidasPage() {
   const esHoy = day === hoy;
   const esFuturo = day > hoy;
   const alcohol = alcoholExtra(data);
+  const cafe = cafeExtra(data);
+  const cafeHoy = cafeDelDia(data, day);
+  const cafeSemana = cafeEntre(data, lunes, iso(addDays(parseISO(lunes), 6)));
   const vasosSemana = vasosDeAlcohol(data, lunes, iso(addDays(parseISO(lunes), 6)));
   const permitidosDelMes = extraEntriesDelMes(data, 'permitido', day.slice(0, 7));
   const permitidosDelDia = (log[day] ?? []).filter((e) => e.libre?.tipo === 'permitido').length;
@@ -225,7 +229,14 @@ export function ComidasPage() {
               </span>
               <Plus size={16} aria-hidden="true" />
             </button>
-            {extras.filter((ex) => ex.id !== alcohol?.id).map((ex) => (
+            <CafeRow
+              hoy={cafeHoy}
+              semana={cafeSemana}
+              esHoy={esHoy}
+              onMas={() => update((draft) => sumarCafe(draft, day))}
+              onMenos={() => update((draft) => restarCafe(draft, day))}
+            />
+            {extras.filter((ex) => ex.id !== alcohol?.id && ex.id !== cafe?.id).map((ex) => (
               <MealExtraRow
                 key={ex.id}
                 extra={ex}
@@ -234,7 +245,7 @@ export function ComidasPage() {
                 onAdd={() => update((draft) => addMealExtraEntry(draft, day, ex.id))}
               />
             ))}
-            {extras.length === 0 && <EmptyCard size="sm">Café, alcohol, permitidos… agregá los que quieras seguir.</EmptyCard>}
+            {extras.length === 0 && <EmptyCard size="sm">Alcohol, permitidos… agregá los que quieras seguir.</EmptyCard>}
           </Section>
 
           <Section label="Bitácora" note={entradas.length ? String(entradas.length) : null}>

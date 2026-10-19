@@ -335,3 +335,23 @@ describe('las otras secciones', () => {
     expect(container.querySelector('.score-tip')).toBeFalsy();
   });
 });
+
+describe('café', () => {
+  it('muestra una mini marquita con las tazas del período, el promedio por día y una barra por columna', () => {
+    const doc = fullDoc();
+    doc.meals = {
+      plans: [], extras: [{ id: 'cafe', name: 'Café', color: '#EAC06A', icon: 'estrella' }],
+      log: { [thisMonday]: [{ id: 'a', at: 0, text: 'Café', matches: { options: [], extras: ['cafe'] } }, { id: 'b', at: 1, text: 'Café', qty: 2, matches: { options: [], extras: ['cafe'] } }] },
+    };
+    const { container } = renderScreen(<ProgresoPage />, { doc });
+    const tarjeta = container.querySelector('.cafe');
+    expect(tarjeta.querySelector('.cafe-n')).toHaveTextContent('3');
+    expect(tarjeta).toHaveTextContent('1 día con café');
+    expect(tarjeta.querySelectorAll('.cafe-col').length).toBeGreaterThan(0);
+  });
+
+  it('sin café anotado explica de dónde se cuenta', () => {
+    renderScreen(<ProgresoPage />, { doc: fullDoc() });
+    expect(screen.getByText(/Todavía no anotaste café/)).toBeInTheDocument();
+  });
+});

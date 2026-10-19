@@ -899,3 +899,62 @@ export function vasosDeAlcohol(state, desdeISO, hastaISO) {
     .filter((d) => d >= desdeISO && d <= hastaISO)
     .reduce((a, d) => a + log[d].filter((e) => e.matches.extras.includes(alc.id)).reduce((s, e) => s + (e.qty ?? 1), 0), 0);
 }
+
+/* ============================================================================
+   CONTADOR DE CAFÉ (pedido explícito: "una opción simple de un contador de café, poder
+   agregar si se tomó café o no ese día, para en Progreso tener una mini marquita de la
+   cantidad de café que vengo tomando").
+
+   El café es un extra más del catálogo (el que se llama "Café"): cada taza es una entrada de
+   la bitácora con ese extra. Una entrada sin `qty` vale una taza — así también cuenta lo
+   que se escribió en la bitácora ("tomé un café"). Los toques de + y − de la pantalla
+   Comidas agregan o sacan tazas del día elegido.
+   ============================================================================ */
+export function cafeExtra(state) {
+  return (state.meals?.extras ?? []).find((x) => normalizeText(x.name) === 'cafe') ?? null;
+}
+
+// Tazas de un día.
+export function cafeDelDia(state, dISO) {
+  const cafe = cafeExtra(state);
+  if (!cafe) return 0;
+  return (state.meals?.log?.[dISO] ?? [])
+    .filter((e) => e.matches.extras.includes(cafe.id))
+    .reduce((a, e) => a + (e.qty ?? 1), 0);
+}
+
+// Tazas entre dos fechas (inclusive).
+export function cafeEntre(state, desdeISO, hastaISO) {
+  const cafe = cafeExtra(state);
+  if (!cafe) return 0;
+  const log = state.meals?.log ?? {};
+  return Object.keys(log)
+    .filter((d) => d >= desdeISO && d <= hastaISO)
+    .reduce((a, d) => a + log[d].filter((e) => e.matches.extras.includes(cafe.id)).reduce((s, e) => s + (e.qty ?? 1), 0), 0);
+}
+
+/* Lo que muestra Progreso: tazas del período (la misma ventana que el resto), cuántos días
+   hubo café, el promedio por día (redondeado, sin decimales) y una barrita por columna. */
+export function cafePorPeriodo(state, per) {
+  const { cols, current, winLabel } = comoVenisColumns(per);
+  const tISO = todayISO();
+  const desde = cols[0].from;
+  const hasta = cols[cols.length - 1].to < tISO ? cols[cols.length - 1].to : tISO;
+  const cafe = cafeExtra(state);
+  const log = state.meals?.log ?? {};
+  const porDia = {};
+  if (cafe) {
+    Object.keys(log).filter((d) => d >= desde && d <= hasta).forEach((d) => {
+      const n = log[d].filter((e) => e.matches.extras.includes(cafe.id)).reduce((a, e) => a + (e.qty ?? 1), 0);
+      if (n) porDia[d] = n;
+    });
+  }
+  const total = Object.values(porDia).reduce((a, n) => a + n, 0);
+  const diasConCafe = Object.keys(porDia).length;
+  const diasTranscurridos = Math.max(1, Math.round((parseISO(hasta) - parseISO(desde)) / 86400000) + 1);
+  const bars = cols.map((c, i) => ({
+    label: c.label, current: i === current, futuro: c.from > tISO,
+    n: Object.keys(porDia).filter((d) => d >= c.from && d <= c.to).reduce((a, d) => a + porDia[d], 0),
+  }));
+  return { winLabel, existe: !!cafe, total, diasConCafe, promedioPorDia: Math.round(total / diasTranscurridos), bars };
+}

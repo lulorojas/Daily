@@ -885,6 +885,29 @@ export function restoreFromMealTemplate(draft, template) {
   return restaurados;
 }
 
+/* Contador de café: + agrega una taza al día (y crea el extra "Café" la primera vez); − saca
+   una: la última entrada de café del día, o una taza de ella si valía más de una. */
+export function sumarCafe(draft, dISO) {
+  const meals = ensureMeals(draft);
+  let cafe = meals.extras.find((x) => normalizeText(x.name) === 'cafe');
+  if (!cafe) cafe = addMealExtra(draft, { name: 'Café', color: '#EAC06A', icon: 'estrella' });
+  return addMealExtraEntry(draft, dISO, cafe.id);
+}
+
+export function restarCafe(draft, dISO) {
+  const meals = ensureMeals(draft);
+  const cafe = meals.extras.find((x) => normalizeText(x.name) === 'cafe');
+  const dia = meals.log[dISO];
+  if (!cafe || !dia) return false;
+  for (let i = dia.length - 1; i >= 0; i--) {
+    const e = dia[i];
+    if (!e.matches.extras.includes(cafe.id)) continue;
+    if ((e.qty ?? 1) > 1) { e.qty -= 1; if (e.qty === 1) delete e.qty; } else dia.splice(i, 1);
+    return true;
+  }
+  return false;
+}
+
 /* Corregir una entrada de Alcohol o de Permitido desde su calendario: hora, cantidad, qué
    fue y en lugar de qué comida. `toDISO` la mueve a otro día (en el calendario se puede
    cambiar la fecha). Un permitido deja de ser "en lugar de una comida" con slotId null. */
