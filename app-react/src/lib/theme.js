@@ -5,7 +5,7 @@ export const C = {
   amber: '#EAC06A', coral: '#FFA877', rose: '#FF9B93',
   green: '#86D9A0', teal: '#6FD2D2', violet: '#B49BE8',
   danger: '#FF8A80',
-  ink: '#F2F4F8', bg: '#080A12', surf: '#13161D', surf2: '#12151C', surf3: '#161A22',
+  ink: '#E9E9ED', bg: '#161826', surf: '#232532', surf2: '#1A1C2A', surf3: '#232532',
 };
 
 // Mismo helper que en vanilla: color + alfa en hex ('#EAC06A' + '1F').

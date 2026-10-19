@@ -316,7 +316,7 @@ describe('Progreso dice exactamente lo mismo que la app vanilla', () => {
 /* ---------------------------------------------------------------- clases */
 describe('todas las clases que usa React existen en el CSS', () => {
   const raiz = path.resolve(process.cwd(), 'src', 'styles');
-  const css = ['styles.css', 'auth.css', 'app.css', 'nocturne.css']
+  const css = ['main.css']
     .map((f) => fs.readFileSync(path.join(raiz, f), 'utf8'))
     .join('\n');
 

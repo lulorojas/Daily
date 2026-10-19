@@ -41,13 +41,13 @@ describe('--accent-47 se calcula igual que --glow, con otro alfa', () => {
 });
 
 /* ---- las variables CSS son los mismos hex que la paleta de JS ----
-   Esto no es paridad con vanilla: es que styles.css y lib/theme.js no tengan cada uno su
+   Esto no es paridad con vanilla: es que main.css y lib/theme.js no tengan cada uno su
    propia versión del mismo color. Sigue vigente con el rediseño porque los cinco acentos
    (y el ámbar/peligro) NO cambiaron — el rediseño es de superficies y movimiento, no de
-   paleta. --bg sí cambió a propósito (#080A12, más oscuro, pensado para que la aurora se
-   note debajo del vidrio) y --ink tampoco se tocó. */
+   paleta. Las superficies (--bg #161826, --ink #E9E9ED) son las de Nocturne y theme.js
+   las repite igual. */
 describe('la paleta del CSS y la de JS no se separaron', () => {
-  const STYLES = fs.readFileSync(path.resolve(process.cwd(), 'src', 'styles', 'styles.css'), 'utf8');
+  const STYLES = fs.readFileSync(path.resolve(process.cwd(), 'src', 'styles', 'main.css'), 'utf8');
   const variable = (nombre) => STYLES.match(new RegExp(`--${nombre}:\\s*(#[0-9A-Fa-f]{6})`))[1];
 
   it.each(['amber', 'coral', 'rose', 'green', 'teal', 'violet', 'danger', 'ink', 'bg'])('--%s', (nombre) => {

@@ -1,4 +1,1072 @@
 /* ============================================================
+   Daily — hoja de estilos única (sistema visual "Nocturne")
+
+   Antes eran cuatro archivos que se pisaban entre sí (styles.css, auth.css, app.css y
+   nocturne.css). Se fusionaron EN EL MISMO ORDEN de cascada que tenían, y se borró toda
+   declaración que otra regla idéntica (mismo selector, mismo @media) escrita más abajo ya
+   pisaba — así que se ve exactamente igual, con menos reglas muertas.
+
+   Cómo está ordenada (de arriba hacia abajo, el orden importa: lo de abajo gana):
+     1. BASE Y COMPONENTES — variables, tipografía, tarjetas, navegación, tira semanal, filas.
+     2. SESIÓN — login, registro, verificación.
+     3. PANTALLAS Y MODALES — estructura de cada pantalla (Hoy, Calendario, Gimnasio,
+        Hábitos, Progreso, Comidas) y de los formularios.
+     4. NOCTURNE — la piel del rediseño: tokens (#161826, Inter), animaciones, y el diseño
+        de cada pantalla. Pisa a lo anterior donde corresponde.
+   ============================================================ */
+
+/* ====================== 1. BASE Y COMPONENTES ====================== */
+/* ============================================================
+   Daily — sistema visual "Glass + aurora"
+   Vidrio esmerilado sobre fondo oscuro con aurora animada y estrellas (ver <Aurora/>,
+   montado una sola vez en App.jsx), títulos con brillo en degradé, acento por sección
+   (misma paleta de siempre: cinco acentos de la misma luminosidad). Bricolage Grotesque
+   para títulos/números, Instrument Sans para UI, JetBrains Mono para rótulos técnicos.
+   La nav es una pildora de vidrio + botón "+" con halo cónico, del color de la sección.
+   ============================================================ */
+:root{
+  --amber:#EAC06A; --coral:#FFA877; --rose:#FF9B93; --green:#86D9A0; --teal:#6FD2D2; --violet:#B49BE8; --danger:#FF8A80;
+  --accent:#EAC06A; --accent-light:#FFE3A8; --glow:rgba(234,192,106,.13);
+  /* Superficies de vidrio: la misma fórmula (fondo translúcido + blur + brillo interior)
+     se repite en cards, nav y hojas modales, así que vive en variables en vez de
+     repetirse hex por hex en cada selector. */
+  --safe-top:env(safe-area-inset-top,0px);
+  --safe-bottom:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+*::-webkit-scrollbar{width:0;height:0}
+html,body{margin:0;padding:0;height:100%}
+body{
+  background:var(--bg); color:var(--ink);
+  overscroll-behavior-y:none; -webkit-font-smoothing:antialiased;
+}
+button{font-family:inherit;color:inherit;border:none;background:none;cursor:pointer}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* display font: titulos y numeros */
+.fr,h1,h2{font-family:'Bricolage Grotesque',system-ui,sans-serif}
+
+#app{max-width:520px;margin:0 auto;height:100%;display:flex;flex-direction:column;position:relative}
+
+/* ---- fondo aurora (ver components/ui/Aurora.jsx) ----
+   position:fixed: vive detrás de TODA la app sin que cada pantalla scrolleable (.view,
+   que tiene su propio overflow-y) lo arrastre consigo. Ninguno de los dos fija z-index:
+   ambos son elementos posicionados con z-index:auto, así que el orden de pintado lo
+   decide el orden en el DOM — <Aurora/> va primero en App.jsx, .view después, y por eso
+   queda arriba sin que haga falta pelear con stacking contexts. */
+
+@keyframes aurora1{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(60px,40px) scale(1.25)}}
+@keyframes aurora2{0%,100%{transform:translate(0,0) scale(1.1)}50%{transform:translate(-70px,60px) scale(.9)}}
+@keyframes twinkle{0%,100%{opacity:.15}50%{opacity:.6}}
+@keyframes shimmer{to{background-position:200% center}}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.view{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;position:relative;padding-bottom:calc(var(--nav-h) + var(--safe-bottom) + 30px)}
+/* glow radial del acento en la cabecera: se suma a <Aurora/>, no la reemplaza — da un
+   poco más de luz justo detrás del título, que es donde más se nota. */
+.view::before{content:'';position:absolute;top:0;left:0;right:0;height:360px;pointer-events:none;z-index:0;
+  background:radial-gradient(120% 55% at 50% 0%, var(--glow) 0%, transparent 72%)}
+.view>*{position:relative;z-index:1}
+.head .kicker{width:fit-content;
+}
+.head .kicker::before{content:'';border-radius:50%;flex:none}
+.body{display:flex;flex-direction:column}
+
+/* entrada escalonada de las tarjetas */
+@keyframes dIn{from{opacity:0;transform:translateY(15px)}to{opacity:1;transform:none}}
+.body>*{animation:dIn .42s cubic-bezier(.2,.8,.2,1) both}
+.body>*:nth-child(2){animation-delay:.05s}.body>*:nth-child(3){animation-delay:.1s}
+.body>*:nth-child(4){animation-delay:.15s}.body>*:nth-child(5){animation-delay:.2s}
+.body>*:nth-child(6){animation-delay:.25s}.body>*:nth-child(7){animation-delay:.3s}
+.body>*:nth-child(8){animation-delay:.35s}.body>*:nth-child(9){animation-delay:.4s}
+/* Re-render dentro de la misma pantalla: sin animación de entrada, para que marcar algo
+   no vuelva a barajar toda la vista (el scroll lo conserva render()). */
+.view.nofx .body>*{animation:none}
+
+.sect{display:flex;flex-direction:column;gap:11px}
+.sectlabel .muted{font-weight:500;text-transform:none;letter-spacing:0}
+/* ---- superficies de vidrio ----
+   Misma fórmula en todas: fondo translúcido + blur + un brillo interior de 1px arriba
+   (inset 0 1px 0) que simula el borde curvo de un vidrio, en vez del borde sólido de la
+   v3. backdrop-filter necesita algo detrás para blurrear — por eso <Aurora/> va montada
+   una capa atrás de #app y no adentro de cada card. */
+.card{
+  background:var(--glass);border-radius:24px;border:none;
+  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  box-shadow:inset 0 1px 0 var(--glass-hi),inset 0 0 0 1px var(--glass-brd);
+}
+.card.pad{padding:4px 16px}
+.softcard{
+  background:var(--glass);border:none;
+  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  box-shadow:inset 0 1px 0 var(--glass-hi),inset 0 0 0 1px var(--glass-brd);
+}
+.empty{text-align:center;padding:22px 6px;font-size:13.5px;line-height:1.5}
+
+/* ---- nav pildora + boton + ---- */
+.navpill{
+  display:flex;align-items:center;
+}
+.navitem{cursor:pointer;white-space:nowrap}
+.navitem.on{min-width:0;
+}
+.navitem .nlb{font-size:13px;font-weight:600;letter-spacing:-.1px;display:none}
+.navitem.on .nlb{display:inline}
+.navadd{line-height:0;cursor:pointer;
+}
+
+/* ---- header con engranaje / avatar ---- */
+.htop{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+.gear{flex:none;display:grid;place-items:center;cursor:pointer;
+}
+
+/* ---- tira semanal ---- */
+.weekstrip .nb{background:none;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer}
+.wdays{justify-content:space-between}
+.wcell{display:flex;flex-direction:column;align-items:center;cursor:pointer}
+.wdow{font-size:11px;font-weight:600;letter-spacing:.6px;color:rgba(242,244,248,.45)}
+/* el anillo que orbita el día elegido: puro CSS, un borde con dos lados transparentes
+   girando — mismo truco que el prototipo, sin agregar ningún nodo al DOM. */
+
+/* ---- progreso del dia ---- */
+.progday-arc{position:relative}
+.progday-center{position:absolute;left:0;right:0;display:flex;flex-direction:column;align-items:center}
+.progday-msg{text-align:center}
+.progday-stat{flex:1}
+.progday-stat.amber{background:rgba(234,192,106,.1)}
+.progday-stat.amber b{color:var(--accent-light)}
+.progday-stat.green{background:rgba(134,217,160,.1)}
+.progday-stat.green b{color:#BDF0CC}
+
+/* ---- tareas ---- */
+.chk{flex:none;background:transparent;display:grid;place-items:center;cursor:pointer}
+.chk svg{opacity:0;transform:scale(.4);transition:opacity .25s cubic-bezier(.3,1.4,.5,1),transform .25s cubic-bezier(.3,1.4,.5,1)}
+.chk.on svg{opacity:1;transform:scale(1)}
+.ttext{transition:color .25s}
+.ttext.done{text-decoration:line-through}
+.tdesc{line-height:1.4}
+.tpill{white-space:nowrap;flex:none}
+.minibtn{display:grid;place-items:center;flex:none;cursor:pointer}
+
+/* backlog (sin fecha) */
+.tray{border-radius:22px;background:rgba(255,255,255,.03);border:1px dashed rgba(255,255,255,.2);padding:6px 4px}
+.trayrow{cursor:pointer}
+.traydot{flex:none;transition:background-color .2s,border-color .2s}
+
+/* ---- agenda / citas ---- */
+.agtime{display:flex;flex-direction:column;align-items:center;
+}
+.agcard{
+  flex:1;min-width:0;display:flex;flex-direction:column;
+}
+.evrow{cursor:pointer;
+}
+.evic{flex:none;display:grid;place-items:center;box-shadow:inset 0 1px 0 rgba(255,255,255,.3)}
+
+/* ---- habitos ---- */
+.iconwrap{display:grid;place-items:center;flex-shrink:0;border-radius:15px}
+.slots{display:flex;flex:none;align-items:center}
+.slot{position:relative;display:grid;place-items:center;cursor:pointer}
+.slot .tk{stroke-dasharray:26}
+.slot.on .tk{animation:tick .3s ease .06s both}
+.slot .ring{position:absolute;border:2px solid currentColor;opacity:0;pointer-events:none}
+.slot.on .ring{animation:ring .6s cubic-bezier(.2,.7,.3,1) both}
+.hmenubtn{display:grid;place-items:center;cursor:pointer;letter-spacing:1px}
+.hmenu{position:absolute;right:10px;top:56px;z-index:4;width:158px;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);box-shadow:0 16px 34px rgba(0,0,0,.5);padding:6px;display:flex;flex-direction:column;animation:menuIn .18s ease both;transform-origin:top right}
+.hmenu>div{padding:10px 12px;border-radius:11px;font-size:13.5px;font-weight:500;cursor:pointer}
+.streak{display:flex;align-items:center;gap:4px}
+.streak .n{font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:15px}
+@keyframes pop{0%{transform:scale(1)}38%{transform:scale(.88)}70%{transform:scale(1.08)}100%{transform:scale(1)}}
+@keyframes ring{0%{opacity:.9;transform:scale(.86)}100%{opacity:0;transform:scale(1.7)}}
+@keyframes tick{from{stroke-dashoffset:26}to{stroke-dashoffset:0}}
+@keyframes menuIn{from{opacity:0;transform:translateY(-6px) scale(.96)}to{opacity:1;transform:none}}
+
+/* ---- chips (selectores) ---- */
+.chips{display:flex;gap:9px;flex-wrap:wrap}
+.chip{font-size:13.5px;font-weight:600;color:rgba(242,244,248,.55);background:rgba(255,255,255,.05);border:1.5px solid var(--glass-brd);padding:9px 15px;border-radius:14px;cursor:pointer;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.chip.on{color:#0A0C11;border-color:transparent;box-shadow:inset 0 1px 0 rgba(255,255,255,.4)}
+
+/* ---- dashed add ---- */
+.dashed{display:flex;align-items:center;justify-content:center;gap:9px;padding:16px;border-radius:20px;cursor:pointer;font-weight:500;font-size:14px;border:1.5px dashed rgba(255,255,255,.18);color:rgba(242,244,248,.5)}
+
+/* ---- graficos ---- */
+.chartwrap{position:relative}
+.charttip{position:absolute;display:none;transform:translate(-50%,-138%);background:rgba(5,7,12,.92);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.16);color:var(--ink);font-family:'Bricolage Grotesque',sans-serif;font-size:11.5px;font-weight:700;padding:4px 9px;border-radius:9px;white-space:nowrap;pointer-events:none;z-index:6;box-shadow:0 6px 16px rgba(0,0,0,.5)}
+.charttip.show{display:block}
+@keyframes draw{from{stroke-dashoffset:640}to{stroke-dashoffset:0}}
+.spark{stroke-dasharray:640;animation:draw 1.5s cubic-bezier(.3,.7,.2,1) .2s both}
+@keyframes fadeUp{from{opacity:0}to{opacity:1}}
+.sparkArea{animation:fadeUp 1s ease 1s both}
+@keyframes donut{from{stroke-dashoffset:327}}
+
+/* barras verticales (frecuencia, cumplimiento) */
+
+/* stat tiles */
+.tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.tile{
+  border-radius:20px;padding:14px 12px;display:flex;flex-direction:column;gap:6px;
+  background:var(--glass);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  box-shadow:inset 0 1px 0 var(--glass-hi),inset 0 0 0 1px var(--glass-brd);
+}
+.tile .ic{width:26px;height:26px;border-radius:9px;display:grid;place-items:center}
+.tile .v{font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:23px;line-height:1;letter-spacing:-.8px}
+.tile .l{font-size:10.5px;line-height:1.3;color:rgba(242,244,248,.5)}
+
+/* ranking bars */
+
+.bartrack{overflow:hidden}
+.bartrack>div{height:100%;border-radius:5px;transition:width .6s cubic-bezier(.2,.8,.2,1)}
+
+/* heatmap */
+.heat{display:grid;gap:3px}
+
+/* period pills */
+.period{display:grid;place-items:center;cursor:pointer}
+
+/* ---- calendario ---- */
+.cal-head{justify-content:space-between}
+.navbtn{display:grid;place-items:center;cursor:pointer;
+}
+.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
+.dow{text-align:center}
+.cell{display:flex;flex-direction:column;align-items:center;cursor:pointer;min-width:0;overflow:hidden}
+.cnum{display:grid;place-items:center}
+.ctag{width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ---- gym ---- */
+.gday{display:flex;align-items:center}
+.gtag{flex:none}
+.gbar{width:3px;height:22px;flex:none;border-radius:2px}
+.gchip{flex:none;max-width:168px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border-radius:99px;letter-spacing:-.1px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.gcheck{flex:none;background:transparent;display:grid;place-items:center;cursor:pointer;transition:background-color .25s,border-color .25s,box-shadow .25s}
+.gcheck svg{opacity:0;transform:scale(.4);transition:opacity .25s cubic-bezier(.3,1.4,.5,1),transform .25s cubic-bezier(.3,1.4,.5,1)}
+.gcheck.on svg{opacity:1;transform:scale(1)}
+.optchips{display:flex;flex-wrap:wrap}
+.optchip{border-radius:99px;cursor:pointer;white-space:nowrap}
+.liftrow{position:relative;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+}
+.delta{font-size:11.5px;font-weight:600}
+
+.bigcard{display:flex;flex-direction:column;gap:14px;overflow:hidden;position:relative;
+}
+
+/* ---- rutinas ---- */
+.rut-back{
+  display:inline-flex;align-items:center;gap:7px;align-self:flex-start;padding:7px 14px 7px 11px;border-radius:99px;
+  background:rgba(255,255,255,.08);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);font-size:13px;font-weight:500;cursor:pointer;color:var(--ink);
+}
+.rut-ord{display:flex;flex-direction:column;gap:3px;flex-shrink:0}
+.ordbtn{width:22px;height:16px;border-radius:5px;background:rgba(255,255,255,.08);display:grid;place-items:center;cursor:pointer;color:rgba(242,244,248,.55)}
+.ordbtn.dis{opacity:.25;pointer-events:none}
+.rcard{
+  position:relative;border-radius:26px;overflow:hidden;cursor:pointer;
+  background:var(--glass);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  box-shadow:inset 0 1px 0 var(--glass-hi),inset 0 0 0 1px var(--glass-brd);
+}
+.rcover{height:104px;position:relative;overflow:hidden}
+.rcover .stripes{position:absolute;inset:0;background:repeating-linear-gradient(115deg,rgba(0,0,0,.14) 0 2px,transparent 2px 13px)}
+.rcover .rnum{position:absolute;right:16px;bottom:-24px;font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:104px;line-height:1;color:rgba(10,12,17,.22)}
+.rcover .rtag{position:absolute;left:18px;top:16px;font-size:11px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;color:rgba(10,12,17,.62)}
+
+/* ---- managerow / iconos ---- */
+.managerow{display:flex;align-items:center;gap:13px;padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.07)}
+.managerow:last-child{border-bottom:none}
+.managerow[data-act]{cursor:pointer}
+.iconcirc{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.08);display:grid;place-items:center;cursor:pointer;color:rgba(242,244,248,.55)}
+
+/* ---- empty state ---- */
+.emptybig{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;padding:40px 22px 80px;min-height:520px;text-align:center}
+
+@keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+.emptybig .et{font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:21px;letter-spacing:-.5px}
+.emptybig .ex{font-size:14px;line-height:1.55;color:rgba(242,244,248,.5);max-width:280px}
+.cta{height:50px;padding:0 24px;border-radius:17px;color:#0A0C11;display:grid;place-items:center;font-size:15px;font-weight:600;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.4)}
+
+/* ============================ MODAL (bottom sheet) ============================ */
+.overlay{position:fixed;inset:0;z-index:100;display:none}
+.overlay.show{display:block}
+.overlay .scrim{position:absolute;inset:0;background:rgba(6,8,12,.72);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);animation:dim .25s ease both}
+@keyframes dim{from{opacity:0}to{opacity:1}}
+.sheet{
+  position:absolute;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:520px;max-height:92%;
+  background:rgba(18,21,28,.88);backdrop-filter:blur(30px) saturate(1.3);-webkit-backdrop-filter:blur(30px) saturate(1.3);
+  border-radius:34px 34px 0 0;border-top:1px solid rgba(255,255,255,.14);box-shadow:0 -20px 50px rgba(0,0,0,.5);
+  display:flex;flex-direction:column;animation:sheetUp .34s cubic-bezier(.2,.85,.25,1) both;
+}
+@keyframes sheetUp{from{transform:translate(-50%,40px);opacity:0}to{transform:translate(-50%,0);opacity:1}}
+.mhead{padding:12px 22px 14px;flex-shrink:0;border-bottom:1px solid var(--line)}
+.grab{width:38px;height:4px;border-radius:3px;background:rgba(255,255,255,.22);margin:0 auto 14px}
+.mhrow{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.mhead .cancel{font-size:14px;font-weight:500;color:rgba(242,244,248,.5);cursor:pointer}
+.mhead .title{font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:17px;letter-spacing:-.4px}
+.mhead .save{font-size:14px;font-weight:600;cursor:pointer;color:var(--accent-light)}
+.mbody{flex:1;overflow-y:auto;padding:20px 22px calc(34px + var(--safe-bottom));display:flex;flex-direction:column;gap:20px}
+.fld{display:flex;flex-direction:column;gap:9px}
+.fld .flabel{font-size:11px;font-weight:600;letter-spacing:1.3px;text-transform:uppercase;color:rgba(242,244,248,.45);margin:0 2px}
+.fld .opt{font-weight:500;letter-spacing:0;text-transform:none;color:rgba(242,244,248,.35)}
+.inp{background:rgba(255,255,255,.05);border:1.5px solid var(--glass-brd);border-radius:16px;padding:15px 16px;font-size:15.5px;font-weight:500;width:100%;color:var(--ink);font-family:inherit}
+.inp::placeholder{color:rgba(242,244,248,.35)}
+textarea.inp{min-height:88px;line-height:1.5;resize:vertical}
+.bad{border:1.5px solid var(--danger) !important}
+.ferr{display:flex;align-items:center;gap:6px;margin:2px 2px 0;font-size:12.5px;font-weight:600;color:var(--danger)}
+.rowinp{display:flex;align-items:center;gap:11px;background:rgba(255,255,255,.05);border:1.5px solid var(--glass-brd);border-radius:16px;padding:14px 16px}
+.rowinp input[type=time],.rowinp input[type=date],.rowinp input{background:none;border:none;color:var(--ink);font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:15.5px;flex:1;color-scheme:dark}
+.switch{width:42px;height:25px;border-radius:99px;position:relative;flex-shrink:0;background:rgba(255,255,255,.15);transition:background .2s;cursor:pointer}
+.switch.on{background:linear-gradient(135deg,var(--accent-light),var(--accent))}
+.switch .knob{position:absolute;top:2.5px;left:2.5px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .2s}
+.switch.on .knob{left:19.5px}
+/* time picker */
+.tpick-chev{transition:transform .25s ease;flex-shrink:0}
+.tpick{overflow:hidden;max-height:0;transition:max-height .28s ease}
+.tpick.open{max-height:230px}
+.tpick-inner{background:rgba(255,255,255,.05);border:1px solid var(--glass-brd);border-radius:16px;padding:10px 8px 8px;margin-top:10px;display:flex;gap:8px}
+.tpick-lbl{font-size:10.5px;font-weight:600;letter-spacing:.6px;color:rgba(242,244,248,.4);text-align:center;margin-bottom:6px}
+.tpick-col{position:relative;height:158px;overflow-y:auto;display:flex;flex-direction:column;gap:3px;padding:54px 4px}
+.tpick-itm{padding:8px;border-radius:11px;text-align:center;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:17px;color:rgba(242,244,248,.5);cursor:pointer;flex-shrink:0;transition:color .15s}
+.tpick-itm.on{color:#0A0C11}
+/* date picker */
+.dpick{overflow:hidden;max-height:0;transition:max-height .3s ease}
+.dpick.open{max-height:420px}
+.dpick-inner{background:rgba(255,255,255,.05);border:1px solid var(--glass-brd);border-radius:16px;padding:12px 12px 8px;margin-top:10px}
+.dp-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;padding:0 2px}
+.dp-grid{display:grid;grid-template-columns:repeat(7,1fr)}
+.dp-cell{height:36px;display:grid;place-items:center}
+.dp-day{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-family:'Bricolage Grotesque',sans-serif;font-size:13.5px;font-weight:600;color:var(--ink);cursor:pointer;transition:background-color .15s,color .15s,box-shadow .15s}
+/* weight slider */
+.wslider{-webkit-appearance:none;appearance:none;width:100%;height:8px;border-radius:99px;background:rgba(255,255,255,.1);outline:none;margin:0;cursor:pointer}
+.wslider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:28px;height:28px;border-radius:50%;background:var(--accent);box-shadow:0 4px 12px rgba(0,0,0,.4);border:3px solid var(--surf2);cursor:pointer}
+.wslider::-moz-range-thumb{width:28px;height:28px;border-radius:50%;background:var(--accent);border:3px solid var(--surf2);cursor:pointer}
+.wticks{display:flex;justify-content:space-between;margin-top:9px;padding:0 2px}
+.wticks span{font-size:11px;font-weight:600;color:rgba(242,244,248,.38)}
+.colordots{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.cdot{width:40px;height:40px;border-radius:14px;cursor:pointer;display:grid;place-items:center}
+.iconpick{display:flex;gap:10px;flex-wrap:wrap}
+.ibtn{width:46px;height:46px;border-radius:15px;display:grid;place-items:center;cursor:pointer;border:1.5px solid var(--line)}
+.stepbtn{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;cursor:pointer;flex-shrink:0}
+.delbtn{margin-top:2px;display:flex;align-items:center;justify-content:center;gap:8px;height:50px;border-radius:18px;border:1.5px solid rgba(255,138,128,.3);color:var(--danger);font-weight:600;font-size:14.5px;cursor:pointer}
+/* confirm / notice */
+/* ---- pantallas de sesión (v3, etapa 1) ----
+   Mismo lenguaje que el resto: fondo y tarjetas de la app, display para los títulos,
+   el acento tiñe la marca y el botón principal. Sin navbar, así que sin su reserva abajo. */
+.view.auth{padding-bottom:calc(var(--safe-bottom) + 34px)}
+.authmark{
+  width:54px;height:54px;border-radius:19px;display:grid;place-items:center;margin-bottom:17px;
+  font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:27px;letter-spacing:-1px;color:#0A0C11;
+  background:radial-gradient(circle at 35% 28%,var(--accent-light),var(--accent) 65%);
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.6),0 10px 26px var(--glow);
+}
+.abtn{height:54px;border-radius:18px;display:grid;place-items:center;cursor:pointer;font-size:15.5px;font-weight:600;letter-spacing:-.2px;user-select:none}
+.abtn.primary{
+  background:linear-gradient(135deg,var(--accent-light),var(--accent) 55%);color:#0A0C11;
+  box-shadow:0 10px 26px var(--glow),inset 0 1px 0 rgba(255,255,255,.5);
+}
+.abtn.ghost{
+  background:var(--glass);border:none;color:var(--ink);font-weight:500;
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  box-shadow:inset 0 1px 0 var(--glass-hi),inset 0 0 0 1px var(--glass-brd);
+}
+.abtn.busy{opacity:.5;pointer-events:none}
+.alink{text-align:center;font-size:13.5px;color:rgba(242,244,248,.55);cursor:pointer}
+.alink b{color:var(--accent-light);font-weight:600}
+
+.confirm{
+  border-radius:28px;padding:24px 22px 20px;display:flex;flex-direction:column;gap:14px;animation:alertIn .24s cubic-bezier(.2,.9,.3,1) both;
+  background:rgba(22,26,34,.85);backdrop-filter:blur(26px);-webkit-backdrop-filter:blur(26px);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.16),inset 0 0 0 1px rgba(255,255,255,.1),0 24px 60px rgba(0,0,0,.6);
+}
+@keyframes alertIn{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}
+.confirm .ct{font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:19px;letter-spacing:-.4px;text-align:center}
+.confirm .cd{font-size:13.5px;color:rgba(242,244,248,.55);margin-top:2px;line-height:1.5;text-align:center}
+.confirm .row{display:flex;flex-direction:column;gap:9px;margin-top:6px}
+.confirm .b{height:50px;border-radius:17px;display:grid;place-items:center;cursor:pointer;font-size:15px;font-weight:500}
+
+/* ============================ ONBOARDING (tour guiado) ============================ */
+@keyframes onbFade{from{opacity:0}to{opacity:1}}
+/* Pasos informativos: tarjeta centrada sobre fondo atenuado (tapa también la barra). */
+.onbscrim{position:fixed;inset:0;z-index:60;background:rgba(6,8,12,.82);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:24px;animation:onbFade .25s ease both}
+.onbcard{
+  width:100%;max-width:400px;max-height:86vh;overflow-y:auto;border-radius:26px;padding:26px 22px;animation:dIn .35s cubic-bezier(.2,.8,.2,1) both;
+  background:rgba(22,26,34,.85);backdrop-filter:blur(26px);-webkit-backdrop-filter:blur(26px);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.16),inset 0 0 0 1px rgba(255,255,255,.1),0 24px 60px rgba(0,0,0,.55);
+}
+.onbcard h2{font-family:'Bricolage Grotesque',sans-serif;font-size:22px;font-weight:800;letter-spacing:-.6px;margin:0}
+.onbcard .sub{font-size:14px;color:rgba(242,244,248,.6);line-height:1.5}
+.onbicon{width:60px;height:60px;border-radius:20px;display:grid;place-items:center;margin:0 auto 12px}
+.onbicon svg{width:28px;height:28px}
+.onbghost{margin-top:10px;text-align:center;font-size:14.5px;font-weight:600;color:rgba(242,244,248,.62);padding:13px;border-radius:16px;cursor:pointer}
+/* Bloques de instalación (iPhone / Android). */
+.onbinst{background:var(--glass);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-radius:16px;padding:12px 14px;box-shadow:inset 0 0 0 1px var(--glass-brd)}
+.onbinst-t{font-weight:600;font-size:14px;margin-bottom:3px}
+.onbinst-s{font-size:12.5px;color:rgba(242,244,248,.6);line-height:1.5}
+/* Puntos de progreso. */
+.onbdots{display:flex;gap:6px;justify-content:center;margin:20px 0 6px}
+.onbdot{width:7px;height:7px;border-radius:99px;background:rgba(242,244,248,.2);transition:background-color .2s,width .2s}
+.onbdot.on{width:18px;background:var(--amber)}
+/* "Omitir" siempre visible arriba a la derecha. */
+.onbtop{position:fixed;top:calc(var(--safe-top) + 14px);right:18px;z-index:62}
+.onbtop .cancel{cursor:pointer;font-size:14px;font-weight:600;color:rgba(242,244,248,.75);background:rgba(20,23,31,.75);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);padding:8px 15px;border-radius:14px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
+/* Pasos de sección: tip anclado abajo, sobre la sección real (por encima de la barra). */
+.onbtip{position:fixed;left:16px;right:16px;bottom:calc(var(--nav-h) + var(--safe-bottom) + 12px);z-index:60;display:flex;justify-content:center;pointer-events:none;animation:onbFade .25s ease both}
+.onbtip .onbdots{margin:0}
+.onbtip-card{
+  pointer-events:auto;width:100%;max-width:400px;border-radius:20px;padding:15px 16px;animation:dIn .32s ease both;
+  background:rgba(27,31,41,.85);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.14),inset 0 0 0 1px rgba(255,255,255,.1),0 16px 40px rgba(0,0,0,.55);
+}
+
+/* ============================ RESPONSIVE (tablet / escritorio) ============================
+   Mismo diseño, distinto layout: barra lateral izquierda, contenido centrado en una columna
+   cómoda, Progreso en 2 columnas y modales centrados en vez de hoja desde abajo. */
+@media (min-width:900px){
+  /* (La barra lateral y la grilla del contenido viven en nocturne.css.) */
+
+  /* Auth / bienvenida / carga: sin barra, centrados y sin estirarse. */
+  .view.auth .head,.view.auth .body{max-width:440px;margin-left:auto;margin-right:auto}
+
+  /* Modales: hoja centrada tipo diálogo, no pegada abajo ni gigante. */
+  .sheet{left:50%;top:50%;bottom:auto;transform:translate(-50%,-50%);max-width:460px;max-height:86vh;border-radius:28px;animation:popIn .22s cubic-bezier(.2,.85,.25,1) both}
+  @keyframes popIn{from{opacity:0;transform:translate(-50%,-48%) scale(.98)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+
+  /* El tip contextual, acompañando la columna de contenido. */
+  .onbtip{right:0;bottom:34px}
+}
+
+/* ====================== 2. SESIÓN ====================== */
+/* ============================================================
+   Daily — estilos propios de las pantallas de sesión (React)
+
+   styles.css es el sistema visual, copiado tal cual de la app vanilla: no se toca.
+   Acá viven SOLO las reglas que en vanilla estaban escritas como `style="..."` dentro
+   de los template strings de auth.js. Mismos valores, mismo resultado en pantalla;
+   la diferencia es que ahora tienen nombre y se pueden leer.
+
+   Se quedan inline únicamente los estilos que dependen de un valor dinámico
+   (el degradé de la marca, que cambia de color según la pantalla).
+   ============================================================ */
+
+/* React monta dentro de #root, un nodo que en la app vanilla no existía. #app hereda el
+   alto de su padre, así que #root tiene que ocupar toda la pantalla o el layout se rompe. */
+#root { height: 100%; }
+
+/* Los botones ahora son <button> de verdad (antes eran <div>): el reset de styles.css
+   les saca el fondo y el borde, pero hay que devolverles el ancho completo. */
+button.abtn { width: 100%; font-family: inherit; }
+button.abtn:disabled { opacity: .5; pointer-events: none; }
+
+/* Los links de navegación entre pantallas son <a> de verdad (React Router), no divs con
+   un data-act: se pueden abrir en otra pestaña y el navegador los entiende. Solo hay que
+   sacarles el subrayado y el color de link por defecto. */
+a { color: inherit; text-decoration: none; }
+
+/* Volver, en la pantalla de recuperar contraseña. */
+.auth-back { margin-bottom: 18px; }
+
+/* "¿Ya tenés cuenta? Entrá": toda la línea es tocable, como en vanilla. */
+a.alink { display: block; }
+
+/* Marca grande de la pantalla de carga ("Abriendo tu Daily…"). */
+.authmark.big { width: 64px; height: 64px; border-radius: 22px; font-size: 32px; margin: 0; }
+
+/* "¿Olvidaste tu contraseña?" del login. */
+.auth-forgot {
+  text-align: right; font-size: 13px; font-weight: 500; color: var(--amber);
+  cursor: pointer; margin: -8px 2px 0; display: block;
+}
+
+/* Aclaración del remitente, abajo del formulario de registro. */
+.auth-note {
+  font-size: 12px; color: rgba(242,244,248,.42); text-align: center;
+  line-height: 1.55; margin: -4px 8px 0;
+}
+.auth-note b { color: rgba(242,244,248,.7); }
+
+/* Aviso arriba del formulario (verde = salió bien, rojo = error). */
+.auth-flash {
+  display: flex; align-items: flex-start; gap: 10px; padding: 13px 15px; border-radius: 16px;
+  font-size: 13px; font-weight: 500; line-height: 1.45;
+}
+.auth-flash svg { flex: none; margin-top: 1px; }
+.auth-flash.ok  { background: #86D9A01A; border: 1px solid #86D9A03D; color: var(--green); }
+.auth-flash.err { background: #FF8A801A; border: 1px solid #FF8A803D; color: var(--danger); }
+
+/* ---- pantalla de verificación ---- */
+.verify-card {
+  padding: 20px 18px; display: flex; flex-direction: column;
+  align-items: center; gap: 12px; text-align: center;
+}
+.verify-icon {
+  width: 54px; height: 54px; border-radius: 19px;
+  background: #FFA87724; color: var(--coral); display: grid; place-items: center;
+}
+.verify-text { font-size: 14px; line-height: 1.55; color: rgba(242,244,248,.65); }
+.verify-text b { color: var(--coral); font-weight: 600; }
+.verify-note {
+  font-size: 12px; line-height: 1.55; color: rgba(242,244,248,.42);
+  padding-top: 2px; border-top: 1px solid rgba(255,255,255,.06); width: 100%;
+}
+.verify-note b { color: rgba(242,244,248,.7); }
+
+/* ---- confirmación (¿Cerrar sesión?) ----
+   En vanilla esta capa se creaba a mano con cssText; acá es una clase. */
+.confirm-layer {
+  position: fixed; inset: 0; z-index: 200; display: flex; align-items: center;
+  padding: 20px; background: rgba(0,0,0,.55);
+}
+.confirm-layer > div { width: 100%; max-width: 480px; margin: 0 auto; }
+.confirm .b.cancel { background: rgba(255,255,255,.07); color: rgba(244,244,251,.7); }
+.confirm .b.danger { background: var(--danger); color: #0A0C11; font-weight: 600; }
+/* El aviso de un solo botón (notice(), etapa 4): "entendido", no "confirmar/cancelar". */
+.confirm .b.teal { background: var(--teal); color: #0A0C11; font-weight: 600; }
+
+/* ====================== 3. PANTALLAS Y MODALES ====================== */
+/* ============================================================
+   Daily — estilos propios de las pantallas de la app (React)
+
+   styles.css es el sistema visual, copiado tal cual de la app vanilla: no se toca.
+   auth.css tiene lo de las pantallas de sesión (etapa 1). Acá viven SOLO las reglas que
+   en vanilla estaban escritas como `style="..."` dentro de los template strings de
+   hoy.js, calendario.js, agenda.js, utils.js y app.js. Mismos valores, mismo resultado
+   en pantalla; la diferencia es que ahora tienen nombre y se pueden leer.
+
+   El criterio para decidir qué se queda inline, que es el mismo de la etapa 1:
+
+     va a CLASE   lo que en vanilla era una constante — tamaños, paddings, flex, y también
+                  los colores que salían de una constante del módulo (el ámbar de la tira
+                  semanal, el coral del calendario). Si nunca cambia, es diseño.
+
+     queda INLINE lo que depende de un dato: el color de un ítem según su tipo, el color
+                  que el usuario le eligió a un hábito, el ancho de la barra de progreso,
+                  el acento que recibe un formulario por props. Si sale del documento o
+                  de un parámetro, no puede vivir en una hoja de estilos.
+
+   Con ese corte, el único color que quedó repetido en el JSX es el de ITEM_COLOR, que es
+   exactamente el que tiene que estar ahí: sale del `kind` de cada ítem.
+   ============================================================ */
+
+/* ---- los <div> que ahora son <button> ----
+   La app vanilla no tenía un solo botón: todo era un <div> con un data-act que leía un
+   listener global. Acá lo que se toca es un <button> de verdad (llega con Tab, lo anuncia
+   un lector de pantalla, responde a Enter), y eso pide sacarles el padding que el navegador
+   les pone por su cuenta. El resto del reset ya está en styles.css.
+
+   OJO con esta lista: `button.algo` le gana en especificidad a `.algo`, así que acá van
+   SOLO las clases que no declaran su propio padding. Poner una que sí lo declara (.evrow,
+   .rtype, .chip, .tpick-itm, .cell) le borraría el que tiene y la achicaría. */
+button.wcell, button.nb, button.navbtn, button.dp-day, button.chk, button.traydot,
+button.minibtn, button.slot, button.navadd, button.switch, button.gcheck,
+button.iconcirc, button.stepbtn, button.roundadd, button.ordbtn, button.hmenubtn,
+button.turno-quitar, button.heatcell,
+.mhead button.cancel, .mhead button.save, button.dd-add {
+  padding: 0;
+}
+
+/* .hmenu (Hábitos: menú de "⋯") era, en vanilla, un <div> con dos <div data-act> adentro:
+   el selector de styles.css es ".hmenu>div", que no alcanza a los <button> de acá. Se
+   repite la misma regla apuntando a button en vez de div, más el reset que un <button>
+   necesita (fondo, borde, ancho y alineación que un <div> trae gratis). */
+.hmenu > button {
+  padding: 10px 12px;
+  border-radius: 11px;
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  color: inherit;
+  font-family: inherit;
+}
+/* Un <button> no ocupa el ancho de su fila ni alinea el texto a la izquierda: eso sí hay
+   que devolvérselo a las filas que antes eran <div>. */
+button.evrow { width: 100%; text-align: left; }
+button.slot:disabled { cursor: default; }
+/* .onbtop .cancel ("Omitir") era un <span> en vanilla: display:inline de fábrica, así que
+   su padding vertical (8px) se ve pero NO empuja el alto de línea — el fondo redondeado
+   "sangra" 7px arriba y 9px abajo del cuadro que en verdad ocupa en el layout (medido con
+   getBoundingClientRect; la asimetría sale de las métricas de la fuente, no es un
+   redondeo). Un <button> es un cuadro reemplazado: Chromium no deja pisarle el `display`
+   con `inline` (queda inline-block igual, verificado), así que la única forma de replicar
+   la misma sangría es la misma cuenta pero con márgenes negativos en vez de con el modelo
+   de caja de un span. */
+.onbtop button.cancel { margin: -7px 0 -9px; }
+
+/* ---- utilidades ----
+   `flex:1;min-width:0` aparecía en catorce lugares distintos de la app vanilla: es el
+   "ocupá lo que sobra, y si no entra encogete" de cualquier fila con texto al lado de un
+   ícono. Sin el min-width:0, un título largo estira la fila en vez de recortarse. */
+.grow { flex: 1; min-width: 0; }
+
+/* ============================ HOY ============================ */
+
+/* La cabecera lleva el bloque de texto a la izquierda y el engranaje a la derecha. Acá el
+   texto NO crece (no lleva flex:1), solo se le permite encoger: es lo que hacía vanilla. */
+.htop-main { min-width: 0; }
+
+/* ---- tira semanal ----
+   Tres estados por día: elegido, pasado y normal. En vanilla eran seis variables de color
+   calculadas en JavaScript sobre una constante — el ámbar en weekStrip() (Hoy), el verde
+   en habWeekStrip() (Hábitos), dos funciones casi idénticas con el color escrito a mano
+   cada una. Acá <WeekStrip> es un solo componente (ver components/ui/WeekStrip.jsx) y el
+   color sale de var(--accent)/var(--accent-47), que App.jsx calcula por página: en Hoy da
+   ámbar, en Hábitos da verde, sin que esta hoja tenga que saber de ninguno de los dos. */
+.wdow.on { color: var(--accent); }
+
+/* ---- progreso del día ----
+   El ancho de la barra es el dato y va inline; el degradé es del diseño y vive acá. */
+.progday .fill { background: linear-gradient(90deg, var(--amber), var(--coral)); }
+
+/* ---- agenda del día (línea de tiempo) ---- */
+
+/* ---- filas de cita / entreno ---- */
+.evchev { font-size: 16px; flex: none; }
+
+/* ---- bandeja de pendientes (sin fecha) ---- */
+.traydot.on { background: var(--amber); border-color: var(--amber); }
+.traytext { min-width: 0; }
+.traytext.done { color: rgba(242, 244, 248, .3); text-decoration: line-through; }
+
+/* ---- hábitos en Hoy ---- */
+.habrow .habmeta { display: flex; align-items: center; gap: 6px; }
+/* Los días futuros se ven, pero no se marcan. */
+
+/* ---- tarjetas de "acá no hay nada" ---- */
+.card.emptycard { padding: 20px 16px; }
+.card.emptycard.sm { padding: 18px 16px; }
+.card.emptycard.lg { padding: 26px 18px; }
+.card.emptycard.tight { padding: 16px; }
+
+/* ============================ CALENDARIO ============================ */
+
+/* Ojo: .cal-head no está adentro de .head, así que su <h1> NO hereda las reglas de
+   .head h1. Es así en la app actual y se replica igual para que se vea idéntico. */
+.cal-head h1 {
+  margin-top: 4px;
+}
+.cal-nav { display: flex; }
+.cal-grid.cells { gap: 2px; }
+
+/* Los casilleros con fecha llevan un borde apenas visible; los huecos de antes del día 1
+   no llevan nada y no se tocan. */
+.cell.blank { background: none; cursor: default; }
+
+/* ---- detalle del día ---- */
+.softcard.daydetail { display: flex; flex-direction: column; }
+.dd-head { display: flex; justify-content: space-between; }
+.dd-add { font-size: 12.5px; font-weight: 600; color: var(--coral); cursor: pointer; }
+.dd-list { display: flex; flex-direction: column; }
+
+/* ============================ MENÚS (el + y "agregar a este día") ============================ */
+.menulist { display: flex; flex-direction: column; gap: 10px; }
+/* .evrow ya es de vidrio (styles.css); el menú no necesitaba un fondo propio. */
+.evic.xl { width: 42px; height: 42px; }
+.evic.xl svg { width: 21px; height: 21px; }
+.evname.lg { font-size: 15.5px; }
+
+/* ============================ FORMULARIOS ============================ */
+
+/* Sin botón de guardar (los menús), el hueco de la derecha igual ocupa lugar: si no, el
+   título de la hoja dejaría de estar centrado. */
+.mhrow-gap { width: 56px; }
+
+/* ---- la fila que muestra un valor y despliega su selector (fecha, hora) ---- */
+.rowinp.tappable { cursor: pointer; }
+.rowval { flex: 1; font-weight: 700; color: #F4F4FB; }
+.rowval.date { font-size: 16px; }
+.rowval.time { font-size: 18px; }
+.rowval.off { color: rgba(244, 244, 251, 0.4); }
+
+/* ---- selector de fecha ---- */
+.dp-nav .navbtn { width: 30px; height: 30px; color: rgba(244, 244, 251, 0.7); }
+.dp-month { font-weight: 600; font-size: 15.5px; }
+.dp-year { color: rgba(244, 244, 251, 0.4); font-weight: 500; }
+.dp-grid.dows { margin-bottom: 4px; }
+
+/* ---- selector de tipo (cita / anual) ----
+   .rtype no tenía NINGUNA regla en styles.css: todo su aspecto estaba inline en el
+   template string de eventModal(). Acá está entero, menos el fondo del que está activo,
+   que sale del acento del formulario. */
+.seg {
+  display: flex; gap: 6px; background: rgba(255, 255, 255, .04);
+  border: 1px solid var(--line); border-radius: 16px; padding: 5px;
+}
+.rtype {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 11px; border-radius: 12px; font-weight: 600; font-size: 14px;
+  color: rgba(242, 244, 248, .6);
+}
+.seg-note { font-size: 12.5px; color: rgba(242, 244, 248, .4); margin: 9px 4px 0; }
+
+/* ============================ AJUSTES (mínimo) ============================ */
+.ajustes-h1 { margin-top: 10px; }
+.card.pad2 { padding: 4px 6px; }
+.inforow { display: flex; align-items: center; gap: 12px; padding: 14px 12px; }
+.inforow.sep { border-bottom: 1px solid var(--line); }
+.infoname { flex: 1; font-size: 14.5px; font-weight: 500; }
+.infoval { font-size: 13px; color: rgba(242, 244, 248, .4); }
+
+/* ============================ GIMNASIO ============================ */
+
+/* ---- plan semanal ---- */
+.sectrow { display: flex; align-items: center; justify-content: space-between; margin: 0 2px; }
+.weekstrip.weeknav { gap: 8px; flex: none; }
+.tile-k { font-size: 8.5px; letter-spacing: 1.2px; text-transform: uppercase; color: rgba(242, 244, 248, .5); }
+
+/* "Cómo comés", día por día (ProgComoComes). */
+
+.comedia { padding: 9px 0; border-bottom: 1px solid rgba(255, 255, 255, .06); }
+.comedia:last-child { border-bottom: none; }
+
+.comedia-mas { margin-top: 8px; font-weight: 600; }
+
+/* "¿Comiste bien?" (ProgMealScore, Progreso) — reusa las barras de arriba. */
+.gbar.rest { background: rgba(255, 255, 255, .1); }
+.spacer { flex: 1; }
+
+/* ---- entrenamientos dobles (etapa 6, sin precedente en vanilla) ---- */
+.turno-quitar { width: 20px; height: 20px; flex: none; border-radius: 7px; display: grid; place-items: center; color: rgba(242, 244, 248, .35); cursor: pointer; position: relative; }
+.turno-quitar:hover { color: rgba(242, 244, 248, .6); background: rgba(255, 255, 255, .06); }
+/* Mismo criterio de área táctil que el resto de los checkboxes chicos (etapa 4). */
+.turno-quitar::after { content: ''; position: absolute; inset: -12px; }
+.turno-agregar { display: flex; align-items: center; gap: 6px; color: rgba(242, 244, 248, .35); cursor: pointer; align-self: flex-start; }
+.turno-agregar:hover { color: rgba(242, 244, 248, .6); }
+
+/* ---- peso corporal (Gimnasio y Progreso comparten estas clases: son el mismo dibujo) ----
+   .bigcard ya existe en styles.css (el degradé de fondo). Acá va lo de adentro, que en
+   vanilla eran estilos inline repetidos igual en bodyWeightSection() y progBodyWeight(). */
+.bigcard-top { display: flex; align-items: flex-end; justify-content: space-between; }
+.bigcard-val { display: flex; align-items: baseline; gap: 7px; }
+.bigcard-unit { font-weight: 500; }
+.bigcard-delta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.bigcard-since { font-size: 11.5px; color: rgba(242, 244, 248, .35); }
+.bigcard-note { font-size: 12.5px; color: rgba(242, 244, 248, .4); }
+/* La versión de Progreso agrega el período ("en los últimos 30 días") al mensaje, que se
+   envuelve a dos líneas más seguido que el de Gimnasio — por eso ahí sí lleva interlineado. */
+.bigcard-note.tight { line-height: 1.5; }
+.chartlabels { display: flex; justify-content: space-between; font-size: 10.5px; font-weight: 500; color: rgba(242, 244, 248, .3); }
+/* .deltapill es la píldora +/- que acompaña un número grande (peso corporal, carga). La
+   variante `.inline` (detalle de ejercicio) va pegada al número en vez de en su propia
+   columna, y por eso el padding vertical es 1px más chico. */
+.deltapill { padding: 5px 10px; border-radius: 99px; font-size: 12px; font-weight: 600; }
+.deltapill.inline { padding: 4px 10px; margin-left: 4px; }
+
+/* ---- cargas por ejercicio ---- */
+button.liftrow { width: 100%; text-align: left; }
+.liftrow-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.bartrack.thin { height: 4px; }
+.liftrow-side { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; flex: none; }
+
+/* ---- detalle de un ejercicio ---- */
+.liftdetail-top { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
+.liftdetail-cur { display: flex; align-items: baseline; gap: 5px; }
+.liftdetail-val { font-weight: 800; font-size: 34px; letter-spacing: -1px; }
+.liftdetail-unit { font-size: 14px; font-weight: 500; color: rgba(242, 244, 248, .5); }
+.liftdetail-pr { text-align: right; }
+.liftdetail-prlbl { font-size: 11px; font-weight: 600; letter-spacing: 1px; color: rgba(242, 244, 248, .4); }
+.liftdetail-prval { font-weight: 700; font-size: 16px; color: var(--amber); }
+.liftdetail-hint { font-size: 12.5px; color: rgba(242, 244, 248, .4); }
+.prtag { font-size: 10px; font-weight: 700; color: var(--amber); background: #EAC06A24; padding: 2px 7px; border-radius: 99px; flex: none; }
+
+/* ---- listas de administración (registros, tipos): la base de .managerow ya existe en
+   styles.css. Acá van los textos de adentro, que vanilla escribía inline cada vez. Los
+   `.narrow`/tamaños puntuales son porque la MISMA fila mide un pelo distinto según la
+   pantalla (detalle de ejercicio vs. historial de peso), tal cual estaba en la app actual. */
+.managerow-kg { font-weight: 700; font-size: 15.5px; min-width: 70px; }
+.managerow-kg.narrow { min-width: 62px; }
+.managerow-date { flex: 1; min-width: 0; font-size: 13px; color: rgba(242, 244, 248, .5); }
+.managerow-actions { display: flex; gap: 8px; flex: none; }
+.managerow-name { flex: 1; font-weight: 600; font-size: 15.5px; }
+.managelist { overflow: hidden; padding: 0; }
+.typedot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
+
+/* ---- administrar tipos ---- */
+.managetypes-head { display: flex; align-items: center; justify-content: space-between; }
+.flabel.notopmargin { margin: 0; }
+.roundadd { width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center; cursor: pointer; }
+.managetypes-note { font-size: 12.5px; color: rgba(242, 244, 248, .42); margin: 8px 4px 0; line-height: 1.5; }
+
+/* ---- rutinas: entrada desde Gimnasio ---- */
+.rutentry { flex-direction: row; align-items: center; gap: 14px; padding: 18px; }
+.rutentry-icon { flex: none; display: grid; place-items: center; }
+.rutentry-icon svg { width: 22px; height: 22px; }
+
+/* ---- cargar peso (LiftModal): chips de ejercicio + input de uno nuevo ----
+   El borde punteado es tint(rose,'80'): en vanilla salía de la variable ACC del modal,
+   pero ACC en LiftModal siempre vale C.rose (es el acento fijo de Gimnasio, nunca cambia
+   entre instancias), así que es tan "constante" como cualquier otro color de esta hoja. */
+.rowinp.newliftrow { margin-top: 11px; border: 1.5px dashed #FF9B9380; }
+.rowinp.newliftrow.bad { border-color: var(--danger); border-style: solid; }
+.newliftinput { flex: 1; background: none; border: none; font-weight: 600; font-size: 14.5px; font-family: inherit; outline: none; color: inherit; }
+.weightbox { border-radius: 20px; background: rgba(255, 255, 255, .05); border: 1.5px solid var(--glass-brd); padding: 16px; }
+.weightbox-val { text-align: center; display: flex; align-items: baseline; justify-content: center; gap: 6px; margin-bottom: 15px; }
+.weightbox-val .fr { font-weight: 800; font-size: 44px; letter-spacing: -2px; }
+.weightbox-unit { font-size: 16px; font-weight: 500; color: rgba(242, 244, 248, .5); }
+.weightbox-row { display: flex; align-items: center; gap: 12px; }
+.stepbtn.dec { background: rgba(255, 255, 255, .06); }
+.weightbox-gain { font-size: 12.5px; font-weight: 500; color: rgba(242, 244, 248, .45); margin: 10px 4px 0; }
+.nativedate { background: none; border: none; color: var(--ink); font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700; font-size: 15.5px; flex: 1; color-scheme: dark; }
+
+/* ============================ RUTINAS ============================ */
+.rutlist-h1 { margin-top: 5px; }
+/* .rcover era un <div data-act> en vanilla (display:block por defecto, así que su
+   height:104px de styles.css funcionaba solo). Acá es un <Link> — un <a>, que por
+   defecto es inline y por lo tanto ignora height. Con la biblioteca navegando de
+   verdad (no un data-act con listener global) esto ya no puede ser un div. */
+a.rcover { display: block; }
+.rcard-body { padding: 15px 16px 15px; display: flex; align-items: center; gap: 10px; }
+.rcard-name { font-weight: 600; font-size: 20px; letter-spacing: -.4px; }
+.rcard-sub { font-size: 13px; color: rgba(242, 244, 248, .45); margin-top: 2px; }
+.managerow.openable { cursor: pointer; }
+.managerow-title { font-weight: 600; font-size: 15.5px; letter-spacing: -.1px; }
+.managerow-sub { font-size: 12.5px; color: rgba(242, 244, 248, .45); margin-top: 2px; white-space: pre-wrap; }
+
+/* ============================ HÁBITOS ============================ */
+.pillbtn { height: 38px; padding: 0 14px; border-radius: 14px; display: grid; place-items: center; font-size: 13px; font-weight: 600; cursor: pointer; flex: none; }
+.pillbtn.habits { background: #86D9A028; color: var(--green); }
+
+.beststreak { box-shadow: inset 0 1px 0 rgba(255,255,255,.2), inset 0 0 0 1px #86D9A03D; }
+.beststreak-icon { flex: none; display: grid; place-items: center; }
+.beststreak-label { text-transform: uppercase; }
+.beststreak-row { display: flex; align-items: baseline; gap: 7px; }
+
+.sectrow-baseline-inline { display: flex; align-items: baseline; gap: 8px; margin: 0 2px; }
+.sectlabel-note { font-size: 12px; color: rgba(242, 244, 248, .35); font-weight: 400; text-transform: none; letter-spacing: 0; }
+
+.habicon.sm { width: 36px; height: 36px; }
+
+/* ============================ COMIDAS ============================
+   Sexta sección (sin precedente en vanilla). Casi todo reusa lo que ya existe —
+   .card/.chip/.habrow/.iconwrap/.managerow/.empty—; acá va solo lo propio: el plan de
+   solo lectura, las burbujas de la bitácora y la caja para escribir. */
+
+/* El botón "Editar" de cada sección: misma píldora que usa Hábitos, en violeta y con
+   lugar para el ícono al lado del texto (la variante de Hábitos es solo texto). */
+.pillbtn.comidas {
+  background: #B49BE828; color: var(--violet);
+  display: flex; align-items: center; gap: 6px;
+}
+.comidas-newplan { width: 100%; justify-content: center; margin-top: 10px; }
+
+/* Selector de "Calidad" de un extra (Neutro/Bueno/Evitar) — tres píldoras, mismo tamaño
+   de toque que .ibtn/.cdot de arriba. Colores explícitos por botón (ver comentario de
+   CALIDADES en MealExtraFormModal.jsx): el modal no puede leer var(--accent). */
+.qualitypick { display: flex; gap: 8px; }
+.qbtn { flex: 1; height: 38px; border-radius: 12px; border: 1.5px solid var(--line); background: rgba(255, 255, 255, .03); font-size: 12.5px; font-weight: 600; color: rgba(242, 244, 248, .5); cursor: pointer; }
+
+/* "Qué lleva" una opción (MealOptionFormModal) — dos renglones por alimento, para que
+   entre en un celular: nombre + quitar arriba; cantidad, unidad y macro abajo. */
+.mealitems-build { display: flex; flex-direction: column; gap: 10px; }
+.mealitemrow { display: flex; flex-direction: column; gap: 6px; padding-bottom: 10px; border-bottom: 1px solid rgba(255, 255, 255, .06); }
+.mealitemrow-top, .mealitemrow-bottom { display: flex; align-items: center; gap: 6px; }
+.mealitem-name { flex: 1; min-width: 0; }
+.mealitem-qty { width: 72px; flex: none; text-align: center; padding-left: 4px; padding-right: 4px; }
+.mealitem-unit { width: 110px; flex: none; padding-left: 10px; padding-right: 6px; }
+.mealitem-tipo { flex: 1; min-width: 0; padding-left: 10px; padding-right: 6px; }
+
+/* ---- "Tu día" (DayMealsCard) ---- */
+.daymeals { padding: 16px 16px 6px; }
+.daymeals-rowtop { display: flex; align-items: center; gap: 8px; }
+.daymeals-status { text-transform: uppercase; }
+.daymeals-reg { margin-top: 8px; padding-left: 2px; }
+.daymeals-opt { display: flex; align-items: center; gap: 6px; }
+.daymeals-pesado { font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 99px; background: rgba(255, 255, 255, .07); color: rgba(242, 244, 248, .6); }
+.daymeals-items { display: flex; flex-wrap: wrap; gap: 3px 10px; margin-top: 4px; font-size: 11px; }
+.daymeals-edit { flex: none; font-size: 12px; font-weight: 600; color: var(--violet); cursor: pointer; padding: 2px 4px; }
+/* Lo de fuera del plan: distinta pero sana (teal) o permitido (coral, cuenta como pifiada). */
+.daymeals-fuera { font-size: 10px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; padding: 2px 6px; border-radius: 99px; flex: none; }
+.daymeals-fuera.sana { background: #6FD2D224; color: var(--teal); }
+.daymeals-fuera.permitido { background: #FFA87724; color: var(--coral); }
+.daymeals-vacio { font-size: 12px; line-height: 1.4; color: rgba(242, 244, 248, .4); margin-top: 6px; }
+
+/* "¿Comiste otra cosa?" / permitido suelto (OffPlanForm). */
+.offplan { display: flex; flex-direction: column; gap: 10px; }
+.offplan-foot { display: flex; align-items: center; gap: 10px; }
+.offplan-nota { flex: 1; margin-top: 0; }
+
+/* Aviso "falta algo del plan de la nutricionista" en la sección Plan. */
+.mealrecover { display: flex; align-items: center; gap: 12px; font-size: 13px; line-height: 1.4; color: rgba(242, 244, 248, .8); }
+
+/* Sin plan: la invitación a cargar el del nutricionista. */
+.mealempty { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.mealempty-title { font-size: 15px; font-weight: 600; }
+.mealempty-sub { font-size: 13px; line-height: 1.45; color: rgba(242, 244, 248, .6); }
+.mealempty-btn { margin-top: 4px; }
+.mealempty-alt { font-size: 12.5px; color: rgba(242, 244, 248, .5); cursor: pointer; text-decoration: underline; }
+
+/* Guía del nutricionista, plegada por defecto (<details> nativo). */
+.mealguide summary { cursor: pointer; font-size: 13.5px; font-weight: 600; color: var(--violet); }
+.mealguide ul { margin: 10px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 7px; }
+.mealguide li { font-size: 13px; line-height: 1.45; color: rgba(242, 244, 248, .75); }
+
+/* Registrar una comida (RegisterMealModal). */
+.mealopts { display: flex; flex-direction: column; gap: 8px; }
+.mealopt { text-align: left; display: flex; flex-direction: column; gap: 3px; padding: 13px 14px; border-radius: 16px; background: rgba(255, 255, 255, .05); border: 1.5px solid var(--glass-brd); cursor: pointer; }
+.mealopt-name { font-size: 14.5px; font-weight: 600; color: #F2F4F8; }
+.mealopt-items { font-size: 12px; color: rgba(242, 244, 248, .5); line-height: 1.4; }
+.pillbtn.comidas:disabled { opacity: .4; cursor: default; }
+.mealajustar-hint { margin-top: 0; margin-bottom: 10px; }
+.mealajustar { display: flex; flex-direction: column; gap: 10px; }
+.mealajustar-row { display: flex; align-items: center; gap: 6px; }
+/* Un alimento sacado (cantidad 0) queda a la vista pero apagado, listo para volver. Se
+   apagan las partes y no la fila entera: así "Volver a poner" se sigue viendo nítido. */
+.mealajustar-row.off .mealajustar-name { text-decoration: line-through; opacity: .45; }
+.mealajustar-row.off .stepbtn, .mealajustar-row.off .mealajustar-val, .mealajustar-row.off .mealajustar-unit { opacity: .45; }
+.mealajustar-toggle { font-size: 11.5px; font-weight: 600; color: var(--violet); cursor: pointer; padding: 0; }
+.mealajustar-name { font-size: 14px; font-weight: 600; }
+.mealajustar-plan { font-size: 11.5px; color: rgba(242, 244, 248, .45); margin-top: 1px; }
+.mealajustar-val { width: 64px; flex: none; text-align: center; padding: 10px 4px; }
+.mealajustar-unit { width: 18px; font-size: 12px; color: rgba(242, 244, 248, .5); }
+.mealpesado { display: flex; align-items: center; gap: 12px; }
+/* "Sumar algo de otra opción": cada opción con sus alimentos como chips para tocar. */
+.mealsumar { display: flex; flex-direction: column; gap: 10px; }
+.mealsumar-opt .chips { margin-top: 5px; }
+.mealsumar-opt .chip { cursor: pointer; font-size: 12.5px; }
+.mealvolver { margin-top: 6px; font-size: 13px; color: rgba(242, 244, 248, .55); cursor: pointer; }
+
+/* La calidad de un extra, al lado del nombre. */
+.mealextra-q { margin-left: 7px; font-size: 10px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; padding: 2px 6px; border-radius: 99px; vertical-align: middle; }
+.mealextra-q.malo { background: #FF8A8024; color: var(--danger); }
+.mealextra-q.bueno { background: #86D9A024; color: var(--green); }
+
+/* ---- el plan, de solo lectura ---- */
+.mealslot { padding: 12px 2px; }
+.mealslot:not(:last-child) { border-bottom: 1px solid rgba(255, 255, 255, .06); }
+.mealslot-name { font-size: 12px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; color: rgba(242, 244, 248, .55); margin-bottom: 9px; }
+.mealslot-vacio { font-size: 13px; color: rgba(242, 244, 248, .4); }
+/* Las opciones son chips de lectura, no botones: sin cursor ni estado "elegido". */
+.chip.mealslot-opt { cursor: default; font-weight: 500; font-size: 13px; padding: 7px 13px; }
+
+/* ---- bitácora ---- */
+.mealbubble { display: flex; flex-direction: column; gap: 8px; backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+}
+.mealbubble-top { display: flex; }
+.mealbubble-time { flex: none; }
+.mealbubble-text { line-height: 1.4; }
+.mealtags { display: flex; flex-wrap: wrap; gap: 6px; }
+.mealtag { font-size: 11px; font-weight: 600; padding: 4px 9px; border-radius: 99px; background: rgba(255, 255, 255, .06); color: rgba(242, 244, 248, .7); }
+.mealtag.mealtag-plan { background: #B49BE824; color: var(--violet); }
+/* El desglose "2/3 Tostadas" de una opción cuantificada (ver itemColor en
+   MealLogBubble.jsx) — chico y debajo de las píldoras, no compite con ellas. */
+.mealitems-detalle { display: flex; flex-wrap: wrap; gap: 4px 10px; padding-left: 47px; margin-top: 4px; }
+.mealitem-detalle { font-size: 10.5px; font-weight: 600; }
+
+/* ---- la caja para escribir ----
+   Pegada abajo del bloque, no al viewport: la bitácora es una sección más de la página
+   (se scrollea con todo lo demás), así que una barra fija taparía el resto sin motivo. */
+.mealcomposer { display: flex; gap: 9px; margin-top: 2px; }
+/* textarea.inp (styles.css) impone min-height:88px para las descripciones largas de los
+   formularios; acá es una sola línea que crece sola, así que hay que ganarle en
+   especificidad con el mismo selector de elemento + clase. */
+textarea.mealinp { min-height: 0; line-height: 1.4; resize: none; }
+.mealsend { flex: none; display: grid; place-items: center;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .5), 0 6px 16px rgba(0, 0, 0, .3);
+  cursor: pointer;
+}
+
+/* ============================ PROGRESO ============================ */
+.sectrow-baseline { display: flex; align-items: baseline; justify-content: space-between; margin: 0 2px; }
+
+/* ---- Cómo venís (ProgComoVenis, rediseño "Glass + aurora") ----
+   Invertida (pedido explícito, segunda vuelta: "debe ser una tabla horizontal porq es muy
+   grande") — músculo = columna, período = fila. Antes era al revés (una fila ancha por
+   músculo, una columna angosta por período), que con 'año' (12 columnas) se volvía
+   ilegible; con pocos músculos pero muchos períodos, apilar los períodos entra mejor. */
+
+.cargas-resto { padding-top: 13px; border-top: 1px solid rgba(255, 255, 255, .08); display: flex; flex-direction: column; gap: 8px; }
+.cargas-restrow { display: flex; align-items: center; gap: 8px; }
+.cargas-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.cargas-restname { font-weight: 500; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cargas-restgain { font-weight: 600; font-size: 12.5px; }
+
+.donut { flex-shrink: 0; }
+
+/* ---- mapa de entrenamientos (etapa 7, sin precedente en vanilla) ----
+   Misma grilla que tenía el mapa de hábitos que se sacó de Progreso en la etapa 6
+   (commit 1e5428a), más dos agregados de la vuelta siguiente: la fila de meses
+   (.heatmonths, alineada a las mismas columnas que .heatrow-cells — por eso el
+   margin-left compensa el ancho + gap de .heatrow-dow) y el globito por celda
+   (.heatcell-tip), que reutiliza el look de .charttip pero anclado a la celda misma
+   (position:relative en .heatcell) en vez de a un punto de un SVG. */
+
+/* La aclaración chica bajo un textarea (el detalle de un ejercicio de rutina). */
+.fieldhint { font-size: 12px; color: rgba(242, 244, 248, .35); margin: 2px 2px 0; }
+
+/* ---- registrar peso (BodyWeightModal): el número grande centrado, tipeable ----
+   El color (rosa, el acento de Gimnasio) y el borde tinteado van inline en el
+   componente: el modal vive fuera de #app y no puede leer var(--accent). */
+.kginput { border-radius: 20px; background: rgba(255, 255, 255, .04); border: 1.5px solid; padding: 18px; display: flex; align-items: baseline; justify-content: center; gap: 8px; }
+.kgfield { background: none; border: none; text-align: center; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 40px; letter-spacing: -2px; width: auto; padding: 0; }
+.kgunit { font-size: 17px; font-weight: 500; color: rgba(242, 244, 248, .45); }
+
+/* ============================ AJUSTES (completo) ============================ */
+/* .evic de 40px, el de los menús (agregar a un día, Ayuda): una constante, va a clase. */
+.evic.lg { width: 40px; height: 40px; }
+.evic.lg svg { width: 20px; height: 20px; }
+.ajrow {
+  background: var(--glass); border: none;
+  backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+  box-shadow: inset 0 1px 0 var(--glass-hi), inset 0 0 0 1px var(--glass-brd);
+}
+.ajversion { text-align: center; font-size: 11.5px; color: rgba(242, 244, 248, .25); margin-top: 4px; }
+/* .sect ya pone 11px de gap entre la tarjeta de "Sesión iniciada como" y este botón; el
+   9px de acá se SUMA a eso (igual que en vanilla, que tiene los dos: el gap del flex
+   .sect Y el margin-top propio del .delbtn). */
+.logout-acct { margin-top: 9px; }
+
+/* ---- avisos (backup / actualización): misma tarjeta, dos colores ----
+   El aviso de backup existe en vanilla (bkBanner(), amber); el de actualización es nuevo
+   de esta etapa (no hay de dónde portarlo — vanilla nunca tuvo uno) y se le dio el mismo
+   trato visual a propósito, con teal en vez de amber para no confundirlo con el de
+   backup. Los dos colores son constantes de esta pantalla, nunca datos: por eso son
+   clases y no un tinte calculado en JS como hacía vanilla con tint(col, alfa). */
+.noticecard { padding: 14px 16px; border-radius: 22px; display: flex; align-items: center; gap: 12px; backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); }
+.noticecard.amber { background: linear-gradient(135deg, #EAC06A2E, #EAC06A0A); box-shadow: inset 0 0 0 1px #EAC06A40; }
+.noticecard.teal { background: linear-gradient(135deg, #6FD2D22E, #6FD2D20A); box-shadow: inset 0 0 0 1px #6FD2D240; }
+.noticecard-ic { width: 36px; height: 36px; border-radius: 12px; background: rgba(10, 12, 17, .3); display: grid; place-items: center; flex: none; }
+.noticecard.amber .noticecard-ic { color: #EAC06A; }
+.noticecard.teal .noticecard-ic { color: #6FD2D2; }
+.noticecard-body { flex: 1; min-width: 0; }
+.noticecard-title { font-weight: 600; font-size: 13.5px; }
+.noticecard-sub { font-size: 11.5px; color: rgba(242, 244, 248, .55); margin-top: 1px; }
+button.noticecard-action { font-size: 12.5px; font-weight: 600; color: #0A0C11; padding: 8px 13px; border-radius: 99px; flex: none; }
+.noticecard.amber .noticecard-action { background: #EAC06A; }
+.noticecard.teal .noticecard-action { background: #6FD2D2; }
+button.noticecard-dismiss { width: 32px; height: 32px; padding: 0; }
+
+/* El banner de actualización flota sobre CUALQUIER pantalla (no es parte del flujo de
+   ninguna, a diferencia del de backup que sí vive adentro de Hoy/Ajustes) — misma
+   posición que .onbtip, justo arriba de la barra de navegación. */
+.updatebanner-wrap { position: fixed; left: 16px; right: 16px; bottom: calc(var(--nav-h) + var(--safe-bottom) + 12px); z-index: 55; }
+
+@media (min-width: 820px) {
+  .updatebanner-wrap { left: 236px; right: 16px; max-width: 460px; bottom: 24px; }
+}
+
+/* ============================ ÁREA TÁCTIL ============================ */
+/* Cuatro checkboxes que vanilla dibujaba a su tamaño VISUAL sin más (8 a 42px, todos por
+   debajo del mínimo táctil de 44x44 que pide WCAG) — el de tareas sin fecha es el peor
+   (8px). Achicar el círculo no es una opción: es parte del diseño ya validado y hay
+   verificación píxel a píxel corriendo contra él. La salida es agrandar el ÁREA TOCABLE
+   sin tocar lo que se VE: un pseudo-elemento invisible, más grande que el botón, que
+   sigue disparando el click del botón por herencia (bubbling) al estar adentro de él.
+   `pointer-events` no hace falta tocarlo: el ::after no tiene fondo, pero igual es parte
+   del árbol del botón y un click ahí cuenta como un click en el botón. */
+/* El agrandado es el mínimo que hace falta para llegar a 44x44 en CADA elemento, calculado
+   por separado — no un mismo margen para los cuatro. Estos botones se repiten en filas
+   apiladas (un .traydot abajo del otro en la bandeja, un .gcheck abajo del otro en el plan
+   semanal); un margen más generoso que el justo empezaría a invadir la fila de al lado. */
+button.traydot, button.chk, button.slot, button.gcheck { position: relative; }
+button.traydot::after, button.chk::after, button.slot::after, button.gcheck::after {
+  content: '';
+  position: absolute;
+}
+button.traydot::after { inset: -18px; }   /*  8px + 2×18 = 44 */
+button.chk::after     { inset: -10px; }   /* 24px + 2×10 = 44 */
+button.gcheck::after  { inset: -9px; }    /* 26px + 2×9  = 44 */
+button.slot::after    { inset: -1px; }    /* 42px + 2×1  = 44 */
+
+/* ====================== 4. NOCTURNE (rediseño) ====================== */
+/* ============================================================
    Daily — sistema visual "Nocturne" (rediseño, reemplaza a "Glass + aurora")
    Referencia: la carpeta de diseño que mandó Lulo (Hoy/Calendario/Gimnasio/Comidas/
    Hábitos/Progreso, celular y escritorio). Una oscuridad azul-grisácea plana (#161826),
@@ -612,11 +1680,11 @@ button.pillbtn.habits:hover { background: rgba(134, 217, 160, .1); }
 /* cómo venís */
 .venis::after { content: ''; position: absolute; right: -60px; top: -80px; width: 260px; height: 260px; border-radius: 50%; background: radial-gradient(circle, rgba(111, 210, 210, .12), transparent 70%); pointer-events: none; }
 .venis-top { display: grid; grid-template-columns: 1fr; gap: 14px 24px; margin-top: 14px; align-items: center; }
-.venis-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.venis-stats { display: grid; }
 .venis-stat { padding: 2px 12px; border-left: 1px solid rgba(233, 233, 237, .08); }
 .venis-stat.first { border-left-color: transparent; padding-left: 0; }
 .venis-stat-k { font-size: 9.5px; letter-spacing: .14em; color: var(--color-neutral-500); }
-.venis-stat-v { font-size: 22px; font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.venis-stat-v { font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .venis-alerts { display: grid; grid-template-columns: 1fr; gap: 6px; }
 .venis-alert { display: flex; align-items: center; gap: 8px; font-size: 12px; line-height: 1.3; color: var(--color-neutral-300); padding: 6px 10px 6px 6px; border-radius: 10px; background: rgba(22, 24, 38, .55); border: 1px solid rgba(233, 233, 237, .06); }
 .venis-alert-ic { width: 20px; height: 20px; flex: none; border-radius: 6px; display: grid; place-items: center; font-size: 11px; }
@@ -683,8 +1751,8 @@ button.pillbtn.habits:hover { background: rgba(134, 217, 160, .1); }
 .score-big { display: flex; align-items: baseline; gap: 8px; margin-top: 12px; }
 .score-pct { font-size: 40px; font-weight: 500; letter-spacing: -.03em; color: var(--green); text-shadow: 0 0 24px rgba(134, 217, 160, .4); }
 .score-msg { font-size: 12.5px; color: var(--color-neutral-400); text-wrap: pretty; }
-.score-bars { flex: 1; display: flex; gap: 14px; min-height: 150px; margin-top: 14px; align-items: flex-end; }
-.score-col { flex: 1; min-width: 0; height: 150px; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 6px; }
+.score-bars { flex: 1; display: flex; gap: 14px; min-height: 150px; margin-top: 14px; }
+.score-col { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 6px; }
 .score-bar { position: relative; width: 100%; max-width: 44px; display: flex; flex-direction: column; gap: 2px; transform-origin: bottom; animation: dcGrowY 1.1s cubic-bezier(.2, .8, .2, 1) .4s both; flex: 1 1 auto; min-height: 0; }
 .score-col .score-bar { flex: none; }
 .score-seg { position: relative; display: block; width: 100%; padding: 0; border-radius: 6px; cursor: pointer; min-height: 4px; }
@@ -742,7 +1810,7 @@ button.pillbtn.habits:hover { background: rgba(134, 217, 160, .1); }
 .comes-sep { height: 1px; margin: 16px -16px 14px; background: linear-gradient(90deg, transparent, rgba(233, 233, 237, .1) 48px, rgba(233, 233, 237, .1) calc(100% - 48px), transparent); }
 .comes-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; }
 .comes-bars { display: flex; flex-direction: column; gap: 7px; margin-top: 8px; }
-.comes-bar { display: grid; grid-template-columns: 62px minmax(0, 1fr) 34px; align-items: center; gap: 8px; font-size: 12px; color: var(--color-neutral-300); }
+.comes-bar { display: grid; align-items: center; gap: 8px; font-size: 12px; color: var(--color-neutral-300); }
 .comes-track { height: 5px; border-radius: 3px; background: rgba(233, 233, 237, .06); overflow: hidden; display: block; }
 .comes-track > span { display: block; height: 100%; border-radius: 3px; }
 .comes-n { text-align: right; font-variant-numeric: tabular-nums; color: var(--color-neutral-400); }

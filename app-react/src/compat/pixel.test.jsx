@@ -69,7 +69,7 @@ const css = (hojas) => hojas
   .join('\n');
 
 const HOJAS_VANILLA = ['styles.css'];
-const HOJAS_REACT = ['styles.css', 'auth.css', 'app.css'];
+const HOJAS_REACT = ['main.css'];
 
 /* Las animaciones de entrada se apagan en las dos por igual: una captura sacada a mitad
    de la animación de una y al final de la otra daría una diferencia que no existe.

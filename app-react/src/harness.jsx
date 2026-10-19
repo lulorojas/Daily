@@ -12,10 +12,7 @@ import { addMealLogStructured, addMealLogLibre, loadMealPlanTemplate } from './s
 import { PLAN_NUTRI_2026_10 } from './lib/mealPlanTemplates';
 import { addDays, iso, todayD } from './lib/dates';
 import { App } from './App';
-import './styles/styles.css';
-import './styles/auth.css';
-import './styles/app.css';
-import './styles/nocturne.css';
+import './styles/main.css';
 
 const doc = normalize(fullDoc());
 if (new URLSearchParams(location.search).get('comidas') !== '0') {
