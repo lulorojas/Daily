@@ -256,7 +256,7 @@ describe('las otras secciones', () => {
     renderScreen(<ProgresoPage />, { doc });
 
     const sect = screen.getByText('Cómo comés').closest('.progcard');
-    expect(within(sect).getByText('CON PIFIADAS')).toBeInTheDocument(); // el veredicto del día
+    expect(within(sect).getAllByText('CON PIFIADAS').length).toBeGreaterThan(0); // la cifra y el veredicto del día
     expect(within(sect).getByText(/^pizza · /)).toBeInTheDocument();
     expect(within(sect).getByText(/^un alfajor · /)).toBeInTheDocument();
     expect(within(sect).getByText('PERMITIDOS').nextSibling).toHaveTextContent('2');

@@ -580,8 +580,13 @@ export function dayMealSummary(state, dISO, plan = activePlan(state)) {
      pero sana queda afuera — no es el plan, pero tampoco es una falta. Una que fue un
      permitido cuenta 0: Lulo pidió que sea "como una comida pifiada". */
   const delPlan = franjas.filter((f) => f.status.key !== 'sana');
-  const pct = delPlan.length
-    ? delPlan.reduce((a, f) => a + (f.status.key === 'permitido' ? 0 : Math.min(1, f.pctDia ?? 0)), 0) / delPlan.length
+  /* Un permitido SUELTO ("un alfajor a la tarde") también le baja la nota al día (pedido
+     explícito): suma un 0% más al promedio, como una comida pifiada extra. Los permitidos
+     que reemplazaron una comida ya cuentan 0 en esa comida; no se cuentan dos veces. */
+  const sueltosPermitidos = sueltos.filter((x) => x.tipo === 'permitido').length;
+  const total = delPlan.length + sueltosPermitidos;
+  const pct = total
+    ? delPlan.reduce((a, f) => a + (f.status.key === 'permitido' ? 0 : Math.min(1, f.pctDia ?? 0)), 0) / total
     : null;
   const pendientes = franjas.filter((f) => f.status.key === 'pendiente').map((f) => f.slot.name);
   const hechas = franjas.length - pendientes.length;
@@ -594,7 +599,7 @@ export function dayMealSummary(state, dISO, plan = activePlan(state)) {
   return {
     franjas, sueltos, pct, hechas, pendientes, sanas, permitidos, fueraDePlan,
     message: dayMessage({ franjas, pct, hechas, pendientes, sanas, permitidos }),
-    falta: faltaPara100(franjas),
+    falta: faltaPara100(franjas, sueltos),
   };
 }
 
@@ -604,8 +609,9 @@ export function dayMealSummary(state, dISO, plan = activePlan(state)) {
    lo que está dentro de una tolerancia, las verduras y lo que otra comida ya compensó (la
    fruta) no aparecen: no le restan nada al día. Un permitido deja esa comida en 0 y no hay
    forma de recuperarlo: se avisa aparte, como \`fija\`. Una comida "distinta, sana" no cuenta. */
-function faltaPara100(franjas) {
+function faltaPara100(franjas, sueltos = []) {
   const out = [];
+  sueltos.filter((x) => x.tipo === 'permitido').forEach((x) => out.push({ slot: 'Permitido', texto: `${x.que}: le resta al día`, fija: true }));
   franjas.forEach((f) => {
     const nombre = f.slot.name;
     if (f.status.key === 'sana') return;
@@ -649,6 +655,10 @@ function dayMessage({ franjas, pct, hechas, pendientes, sanas, permitidos }) {
     return sanas
       ? `¡Día completo! Seguiste el plan, con ${plural(sanas, 'comida distinta pero sana', 'comidas distintas pero sanas')}.`
       : '¡Día completo! Seguiste el plan en todas las comidas.';
+  }
+  // Las comidas salieron bien pero el permitido (suelto) le bajó la nota al día.
+  if (permitidos && franjas.every((f) => ['cumplida', 'parcial', 'sana'].includes(f.status.key))) {
+    return `Seguiste el plan en las comidas, pero ${permitidos === 1 ? 'el permitido le bajó' : 'los permitidos le bajaron'} la nota al día.`;
   }
   return `Registraste todas las comidas, algunas por debajo de lo que pide el plan.${conPermitidos}`;
 }

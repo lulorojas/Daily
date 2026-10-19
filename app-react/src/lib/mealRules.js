@@ -46,7 +46,8 @@ const normalizeText = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[
       sumaDeMas).
 
   10. PERMITIDO — un permitido anotado en una comida la vuelve mala del todo: esa comida
-      cuenta 0%, aunque también tenga algo del plan registrado.
+      cuenta 0%, aunque también tenga algo del plan registrado. Un permitido SUELTO (fuera de las comidas)
+      también le baja la nota al día: suma un 0% más al promedio, como una comida pifiada extra.
 
    9. PROTEÍNA EN ALMUERZO Y CENA — toda opción de almuerzo o cena lleva su proteína pesada,
       250 gr (una milanesa también se pesa). Ver proteinaImplicita().

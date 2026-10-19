@@ -254,7 +254,19 @@ describe('dayMealSummary', () => {
     const r = dayMealSummary(state({ plan, log }), DIA);
     expect(r.sueltos).toEqual([{ entryId: 'alfajor', que: 'alfajor', tipo: 'permitido' }]);
     expect(r.franjas.map((f) => f.status.key)).toEqual(['cumplida', 'cumplida']);
-    expect(r.message).toBe('Seguiste el plan en las comidas. Llevás 1 permitido.');
+    expect(r.message).toBe('Seguiste el plan en las comidas, pero el permitido le bajó la nota al día.');
+    // El permitido suelto suma un 0% al promedio del día: 2 comidas al 100% + el alfajor = 2/3.
+    expect(r.pct).toBeCloseTo(2 / 3);
+  });
+
+  it('cada permitido suelto baja más la nota del día', () => {
+    const log = { [DIA]: [
+      fuera('alfajor', null, 'permitido'),
+      fuera('helado', null, 'permitido'),
+      entrada([{ slotId: 's1', optionId: 'o1', items: [{ itemId: 'i1', qty: 3 }] }]),
+      entrada([{ slotId: 's2', optionId: 'o2' }]),
+    ] };
+    expect(dayMealSummary(state({ plan, log }), DIA).pct).toBeCloseTo(2 / 4);
   });
 
   it('una entrada vieja de "comida libre", sin tipo, cuenta como sana', () => {
