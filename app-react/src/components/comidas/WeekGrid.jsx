@@ -12,7 +12,7 @@ import { C } from '../../lib/theme';
    (el promedio del % del plan de los días que ya pasaron).
 
    Cada día sale de dayMealSummary() — la misma cuenta que la órbita y que "Cómo comés". */
-const DEL_PLAN = { cumplida: C.green, parcial: C.amber, poco: C.danger, permitido: C.coral, sana: C.teal, pendiente: '#75798c' };
+const DEL_PLAN = { cumplida: C.green, parcial: C.amber, poco: C.danger, permitido: C.coral, sana: C.teal, salteada: C.danger, pendiente: '#75798c' };
 const LEYENDA = [
   ['Cumplida', C.green], ['Parcial', C.amber], ['Poco', C.danger], ['Distinta, sana', C.teal], ['Permitido', C.coral],
 ];

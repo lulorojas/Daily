@@ -773,6 +773,22 @@ export function addMealLogLibre(draft, dISO, slotId, desc, tipo = 'sana', { time
   return entry;
 }
 
+/* "No comí": se registra que una comida NO se hizo. No es lo mismo que no haber anotado nada
+   (pendiente: no se sabe): esto es algo negativo para el día, cuenta 0% y como pifiada (ver
+   franjaStatus en lib/meals.js). Una sola por comida y día; si después se registra lo que
+   sí se comió en esa comida, eso manda. */
+export function addMealLogSalteada(draft, dISO, slotId) {
+  const slot = activePlan(draft)?.slots.find((s) => s.id === slotId);
+  if (!slot) return null;
+  const meals = ensureMeals(draft);
+  const dia = meals.log[dISO] ||= [];
+  const ya = dia.find((e) => e.saltea?.slotId === slotId);
+  if (ya) return ya;
+  const entry = { id: uid(), at: Date.now(), text: `${slot.name}: no comí`, saltea: { slotId }, matches: { options: [], extras: [] } };
+  dia.push(entry);
+  return entry;
+}
+
 // Un toque en un extra (café, alcohol…) lo anota en la bitácora de ese día, sin escribir.
 // `time` ("HH:MM") y `qty` (cuántos, p. ej. vasos de alcohol) son opcionales: sin ellos la
 // entrada es la de siempre, un toque sin más datos.

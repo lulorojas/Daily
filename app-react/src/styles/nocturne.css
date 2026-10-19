@@ -961,3 +961,9 @@ textarea.mealinp { background: transparent; border: 0; height: 34px; padding: 8p
 .venis-stat-sub { font-size: 11px; color: var(--color-neutral-500); white-space: nowrap; }
 .venis-stat { min-width: 0; }
 .venis-stat-v { overflow: hidden; text-overflow: ellipsis; }
+
+/* "No comí" */
+.nocomi { width: 100%; display: flex; align-items: center; padding: 12px 14px; border-radius: 14px; cursor: pointer; text-align: left; background: rgba(255, 138, 128, .06); border: 1px dashed rgba(255, 138, 128, .4); color: inherit; }
+.nocomi:hover { background: rgba(255, 138, 128, .12); }
+.nocomi-t { display: block; font-size: 14px; color: var(--danger); }
+.nocomi-s { display: block; font-size: 11.5px; color: var(--color-neutral-400); margin-top: 2px; }

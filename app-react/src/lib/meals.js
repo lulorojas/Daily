@@ -511,7 +511,10 @@ export function libreTipo(entry) {
 
 // `fuera`: 'permitido' | 'sana' | null — lo de fuera del plan que tuvo la franja, si la
 // franja no tiene nada del plan registrado. Un permitido manda sobre una sana.
-export function franjaStatus(pct, fuera = null) {
+export function franjaStatus(pct, fuera = null, salteada = false) {
+  // "No comí": se registró que esa comida no se hizo. A diferencia de "pendiente" (no se anotó
+  // nada, no se sabe), esto es algo negativo del día: cuenta 0%. Solo si no hay otra cosa anotada.
+  if (pct === null && !fuera && salteada) return { key: 'salteada', label: 'No comí', color: C.danger };
   if (pct === null && fuera === 'permitido') return { key: 'permitido', label: 'Permitido', color: C.coral };
   if (pct === null && fuera === 'sana') return { key: 'sana', label: 'Fuera del plan', color: C.teal };
   if (pct === null) return { key: 'pendiente', label: 'Pendiente', color: 'rgba(242,244,248,.45)' };
@@ -554,7 +557,8 @@ export function dayMealSummary(state, dISO, plan = activePlan(state)) {
     const pct = registros.length ? Math.max(...registros.map((r) => r.pct)) : null;
     // Un permitido anotado en esta comida la vuelve "mala total", aunque también haya algo del
     // plan registrado (decisión explícita: el permitido en sí hace que esa comida cuente mal).
-    const status = fuera === 'permitido' ? franjaStatus(null, 'permitido') : franjaStatus(pct, fuera);
+    const salteada = entradas.some((e) => e.saltea?.slotId === slot.id);
+    const status = fuera === 'permitido' ? franjaStatus(null, 'permitido') : franjaStatus(pct, fuera, salteada);
     return { slot, registros, libres, pct, status };
   });
 
@@ -606,6 +610,7 @@ function faltaPara100(franjas) {
     const nombre = f.slot.name;
     if (f.status.key === 'sana') return;
     if (f.status.key === 'permitido') { out.push({ slot: nombre, texto: 'tiene un permitido: cuenta 0%', fija: true }); return; }
+    if (f.status.key === 'salteada') { out.push({ slot: nombre, texto: 'no comiste: cuenta 0%', fija: true }); return; }
     if (f.status.key === 'pendiente') { out.push({ slot: nombre, texto: 'sin registrar' }); return; }
     if ((f.pctDia ?? f.pct) >= 1) return; // cumplida, o compensada con lo que sobró de otra comida
 
@@ -682,7 +687,7 @@ export function mealScoreByPeriod(state, per) {
       const r = dayMealSummary(state, dia, planOn(state, dia));
       r.franjas.forEach((f) => {
         if (f.status.key === 'pendiente') bar.sinRegistrar++;
-        else if (f.status.key === 'permitido') bar.pifie++;
+        else if (f.status.key === 'permitido' || f.status.key === 'salteada') bar.pifie++;
         else if (f.status.key === 'sana' || f.pct >= UMBRAL_CUMPLIMIENTO) bar.bien++;
         else bar.pifie++;
       });
@@ -714,7 +719,7 @@ export function mealScoreByPeriod(state, per) {
 
    Igual que mealScoreByPeriod, no hay días anteriores al primer registro ni futuros.
    ============================================================================ */
-const PIFIADA = new Set(['poco', 'permitido']);
+const PIFIADA = new Set(['poco', 'permitido', 'salteada']);
 
 export function comoComesPorDia(state, per) {
   const { cols, winLabel } = comoVenisColumns(per);

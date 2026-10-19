@@ -20,7 +20,7 @@ import { useData } from '../hooks/useData';
 import { activePlan, alcoholExtra, dayMealSummary, extraCount, extraEntriesDelMes, extraStreak, missingFromTemplate, sortedLog, vasosDeAlcohol } from '../lib/meals';
 import { PLAN_NUTRI_2026_10 } from '../lib/mealPlanTemplates';
 import {
-  addMealExtraEntry, addMealLogEntry, addMealLogLibre, addMealLogStructured, deleteMealLogEntry, loadMealPlanTemplate,
+  addMealExtraEntry, addMealLogEntry, addMealLogLibre, addMealLogSalteada, addMealLogStructured, deleteMealLogEntry, loadMealPlanTemplate,
   updateMealEntryDetails, updateMealLogStructured,
 } from '../store/mutations';
 import { DOW_FULL, MONTHS, addDays, dow, iso, mondayOf, parseISO, todayISO } from '../lib/dates';
@@ -288,6 +288,7 @@ export function ComidasPage() {
           onClose={() => setModal(null)}
           onSave={(sel) => registrar(slotsById[modal.slotId], sel)}
           onLibre={(que, tipo) => anotarLibre(slotsById[modal.slotId], que, tipo)}
+          onSaltear={() => { update((draft) => addMealLogSalteada(draft, day, modal.slotId)); setModal(null); }}
         />
       )}
       {modal?.kind === 'permitido' && (

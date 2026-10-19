@@ -171,3 +171,41 @@ describe('almuerzo y cena: toda opción lleva su proteína de 250 gr', () => {
     expect(b.items).toHaveLength(1);
   });
 });
+
+describe('"No comí": una comida salteada es algo negativo para el día', () => {
+  function conDosComidas() {
+    const d = vacio();
+    const a = m.addMealSlot(d, { name: 'Desayuno' });
+    const b = m.addMealSlot(d, { name: 'Almuerzo' });
+    m.addMealOption(d, a.id, { text: 'Panes', items: [{ id: 'i1', name: 'pan', qty: 3, tipo: 'proteina' }] });
+    return { d, a, b };
+  }
+
+  it('no es lo mismo que sin registrar: cuenta 0% y como pifiada, pero ya no figura pendiente', () => {
+    const { d, a, b } = conDosComidas();
+    const opt = activePlan(d).slots[0].options[0];
+    m.addMealLogStructured(d, TODAY, { slotId: a.id, optionId: opt.id });
+    const antes = dayMealSummary(d, TODAY);
+    expect(antes.franjas[1].status.key).toBe('pendiente');
+    expect(antes.pendientes).toEqual(['Almuerzo']);
+
+    m.addMealLogSalteada(d, TODAY, b.id);
+    const r = dayMealSummary(d, TODAY);
+    expect(r.franjas[1].status).toMatchObject({ key: 'salteada', label: 'No comí' });
+    expect(r.pendientes).toEqual([]);
+    expect(r.pct).toBe(0.5); // desayuno completo + almuerzo salteado = 0
+    expect(r.falta).toContainEqual({ slot: 'Almuerzo', texto: 'no comiste: cuenta 0%', fija: true });
+  });
+
+  it('una sola por comida y día; y si después se registra lo que sí se comió, eso manda', () => {
+    const { d, a } = conDosComidas();
+    const e1 = m.addMealLogSalteada(d, TODAY, a.id);
+    const e2 = m.addMealLogSalteada(d, TODAY, a.id);
+    expect(e2.id).toBe(e1.id);
+    expect(d.meals.log[TODAY]).toHaveLength(1);
+
+    const opt = activePlan(d).slots[0].options[0];
+    m.addMealLogStructured(d, TODAY, { slotId: a.id, optionId: opt.id });
+    expect(dayMealSummary(d, TODAY).franjas[0].status.key).toBe('cumplida');
+  });
+});

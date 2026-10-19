@@ -69,7 +69,7 @@ function FilaCantidad({ name, qty, unit, valor, onChange, nota, accion }) {
   );
 }
 
-export function RegisterMealModal({ slot, initial = null, onClose, onSave, onLibre }) {
+export function RegisterMealModal({ slot, initial = null, onClose, onSave, onLibre, onSaltear }) {
   const editando = !!initial;
   const inicial = initial ? slot.options.find((o) => o.id === initial.optionId) ?? null : null;
 
@@ -129,6 +129,17 @@ export function RegisterMealModal({ slot, initial = null, onClose, onSave, onLib
           <div className="fld">
             <div className="flabel">¿Comiste otra cosa?</div>
             <OffPlanForm placeholder={`Ej: unas galletas en el ${slot.name.toLowerCase()}`} onAnotar={onLibre} />
+          </div>
+        )}
+
+        {!editando && onSaltear && (
+          <div className="fld">
+            <button type="button" className="nocomi" onClick={onSaltear}>
+              <span className="grow">
+                <span className="nocomi-t">No comí</span>
+                <span className="nocomi-s">Queda anotado como comida salteada: cuenta 0% y es negativo para el día.</span>
+              </span>
+            </button>
           </div>
         )}
       </Modal>

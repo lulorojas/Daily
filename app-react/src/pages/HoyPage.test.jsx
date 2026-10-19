@@ -40,19 +40,22 @@ describe('el día que se mira', () => {
 
   it('tocar un día de la tira cambia lo que se ve abajo', async () => {
     const user = userEvent.setup();
-    const otro = iso(addDays(mondayOf(todayD()), 6));   // el domingo de esta semana
+    // Otro día de esta semana, distinto de hoy: el domingo, o el lunes si hoy ya es domingo (el test
+    // falla en domingo si no se evita que "otro" sea hoy).
+    const domingo = iso(addDays(mondayOf(todayD()), 6));
+    const otro = domingo === TODAY ? iso(mondayOf(todayD())) : domingo;
     renderScreen(<HoyPage />, {
       doc: conItems([
         { id: 'a', kind: 'tarea', title: 'La de hoy', desc: '', date: TODAY, time: null, done: false },
-        { id: 'b', kind: 'tarea', title: 'La del domingo', desc: '', date: otro, time: null, done: false },
+        { id: 'b', kind: 'tarea', title: 'El otro día', desc: '', date: otro, time: null, done: false },
       ]),
     });
 
     expect(screen.getByText('La de hoy')).toBeInTheDocument();
-    expect(screen.queryByText('La del domingo')).not.toBeInTheDocument();
+    expect(screen.queryByText('El otro día')).not.toBeInTheDocument();
 
     await user.click(celda(otro));
-    expect(screen.getByText('La del domingo')).toBeInTheDocument();
+    expect(screen.getByText('El otro día')).toBeInTheDocument();
     expect(screen.queryByText('La de hoy')).not.toBeInTheDocument();
   });
 

@@ -590,3 +590,22 @@ describe('qué falta para llegar al 100%', () => {
     expect(bloque).toHaveTextContent('Meriendasin registrar');
   });
 });
+
+describe('"No comí"', () => {
+  it('desde el registro de una comida se anota que no se comió, y queda como algo negativo', async () => {
+    const user = userEvent.setup();
+    const doc = {
+      ...emptyDoc(),
+      meals: { plans: [{ id: 'p', startISO: '2020-01-01', endISO: null, slots: [{ id: 's1', name: 'Desayuno', options: [{ id: 'o1', text: 'Yogur' }] }] }], extras: [], log: {} },
+    };
+    const { doc: leer } = renderScreen(<ComidasPage />, { doc });
+
+    await user.click(screen.getByRole('button', { name: 'Registrar Desayuno' }));
+    await user.click(screen.getByRole('button', { name: /No comí/ }));
+
+    expect(leer().meals.log[todayISO()][0]).toMatchObject({ saltea: { slotId: 's1' } });
+    const dia = screen.getByText('Tu día').closest('.sect');
+    expect(within(dia).getByText('No comí')).toBeInTheDocument();
+    expect(within(dia).queryByText('Pendiente')).not.toBeInTheDocument();
+  });
+});
