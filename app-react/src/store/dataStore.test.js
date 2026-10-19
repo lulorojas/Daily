@@ -261,19 +261,6 @@ describe('escritura', () => {
     await expect(store.update((draft) => addTask(draft, { title: 'x' }))).resolves.toBeUndefined();
     expect(store.getSnapshot().data.items).toHaveLength(1);   // en pantalla ya está
   });
-
-  it('replaceAll() reemplaza todo y lo normaliza (importar un backup)', () => {
-    const { fs, store } = setup({ docs: { [UID]: fullDoc() } });
-    store.start(UID);
-
-    store.replaceAll({ items: [{ id: 'z', kind: 'tarea', title: 'del backup', date: null, done: false }] });
-
-    const { data } = store.getSnapshot();
-    expect(data.items).toHaveLength(1);
-    expect(data.habits).toEqual([]);
-    expect(data.gym.lifts).toEqual([]);
-    expect(fs.lastSet(UID)).toEqual(data);
-  });
 });
 
 describe('readLocalV2()', () => {

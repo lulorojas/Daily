@@ -603,9 +603,7 @@ textarea.mealinp { min-height: 0; height: 48px; padding: 13px 16px; line-height:
 .kgunit { font-size: 17px; font-weight: 500; color: rgba(242, 244, 248, .45); }
 
 /* ============================ AJUSTES (completo) ============================ */
-/* Las filas de "Exportar backup"/"Importar backup" ya usan .evrow/.evic (styles.css), acá
-   solo lo que en vanilla era un `style="width:40px;height:40px"` puntual encima del
-   .evic de 30px por defecto — es una constante (siempre 40 en esta pantalla), va a clase. */
+/* .evic de 40px, el de los menús (agregar a un día, Ayuda): una constante, va a clase. */
 .evic.lg { width: 40px; height: 40px; }
 .evic.lg svg { width: 20px; height: 20px; }
 .ajrow {

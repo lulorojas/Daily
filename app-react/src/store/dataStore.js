@@ -117,17 +117,7 @@ export function createDataStore({ subscribe: subscribeToDoc, save: saveDoc, read
     return persist(uid, draft);
   }
 
-  /* Reemplazo total del documento (importar un backup). Pasa por normalize() igual que
-     applyBackup() en vanilla, así un archivo viejo se acomoda al esquema actual. */
-  function replaceAll(raw) {
-    const { status, uid } = snapshot;
-    if (status !== DATA_STATUS.READY || !uid) return Promise.resolve();
-    const data = normalize(raw);
-    emit({ ...snapshot, data });
-    return persist(uid, data);
-  }
-
-  return { subscribe, getSnapshot, start, stop, retry, update, replaceAll };
+  return { subscribe, getSnapshot, start, stop, retry, update };
 }
 
 /* daily.v2 de localStorage, SOLO lectura. Es el puente para quien venía usando la app

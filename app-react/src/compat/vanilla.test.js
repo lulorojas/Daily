@@ -8,7 +8,6 @@ import * as agenda from '../lib/agenda';
 import * as habits from '../lib/habits';
 import * as gym from '../lib/gym';
 import * as progress from '../lib/progress';
-import * as backup from '../lib/backup';
 import * as items from '../lib/items';
 import { monthCells } from '../lib/calendar';
 import { addDays, todayD } from '../lib/dates';
@@ -348,49 +347,6 @@ describe('progreso', () => {
   it('inPeriod()', () => {
     for (const [d, s] of [[TODAY, null], [TODAY, ago(7)], [ago(40), ago(7)], [ago(7), ago(7)]]) {
       expect(progress.inPeriod(d, s)).toBe(V.inPeriod(d, s));
-    }
-  });
-});
-
-/* ---------------------------------------------------------------- backup */
-describe('backup', () => {
-  it('el JSON exportado tiene el mismo encabezado', () => {
-    const state = normalize(fullDoc());
-    withVanillaState(fullDoc());
-    const react = backup.backupPayload(state, '2026-08-10T12:00:00.000Z');
-    const van = V.backupPayload();
-    expect(react.app).toBe(van.app);
-    expect(react.format).toBe(van.format);
-    // El resto de `data` sí coincide campo por campo; `gym` queda afuera a propósito: con
-    // el seguimiento por músculo, el día de React es {muscles,...} y el de vanilla sigue
-    // siendo {type,...} — es la misma excepción de forma que en el describe('gimnasio').
-    const { gym: reactGym, ...reactResto } = react.data;
-    const { gym: vanGym, ...vanResto } = van.data;
-    expect(reactResto).toEqual(vanResto);
-  });
-
-  const archivos = {
-    'no es JSON': 'esto no es json {',
-    'es un array': '[1,2,3]',
-    'no es de Daily': JSON.stringify({ app: 'otra', format: 2, data: {} }),
-    'sin format': JSON.stringify({ app: 'daily', data: {} }),
-    'de otro formato': JSON.stringify({ app: 'daily', format: 1, data: {} }),
-    'sin datos': JSON.stringify({ app: 'daily', format: 2 }),
-    'sin items': JSON.stringify({ app: 'daily', format: 2, data: { habits: [], habitLog: {}, gym: {} } }),
-    'sin hábitos': JSON.stringify({ app: 'daily', format: 2, data: { items: [], gym: {} } }),
-    'sin gym': JSON.stringify({ app: 'daily', format: 2, data: { items: [], habits: [], habitLog: {} } }),
-    'válido y mínimo': JSON.stringify({ app: 'daily', format: 2, data: { items: [], habits: [], habitLog: {}, gym: {} } }),
-    'válido y completo': JSON.stringify({ app: 'daily', format: 2, exportedAt: '2026-01-01T00:00:00.000Z', data: fullDoc() }),
-  };
-
-  it.each(Object.keys(archivos))('validateBackup(): %s', (nombre) => {
-    expect(backup.validateBackup(archivos[nombre])).toEqual(V.validateBackup(archivos[nombre]));
-  });
-
-  it('bkHasData()', () => {
-    for (const doc of [emptyDoc(), fullDoc()]) {
-      withVanillaState(doc);
-      expect(backup.backupHasData(normalize(doc))).toBe(V.bkHasData());
     }
   });
 });

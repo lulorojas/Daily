@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import { BackPill } from '../components/ui/BackPill';
 import { Section } from '../components/ui/Section';
-import { BackupBanner } from '../components/ajustes/BackupBanner';
-import { BackupSection } from '../components/ajustes/BackupSection';
 import { NotificationsSection } from '../components/ajustes/NotificationsSection';
 import { LogoutButton } from '../components/auth/LogoutButton';
 import { AuthFlash } from '../components/auth/AuthFlash';
@@ -33,20 +31,10 @@ export function AjustesPage() {
       <div className="body">
         {error && <AuthFlash kind="err" msg={error} />}
 
-        <BackupBanner />
-
-        <Section label="Backup">
-          <BackupSection />
-        </Section>
-
         <NotificationsSection />
 
         <Section label="General">
           <div className="card pad2">
-            <div className="inforow sep">
-              <span className="infoname">Recordatorio de backup</span>
-              <span className="infoval">Cada 7 días</span>
-            </div>
             <div className="inforow sep">
               <span className="infoname">Primer día de la semana</span>
               <span className="infoval">Lunes</span>

@@ -14,7 +14,7 @@ import { DataContext } from '../context/DataContext';
      status  'idle' | 'loading' | 'ready' | 'error'
      data    el documento del usuario, ya normalizado (null si no está listo)
      error   el código de Firestore si falló
-     update / replaceAll / retry   las escrituras */
+     update / retry   las escrituras */
 export function useDataStore() {
   const store = useContext(DataContext);
   if (!store) throw new Error('useData() se usó fuera de <DataProvider>');
@@ -30,7 +30,6 @@ export function useData() {
   return useMemo(() => ({
     ...snapshot,
     update: store.update,
-    replaceAll: store.replaceAll,
     retry: store.retry,
   }), [snapshot, store]);
 }
