@@ -85,10 +85,10 @@ body {
 .gear:hover { border-color: color-mix(in srgb, var(--accent) 50%, transparent); color: var(--accent); }
 
 .body { padding: 16px 16px 20px; gap: 14px; }
-.body > * { animation: dcRise .8s cubic-bezier(.2, .8, .2, 1) both; }
-.body > *:nth-child(2) { animation-delay: 70ms; } .body > *:nth-child(3) { animation-delay: 140ms; }
-.body > *:nth-child(4) { animation-delay: 210ms; } .body > *:nth-child(5) { animation-delay: 280ms; }
-.body > *:nth-child(6) { animation-delay: 350ms; } .body > *:nth-child(n+7) { animation-delay: 420ms; }
+.body > * { animation: dcRise .5s cubic-bezier(.2, .8, .2, 1) both; }
+.body > *:nth-child(2) { animation-delay: 40ms; } .body > *:nth-child(3) { animation-delay: 80ms; }
+.body > *:nth-child(4) { animation-delay: 120ms; } .body > *:nth-child(5) { animation-delay: 160ms; }
+.body > *:nth-child(6) { animation-delay: 200ms; } .body > *:nth-child(n+7) { animation-delay: 240ms; }
 .view.nofx .body > * { animation: none; }
 
 /* ---- rótulos de sección y tarjetas ---- */
@@ -144,7 +144,7 @@ body {
 .wdays { flex: 1; display: flex; gap: 4px; min-width: 0; }
 .wcell {
   position: relative; flex: 1; min-width: 0; height: 58px; border-radius: 14px; gap: 3px; justify-content: center;
-  border: 1px solid rgba(233, 233, 237, .06); background: rgba(35, 37, 50, .45); transition: all .2s;
+  border: 1px solid rgba(233, 233, 237, .06); background: rgba(35, 37, 50, .45); transition: background-color .2s, border-color .2s, color .2s, box-shadow .2s, opacity .2s, transform .2s;
 }
 .wcell:hover { border-color: rgba(233, 233, 237, .18); }
 .wcell .wdow { font-size: 9.5px; font-weight: 400; letter-spacing: .08em; color: var(--color-neutral-500); }
@@ -268,8 +268,6 @@ body {
   flex: 1; display: flex; align-items: center; gap: 12px; padding: 14px; border-radius: 18px; text-decoration: none; color: inherit;
   backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: none;
 }
-.evic { width: 44px; height: 44px; border-radius: 12px; box-shadow: none; }
-.evic svg { width: 21px; height: 21px; }
 .evname { font-size: 14.5px; font-weight: 400; letter-spacing: 0; }
 .evsub { font-size: 12px; color: var(--color-neutral-400); }
 .evtime { font-size: 12.5px; font-weight: 500; }
@@ -290,7 +288,7 @@ body {
   background: none; backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: none; border-top: 1px solid rgba(233, 233, 237, .05);
 }
 .trow:first-child { border-top: none; }
-.chk { width: 24px; height: 24px; border-radius: 8px; border: 1.5px solid rgba(233, 233, 237, .25); box-shadow: none; transition: all .2s; }
+.chk { width: 24px; height: 24px; border-radius: 8px; border: 1.5px solid rgba(233, 233, 237, .25); box-shadow: none; transition: background-color .2s, border-color .2s, color .2s, box-shadow .2s, opacity .2s, transform .2s; }
 .chk svg { width: 13px; height: 13px; }
 .chk.on { border-color: transparent; box-shadow: 0 0 14px rgba(234, 192, 106, .35); animation: none; }
 .ttext { font-size: 14px; font-weight: 400; letter-spacing: 0; }
@@ -313,7 +311,7 @@ body {
 .habmeta { display: flex; align-items: center; gap: 4px; font-size: 11.5px; color: var(--color-neutral-500); margin-top: 0; }
 .habmeta span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .slots { gap: 5px; }
-.slot { width: 30px; height: 30px; border-radius: 50%; background: transparent; border: 1.5px solid rgba(233, 233, 237, .2); box-shadow: none; transition: all .2s; }
+.slot { width: 30px; height: 30px; border-radius: 50%; background: transparent; border: 1.5px solid rgba(233, 233, 237, .2); box-shadow: none; transition: background-color .2s, border-color .2s, color .2s, box-shadow .2s, opacity .2s, transform .2s; }
 .slot svg { width: 13px; height: 13px; }
 .slot.on { animation: none; border-color: transparent; box-shadow: 0 0 12px currentColor; }
 .slot .ring { border-radius: 50%; inset: -4px; }
@@ -370,7 +368,7 @@ body {
 .cal-grid.cells, .cal-grid.dows { gap: 4px; }
 .cal-grid.dows { margin-bottom: 0; }
 .dow { font-size: 9.5px; font-weight: 400; letter-spacing: .12em; color: var(--color-neutral-500); padding-bottom: 4px; }
-.cell { height: 54px; border-radius: 12px; padding: 6px 2px; gap: 3px; background: none; border: 1px solid transparent; transition: all .15s; }
+.cell { height: 54px; border-radius: 12px; padding: 6px 2px; gap: 3px; background: none; border: 1px solid transparent; transition: background-color .15s, border-color .15s, color .15s, box-shadow .15s, opacity .15s, transform .15s; }
 .cell:not(.blank) { border-color: rgba(233, 233, 237, .04); background: rgba(22, 24, 38, .35); }
 .cell:not(.blank):hover { border-color: rgba(255, 168, 119, .35); }
 .cell.sel { background: rgba(255, 168, 119, .12); border-color: var(--coral); box-shadow: 0 0 16px rgba(255, 168, 119, .22), inset 0 0 10px rgba(255, 168, 119, .1); }
@@ -541,7 +539,7 @@ button.pillbtn.habits:hover { background: rgba(134, 217, 160, .1); }
 .liftchart-chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 2px 0; }
 .liftchart-chip {
   flex: none; display: flex; align-items: center; gap: 6px; font-size: 12.5px; padding: 6px 11px; border-radius: 999px; cursor: pointer; white-space: nowrap;
-  color: var(--color-neutral-300); border: 1px solid rgba(233, 233, 237, .1); background: transparent; transition: all .2s;
+  color: var(--color-neutral-300); border: 1px solid rgba(233, 233, 237, .1); background: transparent; transition: background-color .2s, border-color .2s, color .2s, box-shadow .2s, opacity .2s, transform .2s;
 }
 .liftchart-chip span { width: 6px; height: 6px; border-radius: 50%; }
 .liftchart-head { display: flex; align-items: flex-end; gap: 12px; }
@@ -600,7 +598,7 @@ button.pillbtn.habits:hover { background: rgba(134, 217, 160, .1); }
   display: flex; gap: 3px; padding: 3px; border-radius: 14px; background: rgba(22, 24, 38, .7); border: 1px solid rgba(233, 233, 237, .08);
   box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; overflow-x: auto; scrollbar-width: none;
 }
-.period { flex: 1; min-width: max-content; padding: 0 10px; height: 36px; border-radius: 11px; font-size: 12.5px; font-weight: 400; white-space: nowrap; color: var(--color-neutral-400); transition: all .2s; }
+.period { flex: 1; min-width: max-content; padding: 0 10px; height: 36px; border-radius: 11px; font-size: 12.5px; font-weight: 400; white-space: nowrap; color: var(--color-neutral-400); transition: background-color .2s, border-color .2s, color .2s, box-shadow .2s, opacity .2s, transform .2s; }
 .period:hover { color: var(--color-text); }
 .period.on { color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent), 0 0 14px color-mix(in srgb, var(--accent) 25%, transparent); }
 
@@ -799,7 +797,7 @@ button.pillbtn.habits:hover { background: rgba(134, 217, 160, .1); }
   position: absolute; width: 48px; height: 48px; margin: -24px 0 0 -24px; border-radius: 50%; display: grid; place-items: center; cursor: pointer;
   border: 1.5px solid; transition: transform .2s; padding: 0;
 }
-.orbit-node:hover:not(:disabled) { transform: scale(1.08); }
+@media (hover: hover) and (pointer: fine) { .orbit-node:hover:not(:disabled) { transform: scale(1.08); } }
 .orbit-node:disabled { cursor: default; opacity: .6; }
 .orbit-time { position: absolute; transform: translate(-50%, -50%); font-size: 10px; letter-spacing: .06em; color: var(--color-neutral-500); white-space: nowrap; pointer-events: none; }
 .orbit-center { position: absolute; left: 50%; top: 168px; transform: translate(-50%, -50%); text-align: center; width: 170px; }
@@ -849,7 +847,7 @@ button.pillbtn.comidas:disabled { opacity: .35; }
   min-height: 52px; border-radius: 12px; padding: 6px 8px; display: flex; flex-direction: column; justify-content: space-between; gap: 4px; cursor: pointer; overflow: hidden;
   text-align: left; border: 1px solid; transition: transform .15s; min-width: 0;
 }
-.weekgrid-cell:hover { transform: translateY(-1px); }
+@media (hover: hover) and (pointer: fine) { .weekgrid-cell:hover { transform: translateY(-1px); } }
 .weekgrid-cell.pend { background: rgba(180, 155, 232, .05); border: 1px dashed rgba(180, 155, 232, .4); }
 .weekgrid-cell.futuro { border: 1px dashed rgba(233, 233, 237, .08); background: transparent; cursor: default; }
 .weekgrid-dot { width: 6px; height: 6px; border-radius: 50%; flex: none; }
@@ -898,7 +896,7 @@ textarea.mealinp { background: transparent; border: 0; height: 34px; padding: 8p
 .xs-dow { text-align: center; font-size: 9.5px; letter-spacing: .12em; color: var(--color-neutral-500); }
 .xs-day {
   height: 42px; border-radius: 11px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 0;
-  background: rgba(22, 24, 38, .45); border: 1px solid transparent; cursor: pointer; transition: all .15s; color: var(--color-neutral-300);
+  background: rgba(22, 24, 38, .45); border: 1px solid transparent; cursor: pointer; transition: background-color .15s, border-color .15s, color .15s, box-shadow .15s, opacity .15s, transform .15s; color: var(--color-neutral-300);
 }
 .xs-day:disabled { opacity: .3; cursor: default; }
 .xs-day.has { background: color-mix(in srgb, var(--xs) 12%, transparent); }
@@ -985,3 +983,31 @@ textarea.mealinp { background: transparent; border: 0; height: 34px; padding: 8p
 .cafe-lbl { font-size: 8.5px; color: var(--color-neutral-500); white-space: nowrap; }
 .cafe-lbl.now { color: var(--accent); }
 .progcard.cafe { display: flex; flex-direction: column; }
+
+/* ============================================================
+   PULIDO DE INTERACCIÓN (revisión de diseño)
+   ============================================================ */
+
+/* Un toque se siente: todo lo que se aprieta se hunde un poco mientras está apretado. La
+   escala es sutil (0.97) y la vuelta es la misma transición: entra rápido, suelta suave. */
+.pillbtn, .planbtn, .gear, .navbtn, .nb, .wcell, .period, .extrabtn, .caferow-btn, .weeknav-btn, .xs-mesbtn, .xs-day, .xs-chip,
+.xs-anotar, .nocomi, .dd-add, .ring-day, .liftrow, .liftchart-chip, .infobtn, .score-seg, .dashed, .optchip, .gchip, .navitem {
+  transition-property: background-color, border-color, color, box-shadow, opacity, transform;
+  transition-duration: .16s;
+  transition-timing-function: cubic-bezier(.23, 1, .32, 1);
+}
+.pillbtn:active:not(:disabled), .planbtn:active, .gear:active, .navbtn:active, .nb:active, .wcell:active, .period:active, .extrabtn:active,
+.caferow-btn:active:not(:disabled), .weeknav-btn:active, .xs-mesbtn:active:not(:disabled), .xs-day:active:not(:disabled), .xs-chip:active,
+.xs-anotar:active, .nocomi:active, .dd-add:active, .ring-day:active, .liftrow:active, .liftchart-chip:active, .infobtn:active, .dashed:active,
+.optchip:active, .gchip:active, .navitem:active, .navadd:active { transform: scale(.97); }
+
+/* Foco por teclado para todo lo tocable que no es un <button> (links de la barra, filas,
+   campos, el resumen del plan): el mismo anillo del acento de la sección. */
+a:focus-visible, summary:focus-visible, [role="button"]:focus-visible, [tabindex]:focus-visible,
+input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Áreas táctiles: los botones chicos del rediseño miden 28-32px de lado. El dibujo no se toca:
+   un pseudo-elemento invisible agranda la zona que responde al dedo hasta ~44px (mismo
+   patrón que ya usan el check de tareas y los slots de hábito). */
+.caferow-btn, .weeknav-btn, .xs-mesbtn, .infobtn, .weeknav .nb, .gym-plan .nb { position: relative; }
+.caferow-btn::after, .weeknav-btn::after, .xs-mesbtn::after, .infobtn::after, .weeknav .nb::after { content: ''; position: absolute; inset: -7px; }

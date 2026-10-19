@@ -137,9 +137,6 @@ button.slot:disabled { cursor: default; }
 .cal-head .kicker { color: rgba(242, 244, 248, .38); }
 .cal-head h1 {
   margin-top: 4px;
-  background: linear-gradient(100deg, #FFF7E6 0%, var(--accent-light) 25%, var(--accent) 45%, var(--violet) 65%, #FFF7E6 85%);
-  background-size: 200% auto; -webkit-background-clip: text; background-clip: text; color: transparent;
-  animation: shimmer 6s linear infinite;
 }
 .cal-nav { display: flex; gap: 8px; }
 
